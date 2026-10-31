@@ -64,9 +64,11 @@ function standardConfiguration(): { command: string; args: string[] } {
 
 function blenderEnvironment(): Record<string, string> {
   // Blender needs its connection/settings, not printer access codes or other server secrets.
+  // DISABLE_TELEMETRY is the one non-BLENDER_ name passed on: the upstream mcp-for-blender server reads it, so it can be set without /usr/bin/env.
   const env = getDefaultEnvironment();
   for (const [key, value] of Object.entries(process.env)) {
-    if (key.startsWith("BLENDER_") && value !== undefined && !["BLENDER_MCP_COMMAND", "BLENDER_MCP_ARGS", "BLENDER_MCP_BRIDGE_COMMAND"].includes(key)) env[key] = value;
+    if (value === undefined) continue;
+    if (key === "DISABLE_TELEMETRY" || (key.startsWith("BLENDER_") && !["BLENDER_MCP_COMMAND", "BLENDER_MCP_ARGS", "BLENDER_MCP_BRIDGE_COMMAND"].includes(key))) env[key] = value;
   }
   return env;
 }

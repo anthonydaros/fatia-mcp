@@ -1240,7 +1240,12 @@ Use a standard stdio Blender MCP server with `BLENDER_MCP_COMMAND` and
 matching Blender addon, enable the addon, and start its connection inside
 Blender. Set the command to your full `uvx` path and the argument array to
 `["blender-mcp"]`. The Claude Desktop extension also offers these two optional
-settings. Printer tools work without Blender configured.
+settings. Printer tools work without Blender configured. The Blender child
+process gets only the default safe environment plus `BLENDER_*` variables
+(except the three command settings) and `DISABLE_TELEMETRY`; set
+`DISABLE_TELEMETRY=1` in the server's environment to turn off the upstream
+server's telemetry without wrapping its command in `/usr/bin/env`, which Windows
+lacks. Printer access codes and other variables are never passed on.
 
 1. Call `blender_mcp_status` with `{"connect": true}` to initialize the server
    and discover its tools and input schemas. A connected MCP server does not

@@ -129,6 +129,7 @@ BLENDER_MCP_TIMEOUT_MS=120000
 | `BLENDER_MCP_COMMAND` | | No | Trusted executable for a standard stdio Blender MCP server, e.g. full path to `uvx` |
 | `BLENDER_MCP_ARGS` | `[]` | No | JSON array of server arguments, e.g. `["blender-mcp"]`; no shell parsing |
 | `BLENDER_MCP_TIMEOUT_MS` | `120000` | No | Connection/discovery/call deadline, 100–300000 ms; interrupted edits are never retried automatically |
+| `DISABLE_TELEMETRY` | | No | Passed to the Blender MCP child process (the only variable besides `BLENDER_*` ones), so `DISABLE_TELEMETRY=1` turns off the upstream server's telemetry on any platform without an `/usr/bin/env` wrapper |
 | `BLENDER_MCP_BRIDGE_COMMAND` | | No | Legacy custom executable receiving `MCP_BLENDER_PAYLOAD`; separate from the standard MCP integration |
 | `BAMBU_CLI_FLATTEN` | automatic | No | Legacy setting; BBL profile resolution now always runs when profiles contain inheritance or includes. A false/unset value cannot bypass required machine G-code. Standalone custom files without dependencies pass through. See [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md). |
 | `BAMBU_PROFILES_ROOT` | derived from `SLICER_PATH` | No | Override path to the selected slicer's `Resources/profiles` directory containing `BBL`. BambuStudio uses this tree exclusively for bundled profiles. Useful for non-standard installs or dev environments. |

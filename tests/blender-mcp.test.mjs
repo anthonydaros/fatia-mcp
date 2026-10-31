@@ -71,6 +71,18 @@ test("Blender status performs MCP initialization and paginated discovery, then c
   assert.equal(events.at(-1).event, "closed");
 });
 
+test("Blender child receives DISABLE_TELEMETRY but no other unrelated server variable", async (t) => {
+  const overrides = { SECRET_TOKEN: "unrelated-secret-do-not-forward" };
+  for (const [parent, expected] of [["1", "1"], [undefined, null]]) {
+    const peer = await start(t, "normal", { ...overrides, DISABLE_TELEMETRY: parent });
+    assert.equal((await peer.call("blender_mcp_status", { connect: true })).isError, undefined);
+    const spawned = peer.events()[0];
+    assert.equal(spawned.disableTelemetry, expected, "only a DISABLE_TELEMETRY set in the parent is forwarded");
+    assert.equal(spawned.secretTokenPresent, false);
+    assert.equal(spawned.printerTokenPresent, false);
+  }
+});
+
 test("Blender call forwards the actual tool schema and preserves full MCP content and metadata", async (t) => {
   const peer = await start(t);
   const args = { code: "print('hello')", user_prompt: "Please inspect my model" };

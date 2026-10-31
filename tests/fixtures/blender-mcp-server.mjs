@@ -9,7 +9,7 @@ const fail = (id, code, message) => process.stdout.write(`${JSON.stringify({ jso
 const sceneTool = { name: "get_scene_info", inputSchema: { type: "object", properties: { user_prompt: { type: "string" } }, required: ["user_prompt"] } };
 const codeTool = { name: "execute_blender_code", inputSchema: { type: "object", properties: { code: { type: "string" }, user_prompt: { type: "string" } }, required: ["code"] } };
 const reader = readline.createInterface({ input: process.stdin });
-log({ event: "spawn", pid: process.pid, printerTokenPresent: Boolean(process.env.BAMBU_TOKEN) });
+log({ event: "spawn", pid: process.pid, printerTokenPresent: Boolean(process.env.BAMBU_TOKEN), disableTelemetry: process.env.DISABLE_TELEMETRY ?? null, secretTokenPresent: Boolean(process.env.SECRET_TOKEN) });
 reader.on("line", (line) => {
   const request = JSON.parse(line);
   log(request);
