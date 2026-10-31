@@ -49,6 +49,7 @@ import { externalStorageState, validatePrinterState } from "./safety/printer-sta
 import { isDualNozzleModel } from "./safety/limits.js";
 import { withPrinterOperation, withPrintSnapshot, uniquePrintName } from "./safety/artifact.js";
 import { detectProfilesRoot } from "./slicer/profile-flatten.js";
+import { openInSlicer } from "./slicer/open-in-slicer.js";
 
 dotenv.config();
 
@@ -2367,6 +2368,19 @@ class BambuPrinterMCPServer {
             }
           },
           {
+            name: "open_in_slicer",
+            description: "Open a model or sliced project in the slicer's GUI (Bambu Studio or OrcaSlicer) so the user can review it, for example after slice_stl. Does not slice, modify, or print anything.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                file_path: { type: "string", description: "Local .3mf, .stl, .step, .stp, .obj or .gcode file to open" },
+                slicer_type: { type: "string", enum: SLICER_SCHEMA_VALUES, description: "Which slicer app to open it in (default: SLICER_TYPE env)" }
+              },
+              required: ["file_path"]
+            },
+            annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+          },
+          {
             name: "list_templates",
             description: "List saved slicing templates from the local template registry directory.",
             inputSchema: {
@@ -3902,6 +3916,17 @@ class BambuPrinterMCPServer {
               ]
             );
             break;
+
+          case "open_in_slicer": {
+            if (!args?.file_path) throw new Error("Missing required parameter: file_path");
+            const openType = normalizeSlicerType(String(args.slicer_type || DEFAULT_SLICER_TYPE));
+            // SLICER_PATH belongs to the configured slicer; another slicer uses its install default.
+            const openPath = openType === normalizeSlicerType(DEFAULT_SLICER_TYPE) && process.env.SLICER_PATH
+              ? process.env.SLICER_PATH
+              : defaultSlicerPathFor(openType);
+            result = await openInSlicer(String(args.file_path), openPath);
+            break;
+          }
 
           case "get_stl_info":
             if (!args?.stl_path) {
