@@ -1,4 +1,4 @@
-import type { Fact, Rule, Topic } from "./types.js";
+import type { Condition, Fact, Rule, Topic } from "./types.js";
 export declare const KB_FILES: readonly ["rules.json", "facts.json", "bambu.topics.json", "blender.topics.json", "synonyms.json"];
 /** Facts a rule may name although no provider can supply them yet. Empty: every fact in the shipped KB is declared. */
 export declare const UNSUPPORTED_FACTS: ReadonlySet<string>;
@@ -17,6 +17,9 @@ export interface Kb {
 }
 /** BAMBU_KB_DIR (development override) or knowledge/ next to dist/. fileURLToPath, never URL.pathname (breaks on C:\). */
 export declare const kbDir: () => string;
+export declare function leaves(c: Condition): Generator<Extract<Condition, {
+    fact: string;
+}>>;
 export declare function loadKbFrom(dir: string): Kb;
 /** Late and cached; a failure is not cached, so fixing the folder works without restarting the server. */
 export declare function getKb(): Kb;

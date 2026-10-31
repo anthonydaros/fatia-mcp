@@ -59,3 +59,34 @@ export interface Manifest {
   files: Record<string, string>;
   sources: Record<string, string>;
 }
+
+/** The metadata of an opened 3MF that tier-1 facts read. XML parts are parsed with xml2js (explicitArray: false, mergeAttrs: true). */
+export interface ProjectFiles {
+  /** Metadata/project_settings.config exactly as Studio wrote it (strings and lists of strings). */
+  config?: Record<string, unknown>;
+  /** Why config is missing: no such file, or it is not a JSON object. */
+  configProblem?: string;
+  /** Root <config> of Metadata/slice_info.config (header, and a <plate> per slice when sliced). */
+  sliceInfo?: any;
+  /** Root <config> of Metadata/model_settings.config (objects, parts and plates). */
+  modelSettings?: any;
+}
+
+export interface FactContext {
+  /** The opened 3MF; undefined for mesh and G-code input. */
+  project?: ProjectFiles;
+  /** 0-based plate the plate-level facts (object_count, filament_count) describe. */
+  plateIndex: number;
+  /** The bambu_model the user will slice for, e.g. "x2d". */
+  targetPrinter: string;
+  /** Installed Bambu Studio version, null when unreadable. */
+  installedStudio: () => Promise<string | null>;
+}
+
+/** Computes only the facts asked for. The caller skips a provider whose `needs` are missing, so its facts stay unknown. */
+export interface FactProvider {
+  tier: number;
+  provides(fact: string): boolean;
+  needs: readonly "3mf"[];
+  collect(ctx: FactContext, wanted: readonly string[]): Promise<Facts>;
+}

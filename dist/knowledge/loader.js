@@ -14,7 +14,7 @@ export const kbDir = () => path.resolve(process.env.BAMBU_KB_DIR?.trim() || file
 /** Text as hashed in the manifest: no BOM, LF line endings, so a Windows checkout or editor does not trip the check. */
 const canonical = (text) => text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
 const sha256 = (text) => createHash("sha256").update(text, "utf8").digest("hex");
-function* leaves(c) {
+export function* leaves(c) {
     if ("all" in c || "any" in c)
         for (const x of "all" in c ? c.all : c.any)
             yield* leaves(x);

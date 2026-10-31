@@ -4,7 +4,8 @@ import type { Condition, Facts, Op, Rule, Scalar } from "./types.js";
 
 export const OPS: ReadonlySet<string> = new Set<Op>(["eq", "neq", "gt", "gte", "lt", "lte", "in", "contains", "exists", "matches", "any_eq"]);
 
-const NUM = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+// (\d+(\.\d*)?) not \d+\.?\d*: overlapping digit runs backtrack quadratically on a long hostile 3MF value.
+const NUM = /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/;
 const num = (v: Scalar): number | null =>
   typeof v === "number" ? (Number.isFinite(v) ? v : null) : typeof v === "string" && NUM.test(v.trim()) ? Number(v) : null;
 

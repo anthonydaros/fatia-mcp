@@ -36,7 +36,7 @@ export const kbDir = (): string =>
 const canonical = (text: string) => text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
 const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 
-function* leaves(c: Condition): Generator<Extract<Condition, { fact: string }>> {
+export function* leaves(c: Condition): Generator<Extract<Condition, { fact: string }>> {
   if ("all" in c || "any" in c) for (const x of "all" in c ? c.all : c.any) yield* leaves(x);
   else if ("not" in c) yield* leaves(c.not);
   else yield c;

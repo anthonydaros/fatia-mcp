@@ -1,5 +1,6 @@
 export const OPS = new Set(["eq", "neq", "gt", "gte", "lt", "lte", "in", "contains", "exists", "matches", "any_eq"]);
-const NUM = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+// (\d+(\.\d*)?) not \d+\.?\d*: overlapping digit runs backtrack quadratically on a long hostile 3MF value.
+const NUM = /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/;
 const num = (v) => typeof v === "number" ? (Number.isFinite(v) ? v : null) : typeof v === "string" && NUM.test(v.trim()) ? Number(v) : null;
 /**
  * Both sides plain decimals compare as numbers, else as UTF-16 strings ("2.8.4.57" and "PLA" are strings).

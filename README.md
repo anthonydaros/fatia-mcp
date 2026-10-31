@@ -207,6 +207,7 @@ See the [bridge section of the setup reference](./docs/SETUP.md#bambunetwork-bri
 - Slice STL or 3MF files using an external CLI. Bambu Studio requires the exact machine preset and resolves BBL dependencies before slicing; see the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
 - Report the installed Bambu Studio and profile versions, the latest GitHub releases, and whether they changed since you last approved them via `slicer_info`
 - Look up the shipped Bambu Studio and Blender knowledge base (symptoms, causes, fixes, each with a confidence tag) via `consult_knowledge`
+- Check a 3MF's project settings against the knowledge-base rules before slicing, with proposals, confidence tags and an explicit list of what could not be checked, via `preflight_check`
 - Inspect slicer settings from a saved 3MF template or extracted profile via `get_slice_settings`
 - Enumerate saved slicing templates from the local registry via `list_templates`
 - Save templates into the local registry via `save_template`
@@ -1071,6 +1072,23 @@ Search the knowledge base in `knowledge/` (195 topics and 320 rules about Bambu 
 ```
 
 The base is built from the source documents with `npm run kb:build` (copies, validates and writes `knowledge/manifest.json`); `npm run kb:check` validates and checks the manifest hashes. `BAMBU_KB_DIR` points the server at another folder for development.
+
+#### preflight_check
+
+Check a part before slicing. It reads the project settings and structure of a `.3mf` (also a `.gcode.3mf`) and evaluates the rules of the knowledge base that those settings can decide. Read-only: it never slices, edits a file or prints, and it makes no network request. An `.stl`, `.obj`, `.step` or `.gcode` has no settings, so its rules are reported as unchecked; geometry, G-code and Blender checks are not implemented yet and `checks.mesh`, `checks.gcode` and `checks.blender` only add that to `unchecked`.
+
+The result has `findings` (rules that fired, blockers first, then by strength of source; each with its confidence tag, the fact values that triggered it, a proposed `fix` and its `approval`), `checklist` (manual checks, with the current value when the rule reads only settings), `unchecked` (a count per reason: the missing fact, the tier that is not implemented, or a Studio version outside the rule's `applies_to`), `hidden` (rules for other printers, ignored ids, items below `min_severity`, findings over `max_findings`) and `version_review`. `untrusted_reference` is always `true`: rule text and the file's own values are third-party data.
+
+The printer is `bambu_model`, else `BAMBU_MODEL`, else the 3MF's `printer_model`, else you are asked; rules for other printers are hidden. `min_severity` defaults to `warning`, so tips are hidden but counted. `approval` is computed in code and is `auto_apply` only for a definite setting value from a `preset` or `oficial` source outside the Blender stage; none of the shipped rules qualifies, so every fix needs your approval. `applies_to` limits are judged against the installed Bambu Studio; a rule whose limit the installed version does not meet is dropped and counted, and one that cannot be judged is kept with a `version_note`. When the installed Studio or its profiles changed since you last approved them (`slicer_info`), `version_review` lists the rules whose verdict flips and the ones tied to an older exact build; the tool never acknowledges the change itself. Facts you alone know (`object_kind`, `mold_kind`, `origin`) go in `context`.
+
+```json
+{
+  "file_path": "/path/to/part.3mf",
+  "bambu_model": "x2d",
+  "plate_index": 0,
+  "min_severity": "warning"
+}
+```
 
 #### list_templates
 
