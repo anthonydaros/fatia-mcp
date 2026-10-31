@@ -2,10 +2,6 @@
 
 [![bambu-printer-mcp — Print from a conversation. Browse the documentation site.](https://dmontgomery40.github.io/bambu-printer-mcp/social-card.png)](https://dmontgomery40.github.io/bambu-printer-mcp/)
 
-> **Thank you, [FULU Foundation](https://www.fulu.org/), [Louis Rossmann](https://www.youtube.com/watch?v=1jhRqgHxEP8), and the [OrcaSlicer-bambulab contributors](https://github.com/FULU-Foundation/OrcaSlicer-bambulab).** We stand with open-source developers, the right to repair, and your right to control hardware you own. You should be able to choose your software and print without a vendor cloud standing in the way.
->
-> **Want to skip Bambu's software and cloud?** Use FULU OrcaSlicer-bambulab to slice and export, then this MCP's direct LAN path on supported printers and firmware. That workflow does not require Bambu Studio, Bambu Connect, or Bambu Cloud. Start with the [FULU setup guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md). The optional BambuNetwork bridge is a separate path that still uses Bambu's networking runtime; cloud jobs still use Bambu's services.
-
 [![npm version](https://img.shields.io/npm/v/bambu-printer-mcp.svg)](https://www.npmjs.com/package/bambu-printer-mcp)
 [![License: GPL-2.0](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
@@ -31,7 +27,6 @@ Tell your agent your printer's **model and LAN address**, if you know them, then
 Install bambu-printer-mcp in the agent/harness I'm using now.
 
 Read https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md
-and https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md
 for the current setup instructions and supported workflows.
 
 Detect my OS and harness, then use its native MCP configuration or installer.
@@ -46,10 +41,10 @@ Keep credentials in local/private configuration; do not repeat access codes
 or tokens in chat. Never guess the printer model.
 
 Use direct LAN printing by default. Explain any LAN/Developer Mode setting
-I need to enable. Prefer FULU OrcaSlicer-bambulab GUI slicing/export; discover
-an existing slicer before suggesting an install. For FULU/Orca CLI auto-slicing,
-require MCP 1.1.11+ and its matching installed profile tree (see guide).
-A slicer is not needed here to print a pre-sliced file. Configure the optional FULU
+I need to enable. Prefer Bambu Studio GUI slicing/export; discover
+an existing slicer before suggesting an install. For Bambu Studio CLI auto-slicing,
+require its matching installed profile tree (see guide).
+A slicer is not needed here to print a pre-sliced file. Configure the optional
 BambuNetwork bridge only if I choose it, and explain its runtime/auth needs.
 X2D supports status and slicing; native printing requires macOS or x86-64 Linux and a locally built helper.
 
@@ -62,7 +57,7 @@ Do not start a print or change printer settings as a setup test. Tell me what
 worked and whether I need to restart or reload the harness.
 ```
 
-[Setup reference](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md) · [FULU guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md) · [Optional code mode](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md#optional-code-mode)
+[Setup reference](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md) · [Optional code mode](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md#optional-code-mode)
 
 ## What to ask your agent
 
@@ -108,7 +103,6 @@ If your agent is always on, such as OpenClaw or Hermes Agent running on a comput
 
 | I want to… | Read next |
 |---|---|
-| Use open-source slicing and a cloud-free print workflow | [FULU setup: slicer, LAN, and optional bridge](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md) |
 | Connect this MCP to my agent | [Copy the setup request](#set-up-with-your-agent) |
 | See what my agent can do with it | [What to ask your agent](#what-to-ask-your-agent) |
 | Troubleshoot setup or configure it manually | [Installation, environment variables, and LAN reference](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md) |
@@ -135,7 +129,7 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 
 - [Start here](#start-here)
 - [Description](#description)
-- [FULU and open-source printing](#fulu-and-open-source-printing)
+- [BambuNetwork bridge (optional)](#bambunetwork-bridge-optional)
 - [Features](#features)
 - [Set up with your agent](#set-up-with-your-agent)
 - [What to ask your agent](#what-to-ask-your-agent)
@@ -164,7 +158,7 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 
 ## Description
 
-`bambu-printer-mcp` is a Model Context Protocol server for Bambu Lab 3D printers. A straightforward workflow is: **slice in FULU OrcaSlicer-bambulab, OrcaSlicer, or Bambu Studio, export a sliced `.gcode.3mf`, then pass its path to `print_3mf`**. The default direct LAN path uploads via FTPS and chooses the MQTT command for the target model. See the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md) for CLI options, model routing, and validation limits.
+`bambu-printer-mcp` is a Model Context Protocol server for Bambu Lab 3D printers. A straightforward workflow is: **slice in Bambu Studio, export a sliced `.gcode.3mf`, then pass its path to `print_3mf`**. The default direct LAN path uploads via FTPS and chooses the MQTT command for the target model. See the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md) for CLI options, model routing, and validation limits.
 
 **What this is not.** This package intentionally supports only Bambu Lab printers. It does not include adapters for OctoPrint, Klipper (Moonraker), Duet, Repetier, Prusa Connect, or Creality Cloud. If you need multi-printer support, use the parent project [mcp-3D-printer-server](https://github.com/DMontgomery40/mcp-3D-printer-server) instead.
 
@@ -175,15 +169,13 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 </details>
 
 <details>
-<summary><strong>FULU and open-source printing</strong></summary>
+<summary><strong>BambuNetwork bridge (optional)</strong></summary>
 
-## FULU and open-source printing
+## BambuNetwork bridge (optional)
 
-[FULU OrcaSlicer-bambulab](https://github.com/FULU-Foundation/OrcaSlicer-bambulab) is a supported slicer target (`SLICER_TYPE=orcaslicer-bambulab`; aliases include `fulu-orca` and `orca-studio`). Use its GUI to export a sliced project for direct LAN printing, or configure its CLI with matching installed profiles. From 1.1.11, FULU/Orca share the [machine-preset gate and profile safety checks](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md#fulu-and-orca-cli-safety-limit).
+The optional **BambuNetwork bridge** exposes `bambu_network_bridge_status`, `bambu_network_call`, and `print_3mf_bambu_network`, also reachable through `print_3mf` with `connection_mode: "bambu_network"`. Slicer selection does not enable the bridge. It needs a separately installed bridge runtime and an explicit launch command; cloud printing also needs an authenticated BambuNetwork session.
 
-The optional FULU **BambuNetwork bridge** exposes `bambu_network_bridge_status`, `bambu_network_call`, and `print_3mf_bambu_network`, also reachable through `print_3mf` with `connection_mode: "bambu_network"`. Slicer selection does not enable the bridge. It needs a separately installed FULU runtime and an explicit launch command; cloud printing also needs an authenticated BambuNetwork session. On Linux, FULU's v1.0.0 host needs a small `cat` wrapper and the 02.05.02.5x plug-in; the guide covers both. LAN bridge prints open the plug-in's own LAN session with Bambu's printer certificate, which the server supplies.
-
-**[Follow the FULU setup guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md)** for the direct LAN recipe, Linux/Windows/macOS bridge setup, connection probes, authentication, and troubleshooting. Bridge protocol tests and a successful handshake do not establish a successful physical print.
+See the [bridge section of the setup reference](./docs/SETUP.md#bambunetwork-bridge-optional) for the settings, connection probes and print requirements. Bridge protocol tests and a successful handshake do not establish a successful physical print.
 
 </details>
 
@@ -193,7 +185,7 @@ The optional FULU **BambuNetwork bridge** exposes `bambu_network_bridge_status`,
 ## Features
 
 - Get detailed printer status: temperatures (nozzle, bed, chamber), print progress, current layer, time remaining, and live AMS slot data
-- Query live AMS inventory with resolved Bambu/Orca filament profile paths via `get_printer_filaments`. Profile suggestions use the selected slicer installation on Windows, macOS and Linux, including an explicit `BAMBU_PROFILES_ROOT`; unavailable profiles leave live inventory readable. Includes per-tray display names, match confidence (`high`/`medium`/`low`/`none`), resolution tier (`exact-model-nozzle`/`model`/`generic`/`unresolved`), and a summary with recommended auto-slice filament. Retries automatically when AMS data hasn't arrived yet (common on first MQTT push from idle printers).
+- Query live AMS inventory with resolved Bambu filament profile paths via `get_printer_filaments`. Profile suggestions use the selected slicer installation on Windows, macOS and Linux, including an explicit `BAMBU_PROFILES_ROOT`; unavailable profiles leave live inventory readable. Includes per-tray display names, match confidence (`high`/`medium`/`low`/`none`), resolution tier (`exact-model-nozzle`/`model`/`generic`/`unresolved`), and a summary with recommended auto-slice filament. Retries automatically when AMS data hasn't arrived yet (common on first MQTT push from idle printers).
 - List, upload, and delete files on the printer's SD card via FTPS
 - Capture a JPEG snapshot from the chamber camera. Supports A1, A1 mini, P1S, P1P (TCP-on-6000), and X1, X1C, X1E, P2S, H2, H2S, H2D, H2C, H2D Pro, X2D (RTSP via ffmpeg). Requires ffmpeg in PATH for the RTSP path.
 - Upload and print pre-sliced `.3mf` projects with checked plate selection and calibration flags. Legacy `.gcode.3mf` routes require a single external-spool-only plate; see the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
@@ -212,7 +204,7 @@ The optional FULU **BambuNetwork bridge** exposes `bambu_network_bridge_status`,
 - Start G-code files already stored on the printer
 - **Collar charm print wrapper** (`print_collar_charm`) — specialized two-color workflow with fixed tray policy for inner (black, AMS 1 slot 1) and outer (white, AMS 2 slot 1) charm parts
 - STL manipulation: scale, rotate, extend base, merge vertices, center at origin, lay flat, and inspect model info
-- Slice STL or 3MF files using an external CLI, or use the optional [`orca-slicer-api` backend](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md) in a separate container without a local slicer executable. Remote slicing requires a matching read-only Orca profile tree and currently supports one filament slot and one selected plate. BambuStudio, FULU, and Orca require the exact machine preset and resolve BBL dependencies before slicing; see [FULU/Orca CLI setup and validation limits](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md#fulu-and-orca-cli-safety-limit).
+- Slice STL or 3MF files using an external CLI. Bambu Studio requires the exact machine preset and resolves BBL dependencies before slicing; see the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
 - Inspect slicer settings from a saved 3MF template or extracted profile via `get_slice_settings`
 - Enumerate saved slicing templates from the local registry via `list_templates`
 - Save templates into the local registry via `save_template`
@@ -233,7 +225,7 @@ The Bambu AMS is a multi-spool feeder that lets you assign different filaments t
 
 ### How AMS slots work
 
-The AMS has 4 slots per unit, numbered 0 through 3. If you have multiple AMS units chained together, the second unit's slots are 4 through 7, and so on. When you slice a model in Bambu Studio or OrcaSlicer, each color/material in the print is assigned to a specific AMS slot.
+The AMS has 4 slots per unit, numbered 0 through 3. If you have multiple AMS units chained together, the second unit's slots are 4 through 7, and so on. When you slice a model in Bambu Studio, each color/material in the print is assigned to a specific AMS slot.
 
 ### Automatic AMS mapping from the 3MF
 
@@ -902,7 +894,7 @@ The generic result has `receipt_version: "1"`, `evidence: "file-only"`, `dispatc
 
 #### print_3mf
 
-The primary tool for starting a Bambu print. **Recommended input: a pre-sliced `.gcode.3mf` exported from FULU OrcaSlicer-bambulab, OrcaSlicer, or Bambu Studio** — see [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md). This tool handles the complete workflow:
+The primary tool for starting a Bambu print. **Recommended input: a pre-sliced `.gcode.3mf` exported from Bambu Studio** — see [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md). This tool handles the complete workflow:
 
 1. Checks whether the 3MF contains embedded G-code (`Metadata/plate_<n>.gcode` entries).
 2. If no G-code is found, attempts to auto-slice via the configured slicer. Profile preparation or slicing failures stop the operation before upload. See the slicing guide for tested CLI versions and combinations.
@@ -928,7 +920,7 @@ The primary tool for starting a Bambu print. **Recommended input: a pre-sliced `
 }
 ```
 
-`bambu_model` is **required** for model-specific routing and preset selection. It does not by itself validate pre-sliced G-code. BambuStudio, FULU, and Orca CLI preparation additionally require the exact model/nozzle machine preset and reject incomplete profiles. Using the wrong model can damage hardware. If `bambu_model` is not provided in the tool call and `BAMBU_MODEL` is not set in the environment, the server will ask you interactively via MCP elicitation (if your client supports it) or return a clear error.
+`bambu_model` is **required** for model-specific routing and preset selection. It does not by itself validate pre-sliced G-code. Bambu Studio CLI preparation additionally requires the exact model/nozzle machine preset and reject incomplete profiles. Using the wrong model can damage hardware. If `bambu_model` is not provided in the tool call and `BAMBU_MODEL` is not set in the environment, the server will ask you interactively via MCP elicitation (if your client supports it) or return a clear error.
 
 `bed_type` defaults to `textured_plate` if omitted. `nozzle_type` (`stainless_steel`, `hardened_steel`, `tungsten_carbide`, `brass`; default `BAMBU_NOZZLE_TYPE`) sets the installed nozzle when the project must be auto-sliced; the job's nozzle type must match the printer's report, and stock P1S/P1P/A1 presets assume stainless steel. `nozzle_volume_type` (`standard`, `high_flow`; default `BAMBU_NOZZLE_VOLUME_TYPE`) likewise sets the installed nozzle's flow type for auto-slicing; it must match the printer's reported nozzle flow. After an MQTT print command the server listens to the printer's pushed reports for up to 15 seconds (`BAMBU_DISPATCH_CHECK_MS`) and returns `dispatch: "started"` or `"unconfirmed"`; if firmware 01.08.05+ refuses the command (HMS 0500-0500-0001-0007, needs LAN Only Mode and Developer Mode), the call fails and says so; clear that fatal HMS entry with `clear_hms_errors` before printing again. `ams_slots` is the preferred override input; `ams_mapping` remains the raw escape hatch. On AMS-equipped H2 printers, `use_ams: false` does not suppress mapping lookup if the sliced file declares filaments. If no mapping is provided for an H2 pre-sliced job with declared filaments, the server fails before sending; pass explicit `ams_slots`, raw `ams_mapping`, or `auto_match_ams: true`.
 
@@ -936,11 +928,11 @@ Set `auto_match_ams: true` to match the sliced 3MF's `tray_info_idx` values agai
 
 Layer height, nozzle temperature, and other slicer parameters cannot be overridden via this tool -- they are baked into the 3MF's G-code at slice time. Apply those settings in your slicer before generating the 3MF.
 
-For the optional FULU bridge, set `connection_mode: "bambu_network"` and explicitly choose `connection_type: "cloud"` or `"lan"`; see [FULU setup](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md). A successful command submission is not proof that the printer accepted it: inspect printer state, HMS errors, and the printer itself.
+For the optional BambuNetwork bridge, set `connection_mode: "bambu_network"` and explicitly choose `connection_type: "cloud"` or `"lan"`; see the [bridge section](./docs/SETUP.md#bambunetwork-bridge-optional). A successful command submission is not proof that the printer accepted it: inspect printer state, HMS errors, and the printer itself.
 
 #### bambu_network_bridge_status
 
-Inspect the configured FULU bridge without starting it using `{}`. Use `{"connect": true}` to launch the host, handshake, and initialize an agent. See [bridge probes](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md#probe-without-printing) for interpreting the result.
+Inspect the configured bridge without starting it using `{}`. Use `{"connect": true}` to launch the host, handshake, and initialize an agent. See the [bridge section](./docs/SETUP.md#bambunetwork-bridge-optional) for interpreting the result.
 
 #### bambu_network_call
 
@@ -976,7 +968,7 @@ This optional X2D metadata tool accepts `ams_filament_setting` and `extrusion_ca
 
 #### print_3mf_bambu_network
 
-Submit a sliced project through FULU's separately configured networking runtime. `connection_type` defaults to `cloud`. Both cloud and LAN bridge jobs require a printer IP, LAN access code, matching serial/device ID, and fresh MQTT safety telemetry. File, raw AMS/nozzle mapping, and extra-option overrides cannot replace checked parameters. See [print examples and AMS requirements](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md#print-through-the-bridge). A zero bridge return code confirms submission, not a physical print or direct X2D support.
+Submit a sliced project through the separately configured BambuNetwork runtime. `connection_type` defaults to `cloud`. Both cloud and LAN bridge jobs require a printer IP, LAN access code, matching serial/device ID, and fresh MQTT safety telemetry. File, raw AMS/nozzle mapping, and extra-option overrides cannot replace checked parameters. See the [bridge section](./docs/SETUP.md#bambunetwork-bridge-optional) for the print requirements. A zero bridge return code confirms submission, not a physical print or direct X2D support.
 
 #### resolve_3mf_ams_slots
 
@@ -1103,7 +1095,7 @@ This uses the named template as the slicing profile source and still supports li
 
 #### slice_stl
 
-Slice an STL or 3MF file using an external slicer and return the path to the output file. The output is a sliced 3MF (for BambuStudio, OrcaSlicer, and FULU OrcaSlicer-bambulab) or a G-code file (for PrusaSlicer, Cura, Slic3r).
+Slice an STL or 3MF file using an external slicer and return the path to the output file. The output is a sliced 3MF (for BambuStudio) or a G-code file (for PrusaSlicer, Cura, Slic3r).
 
 ```json
 {
@@ -1113,11 +1105,9 @@ Slice an STL or 3MF file using an external slicer and return the path to the out
 }
 ```
 
-`slicer_type` options: `bambustudio`, `orcaslicer`, `orcaslicer-bambulab` (FULU), `prusaslicer`, `cura`, `slic3r`. Aliases include `fulu-orca` and `orca-studio`. When omitted, the value from the `SLICER_TYPE` environment variable is used (default: `bambustudio`).
+`slicer_type` options: `bambustudio`, `prusaslicer`, `cura`, `slic3r`. When omitted, the value from the `SLICER_TYPE` environment variable is used (default: `bambustudio`).
 
-**FULU/Orca CLI safety:** from 1.1.11, these backends require the exact model/nozzle preset from the selected installation and stop on profile preparation failures. A process override cannot bypass that gate. See [configuration and validation limits](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md#fulu-and-orca-cli-safety-limit).
-
-**OrcaSlicer CLI transforms:** OrcaSlicer 2.4.2's CLI segfaults when `scale` or `rotate_x`/`rotate_y` moves an object below the bed while arranging, which is the default for STL input. OrcaSlicer fixed this after 2.4.2 in [#14415](https://github.com/OrcaSlicer/OrcaSlicer/pull/14415), first released in 2.5.0-alpha. For STL input with `orcaslicer` or `orcaslicer-bambulab`, the server applies `scale` and the rotations to a copy of the mesh in the CLI's order and leaves those flags out. For 3MF input it refuses `scale` above 1, `rotate_x` or `rotate_y` together with `arrange: true`. `repetitions` copies an STL with Orca's `--clone-objects`. `clone_objects` takes one total count, because the CLI counts copies per loaded file. With `arrange: false`, an STL that is not already on the plate fails to slice. A failure names the slicer's own reason.
+**Bambu Studio CLI safety:** the exact model/nozzle preset from the selected installation is required, and slicing stops on profile preparation failures. A process override cannot bypass that gate. With `arrange: false`, an STL that is not already on the plate fails to slice. A failure names the slicer's own reason.
 
 `slicer_path` and `slicer_profile` fall back to the `SLICER_PATH` and `SLICER_PROFILE` environment variables when omitted. Per-call `slicer_path` overrides require `MCP_ALLOW_EXECUTABLE_ARG=1`.
 
@@ -1275,7 +1265,7 @@ Resources follow the MCP resource protocol and can be read by calling `ReadResou
 
 Understanding these constraints will help you avoid frustrating errors and set appropriate expectations.
 
-1. **Printable 3MF required for print_3mf.** The `print_3mf` tool expects a sliced 3MF containing at least one `Metadata/plate_<n>.gcode` entry. If you pass an unsliced 3MF (one exported from a CAD tool without slicing), the server attempts auto-slicing. BambuStudio, FULU, and Orca CLI paths require the matching machine preset and complete profile preparation; any inspection or slicing failure stops before upload. For a previewable workflow, pre-slice in FULU OrcaSlicer-bambulab, OrcaSlicer, or Bambu Studio and pass the resulting `.gcode.3mf`. See [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md) for the full procedure.
+1. **Printable 3MF required for print_3mf.** The `print_3mf` tool expects a sliced 3MF containing at least one `Metadata/plate_<n>.gcode` entry. If you pass an unsliced 3MF (one exported from a CAD tool without slicing), the server attempts auto-slicing. The Bambu Studio CLI path requires the matching machine preset and complete profile preparation; any inspection or slicing failure stops before upload. For a previewable workflow, pre-slice in Bambu Studio and pass the resulting `.gcode.3mf`. See [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md) for the full procedure.
 
 2. **Layer height, temperature, and slicer settings are baked in.** The `project_file` MQTT command tells the printer which plate to run. It does not support overriding layer height, temperature targets, infill percentage, or other slicing parameters at print time. These must be set in your slicer before generating the 3MF.
 
@@ -1287,7 +1277,7 @@ Understanding these constraints will help you avoid frustrating errors and set a
 
 6. **Only hidden or informational HMS entries let an operation proceed.** Fatal, serious and common HMS entries block printing, heating and resume. The exceptions are info-level entries and serious or common entries that Bambu lists for the exact printer model with empty text: the printer screen, Bambu Studio and Bambu Handy never show those, and the printer keeps printing with them. An X2D, for example, raises the hidden camera code `HMS 0500-0600-0002-0070` at every boot. The list comes from the bundled HMS tables of a pinned Bambu Studio commit (`scripts/generate-hidden-hms.mjs`), selected by the printer's serial prefix as Bambu Studio does, and covers X2D, P2S, H2D, H2D Pro, H2S and H2C. Each model's own table decides: `0500-0600-0002-0070` is hidden in the X2D table, but the P2S table does not list it, so it still blocks a P2S. If Bambu later publishes text for a listed code, the gate keeps passing it until the list is regenerated from a newer Studio release. The print preflight names any hidden entry it passes, and the first check that passes each one logs it on stderr, so headless runs still record it. `clear_hms_errors` leaves hidden entries alone. Unlisted codes and other models' tables never qualify.
 
-7. **Network requirements depend on the path.** Direct MQTT/FTPS tools require local reachability and compatible LAN/Developer Mode settings. FULU bridge cloud jobs use BambuNetwork and require its runtime, internet access, and authentication. Standard status, camera, file, and control tools remain local; bridge printing does not turn them into cloud tools.
+7. **Network requirements depend on the path.** Direct MQTT/FTPS tools require local reachability and compatible LAN/Developer Mode settings. Bridge cloud jobs use BambuNetwork and require its runtime, internet access, and authentication. Standard status, camera, file, and control tools remain local; bridge printing does not turn them into cloud tools.
 
 8. **Self-signed TLS certificate.** The printer's FTPS server uses a self-signed certificate. The `basic-ftp` client is configured with `rejectUnauthorized: false` to accept it. This is standard for local network Bambu connections but assumes a trusted local network environment.
 
@@ -1338,7 +1328,7 @@ This project is a fork of [mcp-3D-printer-server](https://github.com/DMontgomery
 
 ## Acknowledgements
 
-Thank you to **[FULU Foundation](https://www.fulu.org/), [Louis Rossmann](https://www.youtube.com/watch?v=1jhRqgHxEP8), and the [OrcaSlicer-bambulab community](https://github.com/FULU-Foundation/OrcaSlicer-bambulab)** for advancing user choice and interoperability. Our support for open-source tools, repair rights, and printing without Bambu's software or cloud is a project priority. See the [FULU setup guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/FULU.md) and [contributor credits](./CONTRIBUTORS.md).
+See the [contributor credits](./CONTRIBUTORS.md).
 
 Some printer command surfaces and workflow priorities were informed by [Bambuddy](https://github.com/maziggy/bambuddy), an AGPL-3.0 Bambu Lab printer management project. This project does not vendor Bambuddy code.
 

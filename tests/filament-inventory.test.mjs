@@ -65,7 +65,6 @@ for (const [name, options] of [
   ["Windows installation", { binary: "Bambu Studio/bambu-studio.exe", profiles: "Bambu Studio/resources/profiles" }],
   ["macOS bundle", { binary: "BambuStudio.app/Contents/MacOS/BambuStudio", profiles: "BambuStudio.app/Contents/Resources/profiles" }],
   ["Linux installation", { binary: "prefix/bin/bambu-studio", profiles: "prefix/share/BambuStudio/profiles" }],
-  ["selected Orca installation", { binary: "OrcaSlicer/OrcaSlicer.exe", profiles: "OrcaSlicer/resources/profiles", slicerType: "orcaslicer" }],
   ["explicit profile root", { binary: "selected/bambu-studio.exe", profiles: "custom profiles", override: true }],
 ]) {
   test(`filament inventory resolves profiles from the ${name}`, async t => {

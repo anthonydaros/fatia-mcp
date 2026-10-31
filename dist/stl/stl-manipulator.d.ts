@@ -22,7 +22,7 @@ export type TransformationParams = {
     relative?: boolean;
     selectionBounds?: THREE.Box3;
 };
-export declare const SLICER_TYPES: readonly ["bambustudio", "orcaslicer", "orcaslicer-bambulab", "orca-slicer-api", "prusaslicer", "cura", "slic3r"];
+export declare const SLICER_TYPES: readonly ["bambustudio", "prusaslicer", "cura", "slic3r"];
 export type SlicerType = typeof SLICER_TYPES[number];
 export declare function normalizeSlicerType(rawSlicerType: string): SlicerType;
 export declare function isBambuCompatibleSlicer(slicerType: SlicerType): boolean;
@@ -62,10 +62,6 @@ export declare class STLManipulator extends EventEmitter {
     private findProfileFile;
     private buildFilamentIdIndex;
     private readJsonFile;
-    private stripAbsoluteExtruderResets;
-    private sanitizeProcessForOrca;
-    /** Orca slices with absolute E distances; per-layer `G92 E0` resets would break them. */
-    private useAbsoluteExtrusionForOrca;
     private writeTempJson;
     private resolveBambuLikeSettingsBundle;
     /** Resolve BBL dependencies before invoking the CLI; failures stop the slice. */
@@ -115,14 +111,6 @@ export declare class STLManipulator extends EventEmitter {
      */
     scaleSTL(stlFilePath: string, scaleFactors: number | [number, number, number], progressCallback?: ProgressCallback): Promise<string>;
     /**
-     * Apply slice_stl's scale and rotations to a copy of the mesh as OrcaSlicer's
-     * CLI would, about the model's centre. Orca adds each --rotate* to the
-     * object's Euler angles (ModelVolume::rotate), so the result rotates about X,
-     * then Y, then Z whatever the argument order, after scaling. The slicer then
-     * places the result on the plate.
-     */
-    private transformMeshForCli;
-    /**
      * Rotate an STL model around specific axes
      */
     rotateSTL(stlFilePath: string, rotationAngles: [number, number, number], // [x, y, z] in degrees
@@ -161,7 +149,7 @@ export declare class STLManipulator extends EventEmitter {
     /**
      * Slice an STL or 3MF file using the specified slicer
      * @param stlFilePath Path to the input STL or 3MF file
-     * @param slicerType Type of slicer (prusaslicer, cura, slic3r, orcaslicer, bambustudio)
+     * @param slicerType Type of slicer (prusaslicer, cura, slic3r, bambustudio)
      * @param slicerPath Path to the slicer executable
      * @param slicerProfile Optional path to the slicer profile/config file
      * @param progressCallback Optional callback for progress updates

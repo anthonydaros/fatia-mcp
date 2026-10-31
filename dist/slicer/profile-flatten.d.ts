@@ -101,4 +101,4 @@ export declare function flattenForCli(opts: FlattenOptions): Promise<FlattenedPr
  *
  * Override via BAMBU_PROFILES_ROOT env.
  */
-export declare function detectProfilesRoot(slicerPath?: string, slicerType?: string): string;
+export declare function detectProfilesRoot(slicerPath?: string): string;

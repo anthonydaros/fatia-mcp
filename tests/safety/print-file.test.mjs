@@ -464,17 +464,17 @@ test('X2D vendor switches and runout purge retain declared filament and heater c
     await assert.rejects(inspect(t,header(model,'PLA',model==='H2D'?'0.4;0.4':'0.4')+command+'\n',{model:model.toLowerCase()}),/parameter|unsupported/i);
 });
 
-// Exact forms from OrcaSlicer 2.4.2 X2D 0.4 output (PLA cube and PETG HF shelf,
+// Exact forms from X2D 0.4 slicer output (PLA cube and PETG HF shelf,
 // both printed successfully on a physical X2D outside this MCP).
-const orcaX2dStartup = (target=230) => `M620.17 T0 S${target} L-1\nM620.17 T1 S${target} L0\nM620 D-1\nG383 O1 T${target} L0\n`;
-const orcaX2dLayer = 'M9711 M0 E1 X183 Y128 Z0.6 S11 C10 O0 T3000\nM9711 M0 E1 Z0.65 S11 C10 O0 T3000\n';
-test('X2D OrcaSlicer idle-nozzle preheat and time-lapse capture pass with heater checks', async t => {
+const x2dIdleNozzleStartup = (target=230) => `M620.17 T0 S${target} L-1\nM620.17 T1 S${target} L0\nM620 D-1\nG383 O1 T${target} L0\n`;
+const x2dTimelapseLayer = 'M9711 M0 E1 X183 Y128 Z0.6 S11 C10 O0 T3000\nM9711 M0 E1 Z0.65 S11 C10 O0 T3000\n';
+test('X2D idle-nozzle preheat and time-lapse capture pass with heater checks', async t => {
   const base=header('X2D','PETG;PETG','0.4;0.4');
-  const result=await inspect(t,base+orcaX2dStartup()+'; CHANGE_LAYER\nG1 X10 Y10 E1\n'+orcaX2dLayer+'M9711 M1 E0 U10 V20 Z1 S11 C10 O0 T3000\n',{model:'x2d'});
+  const result=await inspect(t,base+x2dIdleNozzleStartup()+'; CHANGE_LAYER\nG1 X10 Y10 E1\n'+x2dTimelapseLayer+'M9711 M1 E0 U10 V20 Z1 S11 C10 O0 T3000\n',{model:'x2d'});
   assert.equal(result.maxNozzleTemperature,230);
   assert.deepEqual(result.usedFilamentPositions,[0],'a nozzle without filament (L-1) selects no filament');
 });
-for(const model of ['H2D','H2D Pro']) test(`${model} Orca single-filament startup preheats the unused nozzle without claiming a filament`, async t => {
+for(const model of ['H2D','H2D Pro']) test(`${model} single-filament startup preheats the unused nozzle without claiming a filament`, async t => {
   const result=await inspect(t,header(model,'PLA','0.4;0.4')+'M620.17 T0 S220 L0\nM620.17 T1 S220 L-1\nG1 X10 Y10 E1\n',{model:model.toLowerCase()});
   assert.deepEqual(result.usedFilamentPositions,[0]);
   assert.equal(result.maxNozzleTemperature,220);
@@ -516,7 +516,7 @@ test('X2D time-lapse capture accepts only its exact parameters inside the machin
     'M9711 E1 Z0.6 S11 C10 O0 T3000','M9711 M0 E1 Z0.6 S11 C10 O0 T3000 X','M9711',
   ]) await assert.rejects(inspect(t,base+command+'\n',{model:'x2d'}),/unsupported M9711 time-lapse parameters/,command);
   for(const [model,nozzle] of [['H2C','0.4;0.4'],['H2S','0.4'],['P1S','0.4']])
-    await assert.rejects(inspect(t,header(model,'PETG',nozzle)+orcaX2dLayer,{model:model.toLowerCase()}),/unsupported M9711 time-lapse parameters/,model);
+    await assert.rejects(inspect(t,header(model,'PETG',nozzle)+x2dTimelapseLayer,{model:model.toLowerCase()}),/unsupported M9711 time-lapse parameters/,model);
 });
 test('official H2D time-lapse template capture forms pass inside the H2D volume', async t => {
   const settings=JSON.parse(await fs.readFile(new URL('../fixtures/h2d_gui_sliced/project_settings.config',import.meta.url),'utf8'));

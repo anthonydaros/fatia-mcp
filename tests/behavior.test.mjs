@@ -1646,7 +1646,7 @@ test("sliceSTL names a slicer crash signal or exit code and keeps the end of its
     return file;
   };
   const manipulator = new STLManipulator(tempRoot);
-  // FULU OrcaSlicer-bambulab v1.0.0 prints nothing to stderr and segfaults.
+  // A crashing slicer can print nothing to stderr.
   await assert.rejects(manipulator.sliceSTL(SAMPLE_STL, "prusaslicer", slicer("segfaulting-slicer", 'echo "loading model"\nkill -SEGV $$')),
     error => {
       assert.match(error.message, /Slicer failed: the slicer crashed with SIGSEGV\./);
@@ -2489,7 +2489,7 @@ test("per-call executable selectors are rejected before any process can start", 
       argumentName: "slicer_path",
       arguments: {
         stl_path: SAMPLE_STL,
-        slicer_type: "orcaslicer",
+        slicer_type: "bambustudio",
         slicer_path: executable,
         bambu_model: "p1s",
       },
@@ -2580,7 +2580,7 @@ test("legacy bridge opt-in does not authorize slicer or ffmpeg executables", asy
       argumentName: "slicer_path",
       arguments: {
         stl_path: SAMPLE_STL,
-        slicer_type: "orcaslicer",
+        slicer_type: "bambustudio",
         slicer_path: executable,
         bambu_model: "p1s",
       },

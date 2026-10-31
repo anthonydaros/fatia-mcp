@@ -7,8 +7,7 @@ import { appBundleFor, openInSlicer } from "../dist/slicer/open-in-slicer.js";
 
 test("appBundleFor finds the .app bundle of a macOS executable", () => {
   assert.equal(appBundleFor("/Applications/BambuStudio.app/Contents/MacOS/BambuStudio"), "/Applications/BambuStudio.app");
-  assert.equal(appBundleFor("/Applications/Orca Studio.app/Contents/MacOS/Orca Studio"), "/Applications/Orca Studio.app");
-  assert.equal(appBundleFor("/usr/bin/orca-slicer"), null);
+  assert.equal(appBundleFor("/usr/bin/bambu-studio"), null);
 });
 
 test("openInSlicer validates the file before launching anything", async () => {

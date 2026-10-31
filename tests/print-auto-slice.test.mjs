@@ -113,18 +113,16 @@ BambuImplementation.prototype.getSafetyStatus = async function () {
   };
 }
 
-for (const slicerType of ['bambustudio', 'orcaslicer', 'orcaslicer-bambulab', 'fulu-orca', 'orca-studio']) {
-  test(`${slicerType} real profile gate stops MCP slicing and auto-print before external side effects`, async t => {
-    const server = await start(t, { realSlice: true, slicerType });
-    const project = await server.makeProject('missing-machine.3mf');
-    for (const call of [server.slice, server.print]) {
-      const result = await call(project);
-      assert.equal(result.isError, true);
-      assert.match(result.content?.[0]?.text || '', /Printer profile.*Bambu Lab P1S 0\.4 nozzle.*not found/);
-      assert.deepEqual(server.events(), [], 'missing machine must stop CLI launch, connection, upload, and print dispatch');
-    }
-  });
-}
+test('bambustudio real profile gate stops MCP slicing and auto-print before external side effects', async t => {
+  const server = await start(t, { realSlice: true, slicerType: 'bambustudio' });
+  const project = await server.makeProject('missing-machine.3mf');
+  for (const call of [server.slice, server.print]) {
+    const result = await call(project);
+    assert.equal(result.isError, true);
+    assert.match(result.content?.[0]?.text || '', /Printer profile.*Bambu Lab P1S 0\.4 nozzle.*not found/);
+    assert.deepEqual(server.events(), [], 'missing machine must stop CLI launch, connection, upload, and print dispatch');
+  }
+});
 
 for (const checksumOnly of [false, true]) {
   test(`print_3mf preserves auto-slice errors before upload${checksumOnly ? " when only a gcode checksum is present" : ""}`, async (t) => {

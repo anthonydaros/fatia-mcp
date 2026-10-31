@@ -374,8 +374,8 @@ export async function inspectPrintFile(filePath: string, options: {model:string;
       const [base,subcode]=command![2].split('.');
       const code=command![1].toUpperCase()+String(Number(base))+(subcode===undefined?'':'.'+subcode);const argumentsText=line.slice(command![0].length).trim();commandCount++;
       if(code==='M9711') {
-        // Official X2D and H2D time-lapse capture (Bambu Studio and OrcaSlicer
-        // templates), emitted on every layer: M is the time-lapse mode and E the
+        // Official X2D and H2D time-lapse capture (Bambu Studio templates),
+        // emitted on every layer: M is the time-lapse mode and E the
         // physical extruder, not a second command; T is a duration, not a heater.
         // It sets no temperature. Positions stay inside the machine volume.
         const invalid=()=>fail('unsupported M9711 time-lapse parameters');
@@ -515,7 +515,7 @@ export async function inspectPrintFile(filePath: string, options: {model:string;
         if(!args.has('S') || !args.has('L') || !args.has('T') || !Number.isInteger(args.get('T')) || args.get('T')!<0 || args.get('T')!>=nozzleDiameters.length) fail('unsupported M620.17 nozzle/material temperature mapping');
         for(const key of args.keys()) if(!'SLT'.includes(key)) fail(`unsupported M620.17 parameter ${key}`);
         if(args.get('L')===-1 && ['x2d','h2d','h2dpro'].includes(model)) {
-          // OrcaSlicer's X2D/H2D/H2D Pro start G-code preheats a nozzle with no assigned
+          // An X2D/H2D/H2D Pro start G-code may preheat a nozzle with no assigned
           // filament (L-1) for toolhead-offset calibration; Bambu Studio writes
           // L0 there. No project filament is selected, so check the target
           // against the hardware limit and every declared material, like other

@@ -8,7 +8,7 @@ import { STLManipulator } from '../../dist/stl/stl-manipulator.js';
 import { flattenForCli, detectProfilesRoot } from '../../dist/slicer/profile-flatten.js';
 
 // Exercise profile preparation and the emitted CLI arguments; never run a real slicer.
-async function fixture(t, slicerType = 'bambustudio') {
+async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cli-profile-safety-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const profiles = path.join(root, 'BambuStudio.app', 'Contents', 'Resources', 'profiles');
@@ -43,7 +43,7 @@ async function fixture(t, slicerType = 'bambustudio') {
   const manipulator = new STLManipulator(path.join(root, 'out'));
   const stl = path.join(root, 'model.stl');
   await fs.writeFile(stl, 'fixture STL (only the fake CLI reads it)');
-  const slice = (options = {}, profile, input = stl) => manipulator.sliceSTL(input, slicerType, executable, profile, undefined, 'Bambu Lab SAFETY 0.4 nozzle', options);
+  const slice = (options = {}, profile, input = stl) => manipulator.sliceSTL(input, 'bambustudio', executable, profile, undefined, 'Bambu Lab SAFETY 0.4 nozzle', options);
   const args = async () => JSON.parse(await fs.readFile(capture, 'utf8'));
   const loaded = async () => { const a = await args(); return a[a.indexOf('--load-filaments') + 1].split(';'); };
   const project = async (count) => {
@@ -56,168 +56,158 @@ async function fixture(t, slicerType = 'bambustudio') {
   return { root, profiles, write, machine, processFile, filament, executable, stl, slice, args, loaded, capture, project };
 }
 
-for (const slicerType of ['bambustudio', 'orcaslicer', 'orcaslicer-bambulab']) {
-  for (const customProcess of [false, true]) {
-    test(`${slicerType} rejects a missing machine before execution${customProcess ? ' with a custom process' : ''}`, async t => {
-      const f = await fixture(t, slicerType);
-      await fs.unlink(f.machine);
-      const profile = path.join(f.root, 'custom.json');
-      await fs.writeFile(profile, JSON.stringify({ name: 'Custom', layer_height: '0.16' }));
-      for (const input of [f.stl, await f.project(1)]) {
-        await assert.rejects(f.slice({}, customProcess ? profile : undefined, input), /Printer profile.*SAFETY.*not found/);
-        await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-      }
-    });
+for (const customProcess of [false, true]) {
+  test(`BambuStudio rejects a missing machine before execution${customProcess ? ' with a custom process' : ''}`, async t => {
+    const f = await fixture(t);
+    await fs.unlink(f.machine);
+    const profile = path.join(f.root, 'custom.json');
+    await fs.writeFile(profile, JSON.stringify({ name: 'Custom', layer_height: '0.16' }));
+    for (const input of [f.stl, await f.project(1)]) {
+      await assert.rejects(f.slice({}, customProcess ? profile : undefined, input), /Printer profile.*SAFETY.*not found/);
+      await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
+    }
+  });
+}
+
+test(`BambuStudio rejects an omitted machine selection before execution`, async t => {
+  const f = await fixture(t);
+  const manipulator = new STLManipulator(path.join(f.root, 'missing-selection'));
+  await assert.rejects(manipulator.sliceSTL(f.stl, 'bambustudio', f.executable, f.processFile), /[Pp]rinter.*required/);
+  await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
+});
+
+test(`BambuStudio cannot borrow a machine from another installation`, async t => {
+  const f = await fixture(t);
+  const selected = path.join(f.root, 'selected-profiles');
+  await fs.mkdir(path.join(selected, 'BBL', 'machine'), { recursive: true });
+  // The unrelated tree still contains the requested machine.
+  process.env.BAMBU_PROFILES_ROOT = selected;
+  await assert.rejects(f.slice(), /Printer profile.*SAFETY.*not found/);
+  await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
+});
+
+test(`BambuStudio loads inherited default process and filament profiles`, async t => {
+  const f = await fixture(t);
+  // A P1S leaf inherits these selections from the machine family.
+  await f.write('machine', { name: 'SAFETY base', nozzle_diameter: ['0.4'],
+    default_print_profile: 'SAFETY process', default_filament_profile: ['SAFETY filament'] });
+  await f.write('machine', { name: 'Bambu Lab SAFETY 0.4 nozzle', inherits: 'SAFETY base', include: ['SAFETY start'] });
+  await f.slice();
+  const args = await f.args();
+  const processFile = args[args.indexOf('--load-settings') + 1].split(';')[1];
+  assert.equal(JSON.parse(await fs.readFile(processFile, 'utf8')).layer_height, '0.2');
+  assert.notEqual(args.indexOf('--load-filaments'), -1, 'inherited defaults must be supplied explicitly');
+  assert.deepEqual(JSON.parse(await fs.readFile((await f.loaded())[0], 'utf8')).nozzle_temperature, ['220']);
+});
+
+test(`BambuStudio keeps machine settings out of custom process and filament profiles`, async t => {
+  const f = await fixture(t);
+  await f.write('machine', { name: 'SAFETY base', nozzle_diameter: ['0.4'], machine_start_gcode: 'GENERIC', printer_model: 'Bambu Lab SAFETY' });
+  // Profiles exported from another printer carry that printer's machine settings.
+  const foreign = { printer_model: 'Bambu Lab X1 Carbon', nozzle_diameter: ['0.6'], machine_start_gcode: '; FOREIGN START' };
+  const custom = path.join(f.root, 'custom.json');
+  const customFilament = path.join(f.root, 'custom-filament.json');
+  await fs.writeFile(custom, JSON.stringify({ name: 'Custom', from: 'User', wall_loops: '5', ...foreign }));
+  await fs.writeFile(customFilament, JSON.stringify({ name: 'Custom PETG', from: 'User', filament_type: ['PETG'], nozzle_temperature: ['250'], ...foreign }));
+  const originals = [await fs.readFile(custom, 'utf8'), await fs.readFile(customFilament, 'utf8')];
+  await f.slice({ loadFilaments: customFilament }, custom);
+  const args = await f.args();
+  const [machineFile, processFile] = args[args.indexOf('--load-settings') + 1].split(';');
+  const machine = JSON.parse(await fs.readFile(machineFile, 'utf8'));
+  assert.equal(machine.machine_start_gcode, 'M620 S0A ; correct machine');
+  assert.equal(machine.printer_model, 'Bambu Lab SAFETY');
+  const config = JSON.parse(await fs.readFile(processFile, 'utf8'));
+  const filament = JSON.parse(await fs.readFile((await f.loaded())[0], 'utf8'));
+  assert.equal(config.wall_loops, '5', 'process settings are kept');
+  assert.deepEqual([filament.name, filament.filament_type, filament.nozzle_temperature], ['Custom PETG', ['PETG'], ['250']], 'filament settings are kept');
+  for (const key of Object.keys(foreign)) {
+    assert.equal(key in config, false, `${key} must not reach the CLI through the process profile`);
+    assert.equal(key in filament, false, `${key} must not reach the CLI through a filament profile`);
   }
+  assert.deepEqual([await fs.readFile(custom, 'utf8'), await fs.readFile(customFilament, 'utf8')], originals, "the caller's files are not modified");
+});
 
-  test(`${slicerType} rejects an omitted machine selection before execution`, async t => {
-    const f = await fixture(t, slicerType);
-    const manipulator = new STLManipulator(path.join(f.root, 'missing-selection'));
-    await assert.rejects(manipulator.sliceSTL(f.stl, slicerType, f.executable, f.processFile), /[Pp]rinter.*required/);
-    await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-  });
-
-  test(`${slicerType} cannot borrow a machine from another installation`, async t => {
-    const f = await fixture(t, slicerType);
-    const selected = path.join(f.root, 'selected-profiles');
-    await fs.mkdir(path.join(selected, 'BBL', 'machine'), { recursive: true });
-    // The unrelated tree still contains the requested machine.
-    process.env.BAMBU_PROFILES_ROOT = selected;
-    await assert.rejects(f.slice(), /Printer profile.*SAFETY.*not found/);
-    await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-  });
-
-  test(`${slicerType} loads inherited default process and filament profiles`, async t => {
-    const f = await fixture(t, slicerType);
-    // FULU's P1S leaf inherits these selections from the machine family.
-    await f.write('machine', { name: 'SAFETY base', nozzle_diameter: ['0.4'],
-      default_print_profile: 'SAFETY process', default_filament_profile: ['SAFETY filament'] });
-    await f.write('machine', { name: 'Bambu Lab SAFETY 0.4 nozzle', inherits: 'SAFETY base', include: ['SAFETY start'] });
-    await f.slice();
-    const args = await f.args();
-    const processFile = args[args.indexOf('--load-settings') + 1].split(';')[1];
-    assert.equal(JSON.parse(await fs.readFile(processFile, 'utf8')).layer_height, '0.2');
-    assert.notEqual(args.indexOf('--load-filaments'), -1, 'inherited defaults must be supplied explicitly');
-    assert.deepEqual(JSON.parse(await fs.readFile((await f.loaded())[0], 'utf8')).nozzle_temperature, ['220']);
-  });
-
-  test(`${slicerType} keeps machine settings out of custom process and filament profiles`, async t => {
-    const f = await fixture(t, slicerType);
-    await f.write('machine', { name: 'SAFETY base', nozzle_diameter: ['0.4'], machine_start_gcode: 'GENERIC', printer_model: 'Bambu Lab SAFETY' });
-    // Profiles exported from another printer carry that printer's machine settings.
-    const foreign = { printer_model: 'Bambu Lab X1 Carbon', nozzle_diameter: ['0.6'], machine_start_gcode: '; FOREIGN START' };
-    const custom = path.join(f.root, 'custom.json');
-    const customFilament = path.join(f.root, 'custom-filament.json');
-    await fs.writeFile(custom, JSON.stringify({ name: 'Custom', from: 'User', wall_loops: '5', ...foreign }));
-    await fs.writeFile(customFilament, JSON.stringify({ name: 'Custom PETG', from: 'User', filament_type: ['PETG'], nozzle_temperature: ['250'], ...foreign }));
-    const originals = [await fs.readFile(custom, 'utf8'), await fs.readFile(customFilament, 'utf8')];
-    await f.slice({ loadFilaments: customFilament }, custom);
+test(`BambuStudio preserves custom dependencies from configured user profile directories`, async t => {
+  const f = await fixture(t);
+  const user = path.join(f.root, 'user-BBL');
+  for (const kind of ['process', 'filament']) await fs.mkdir(path.join(user, kind), { recursive: true });
+  await fs.writeFile(path.join(user, 'process', 'My process base.json'), JSON.stringify({
+    name: 'My process base', inherits: 'SAFETY process', layer_height: '0.12', wall_loops: '5',
+  }));
+  await fs.writeFile(path.join(user, 'filament', 'My PETG.json'), JSON.stringify({
+    name: 'My PETG', inherits: 'SAFETY filament', filament_type: ['PETG'], nozzle_temperature: ['250'], filament_id: 'my-petg',
+  }));
+  process.env.BAMBU_SLICER_PROFILE_DIRS = user;
+  const custom = path.join(f.root, 'custom.json');
+  for (const selection of [{ default_filament_profile: ['My PETG'] }, { filament_ids: ['my-petg'] }]) {
+    await fs.writeFile(custom, JSON.stringify({ name: 'My custom', inherits: 'My process base', wall_loops: '7', ...selection }));
+    await f.slice({}, custom);
     const args = await f.args();
     const [machineFile, processFile] = args[args.indexOf('--load-settings') + 1].split(';');
-    const machine = JSON.parse(await fs.readFile(machineFile, 'utf8'));
-    assert.equal(machine.machine_start_gcode, 'M620 S0A ; correct machine');
-    assert.equal(machine.printer_model, 'Bambu Lab SAFETY');
+    assert.equal(JSON.parse(await fs.readFile(machineFile, 'utf8')).machine_start_gcode, 'M620 S0A ; correct machine');
     const config = JSON.parse(await fs.readFile(processFile, 'utf8'));
-    const filament = JSON.parse(await fs.readFile((await f.loaded())[0], 'utf8'));
-    assert.equal(config.wall_loops, '5', 'process settings are kept');
-    assert.deepEqual([filament.name, filament.filament_type, filament.nozzle_temperature], ['Custom PETG', ['PETG'], ['250']], 'filament settings are kept');
-    for (const key of Object.keys(foreign)) {
-      assert.equal(key in config, false, `${key} must not reach the CLI through the process profile`);
-      assert.equal(key in filament, false, `${key} must not reach the CLI through a filament profile`);
-    }
-    assert.deepEqual([await fs.readFile(custom, 'utf8'), await fs.readFile(customFilament, 'utf8')], originals, "the caller's files are not modified");
-  });
-
-  test(`${slicerType} preserves custom dependencies from configured user profile directories`, async t => {
-    const f = await fixture(t, slicerType);
-    const user = path.join(f.root, 'user-BBL');
-    for (const kind of ['process', 'filament']) await fs.mkdir(path.join(user, kind), { recursive: true });
-    await fs.writeFile(path.join(user, 'process', 'My process base.json'), JSON.stringify({
-      name: 'My process base', inherits: 'SAFETY process', layer_height: '0.12', wall_loops: '5',
-    }));
-    await fs.writeFile(path.join(user, 'filament', 'My PETG.json'), JSON.stringify({
-      name: 'My PETG', inherits: 'SAFETY filament', filament_type: ['PETG'], nozzle_temperature: ['250'], filament_id: 'my-petg',
-    }));
-    process.env.BAMBU_SLICER_PROFILE_DIRS = user;
-    const custom = path.join(f.root, 'custom.json');
-    for (const selection of [{ default_filament_profile: ['My PETG'] }, { filament_ids: ['my-petg'] }]) {
-      await fs.writeFile(custom, JSON.stringify({ name: 'My custom', inherits: 'My process base', wall_loops: '7', ...selection }));
-      await f.slice({}, custom);
-      const args = await f.args();
-      const [machineFile, processFile] = args[args.indexOf('--load-settings') + 1].split(';');
-      assert.equal(JSON.parse(await fs.readFile(machineFile, 'utf8')).machine_start_gcode, 'M620 S0A ; correct machine');
-      const config = JSON.parse(await fs.readFile(processFile, 'utf8'));
-      assert.equal(config.layer_height, '0.12');
-      assert.equal(config.wall_loops, '7');
-      assert.deepEqual(JSON.parse(await fs.readFile((await f.loaded())[0], 'utf8')).nozzle_temperature, ['250']);
-    }
-  });
-
-  test(`${slicerType} cannot resolve missing machine ancestors from user process profiles`, async t => {
-    const f = await fixture(t, slicerType);
-    const user = path.join(f.root, 'user-BBL');
-    await fs.mkdir(path.join(user, 'process'), { recursive: true });
-    await fs.copyFile(path.join(f.profiles, 'BBL', 'machine', 'SAFETY base.json'), path.join(user, 'process', 'SAFETY base.json'));
-    await fs.unlink(path.join(f.profiles, 'BBL', 'machine', 'SAFETY base.json'));
-    process.env.BAMBU_SLICER_PROFILE_DIRS = user;
-    await assert.rejects(f.slice(), /SAFETY base.*not found/);
-    await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-  });
-
-  for (const invalid of ['null', '{broken', JSON.stringify({ name: 'Bambu Lab OTHER 0.4 nozzle' })]) {
-    test(`${slicerType} rejects invalid machine contents: ${invalid}`, async t => {
-      const f = await fixture(t, slicerType);
-      await fs.writeFile(f.machine, invalid);
-      await assert.rejects(f.slice(), /[Pp]rinter profile.*SAFETY/);
-      await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-    });
+    assert.equal(config.layer_height, '0.12');
+    assert.equal(config.wall_loops, '7');
+    assert.deepEqual(JSON.parse(await fs.readFile((await f.loaded())[0], 'utf8')).nozzle_temperature, ['250']);
   }
+});
 
-  if (slicerType === 'bambustudio') continue; // Existing tests cover its full preparation path below.
+test(`BambuStudio cannot resolve missing machine ancestors from user process profiles`, async t => {
+  const f = await fixture(t);
+  const user = path.join(f.root, 'user-BBL');
+  await fs.mkdir(path.join(user, 'process'), { recursive: true });
+  await fs.copyFile(path.join(f.profiles, 'BBL', 'machine', 'SAFETY base.json'), path.join(user, 'process', 'SAFETY base.json'));
+  await fs.unlink(path.join(f.profiles, 'BBL', 'machine', 'SAFETY base.json'));
+  process.env.BAMBU_SLICER_PROFILE_DIRS = user;
+  await assert.rejects(f.slice(), /SAFETY base.*not found/);
+  await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
+});
 
-  test(`${slicerType} resolves machine G-code and preserves custom process and every filament slot`, async t => {
-    const f = await fixture(t, slicerType);
-    await f.write('process', { name: 'SAFETY process base', layer_height: '0.2', layer_gcode: 'G92 E0\n; next layer' });
-    const custom = path.join(f.root, 'custom.json');
-    await fs.writeFile(custom, JSON.stringify({ name: 'Custom', inherits: 'SAFETY process', wall_loops: '7' }));
-    await f.slice({ loadFilaments: f.filament }, custom, await f.project(3));
-    const args = await f.args();
-    const [machineFile, processFile] = args[args.indexOf('--load-settings') + 1].split(';');
-    const machine = JSON.parse(await fs.readFile(machineFile, 'utf8'));
-    assert.equal(machine.machine_start_gcode, 'M620 S0A ; correct machine');
-    assert.equal(machine.cli_safe_acceleration_x, '6000,6000');
-    const processConfig = JSON.parse(await fs.readFile(processFile, 'utf8'));
-    assert.equal(processConfig.wall_loops, '7');
-    assert.equal(processConfig.layer_height, '0.2');
-    if (slicerType === 'orcaslicer') {
-      // The machine owns the extrusion mode; the process cannot re-enable relative E.
-      assert.equal(machine.use_relative_e_distances, '0');
-      assert.equal('use_relative_e_distances' in processConfig, false);
-      assert.equal(processConfig.layer_gcode, '; next layer');
-    }
-    assert.equal((await f.loaded()).length, 3);
-    for (const file of await f.loaded()) {
-      const filament = JSON.parse(await fs.readFile(file, 'utf8'));
-      assert.deepEqual(filament.nozzle_temperature, ['220']);
-      assert.deepEqual(filament.filament_colour, ['#00AE42']);
-    }
-  });
-
-  for (const missing of ['SAFETY base.json', 'SAFETY start.json', '../cli_config.json']) {
-    test(`${slicerType} rejects missing machine dependency ${missing}`, async t => {
-      const f = await fixture(t, slicerType);
-      await fs.unlink(path.join(f.profiles, 'BBL', 'machine', missing));
-      await assert.rejects(f.slice(), /SAFETY base|SAFETY start|cli_config/);
-      await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-    });
-  }
-
-  test(`${slicerType} rejects a partial filament list before CLI execution`, async t => {
-    const f = await fixture(t, slicerType);
-    await assert.rejects(f.slice({ loadFilaments: `${f.filament};${f.filament}` }, undefined, await f.project(3)), /filament.*3|3.*filament/i);
+for (const invalid of ['null', '{broken', JSON.stringify({ name: 'Bambu Lab OTHER 0.4 nozzle' })]) {
+  test(`BambuStudio rejects invalid machine contents: ${invalid}`, async t => {
+    const f = await fixture(t);
+    await fs.writeFile(f.machine, invalid);
+    await assert.rejects(f.slice(), /[Pp]rinter profile.*SAFETY/);
     await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
   });
 }
+
+test(`BambuStudio resolves machine G-code and preserves custom process and every filament slot`, async t => {
+  const f = await fixture(t);
+  await f.write('process', { name: 'SAFETY process base', layer_height: '0.2', layer_gcode: 'G92 E0\n; next layer' });
+  const custom = path.join(f.root, 'custom.json');
+  await fs.writeFile(custom, JSON.stringify({ name: 'Custom', inherits: 'SAFETY process', wall_loops: '7' }));
+  await f.slice({ loadFilaments: f.filament }, custom, await f.project(3));
+  const args = await f.args();
+  const [machineFile, processFile] = args[args.indexOf('--load-settings') + 1].split(';');
+  const machine = JSON.parse(await fs.readFile(machineFile, 'utf8'));
+  assert.equal(machine.machine_start_gcode, 'M620 S0A ; correct machine');
+  assert.equal(machine.cli_safe_acceleration_x, '6000,6000');
+  const processConfig = JSON.parse(await fs.readFile(processFile, 'utf8'));
+  assert.equal(processConfig.wall_loops, '7');
+  assert.equal(processConfig.layer_height, '0.2');
+  assert.equal((await f.loaded()).length, 3);
+  for (const file of await f.loaded()) {
+    const filament = JSON.parse(await fs.readFile(file, 'utf8'));
+    assert.deepEqual(filament.nozzle_temperature, ['220']);
+    assert.deepEqual(filament.filament_colour, ['#00AE42']);
+  }
+});
+
+for (const missing of ['SAFETY base.json', 'SAFETY start.json', '../cli_config.json']) {
+  test(`BambuStudio rejects missing machine dependency ${missing}`, async t => {
+    const f = await fixture(t);
+    await fs.unlink(path.join(f.profiles, 'BBL', 'machine', missing));
+    await assert.rejects(f.slice(), /SAFETY base|SAFETY start|cli_config/);
+    await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
+  });
+}
+
+test(`BambuStudio rejects a partial filament list before CLI execution`, async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.slice({ loadFilaments: `${f.filament};${f.filament}` }, undefined, await f.project(3)), /filament.*3|3.*filament/i);
+  await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
+});
 
 test('bundled profiles resolve include G-code with flatten flag unset or false', async t => {
   const f = await fixture(t);
@@ -395,13 +385,9 @@ test('custom overrides inheriting the same parent keep separate immutable output
   assert.equal(JSON.parse(await fs.readFile(second.processPath, 'utf8')).wall_loops, '9');
 });
 
-for (const [layout, binary, profiles, slicerType = 'bambustudio'] of [
+for (const [layout, binary, profiles] of [
   ['Windows portable', 'portable/BambuStudio.exe', 'portable/resources/profiles'],
   ['Linux prefix', 'prefix/bin/bambu-studio', 'prefix/share/BambuStudio/profiles'],
-  ['Orca Linux prefix', 'prefix/bin/orca-slicer', 'prefix/share/OrcaSlicer/profiles', 'orcaslicer'],
-  ['FULU Linux prefix', 'prefix/bin/orca-slicer', 'prefix/share/OrcaSlicer/resources/profiles', 'orcaslicer-bambulab'],
-  ['Orca macOS bundle', 'OrcaSlicer.app/Contents/MacOS/OrcaSlicer', 'OrcaSlicer.app/Contents/Resources/profiles', 'orcaslicer'],
-  ['FULU Windows portable', 'portable/orca-slicer.exe', 'portable/resources/profiles', 'orcaslicer-bambulab'],
 ]) {
   test(`${layout} profile discovery follows the active executable`, async t => {
     const f = await fixture(t);
@@ -413,35 +399,14 @@ for (const [layout, binary, profiles, slicerType = 'bambustudio'] of [
     await fs.cp(f.profiles, root, { recursive: true });
     delete process.env.BAMBU_PROFILES_ROOT;
     delete process.env.BAMBU_SLICER_PROFILE_DIRS;
-    assert.equal(await fs.realpath(detectProfilesRoot(executable, slicerType)), await fs.realpath(root));
+    assert.equal(await fs.realpath(detectProfilesRoot(executable)), await fs.realpath(root));
     const manipulator = new STLManipulator(path.join(f.root, 'portable-out'));
-    await manipulator.sliceSTL(f.stl, slicerType, executable, undefined, undefined, 'Bambu Lab SAFETY 0.4 nozzle');
+    await manipulator.sliceSTL(f.stl, 'bambustudio', executable, undefined, undefined, 'Bambu Lab SAFETY 0.4 nozzle');
     const args = await f.args();
     const machineFile = args[args.indexOf('--load-settings') + 1].split(';')[0];
     assert.equal(JSON.parse(await fs.readFile(machineFile, 'utf8')).machine_start_gcode, 'M620 S0A ; correct machine');
   });
 }
-
-test('Orca applies absolute extrusion to the machine that owns the extrusion mode and layer G-code', async t => {
-  const f = await fixture(t, 'orcaslicer');
-  await f.write('machine', { name: 'SAFETY base', nozzle_diameter: ['0.4'], machine_start_gcode: 'GENERIC',
-    use_relative_e_distances: '1', layer_change_gcode: 'G92 E0\n; machine layer' });
-  // A template carrying another printer's layer G-code must not replace the machine's.
-  const custom = path.join(f.root, 'custom.json');
-  await fs.writeFile(custom, JSON.stringify({ name: 'Custom', from: 'User', wall_loops: '5', layer_change_gcode: 'G92 E0\n; FOREIGN layer' }));
-  for (const profile of [undefined, custom]) {
-    await f.slice({}, profile);
-    const args = await f.args();
-    const [machineFile, processFile] = args[args.indexOf('--load-settings') + 1].split(';');
-    const machine = JSON.parse(await fs.readFile(machineFile, 'utf8'));
-    assert.equal(machine.use_relative_e_distances, '0');
-    assert.equal(machine.layer_change_gcode, '; machine layer');
-    assert.equal(machine.machine_start_gcode, 'M620 S0A ; correct machine');
-    const config = JSON.parse(await fs.readFile(processFile, 'utf8'));
-    assert.equal('use_relative_e_distances' in config, false, 'the machine supplies the extrusion mode');
-    assert.equal('layer_change_gcode' in config, false, 'the machine supplies layer G-code');
-  }
-});
 
 for (const [kind, file, reference] of [['process', 'SAFETY process base', 'inherits'], ['machine', 'SAFETY start', 'include']]) {
   test(`a missing ${reference} reference names malformed profile files skipped from the tree`, async t => {
@@ -746,85 +711,10 @@ test('multi-nozzle machines get a prime tower every nozzle can reach', async t =
   assert.deepEqual(await tower(noTower), [undefined, undefined]);
 });
 
-// OrcaSlicer 2.4.2's CLI segfaults (PartPlate::check_outside needs the GUI Plater) when
-// --scale or --rotate-x/-y sink an object below the bed while arranging, and rejects
-// --repetitions for one STL; matrix-tested on the Linux build, crash also seen on macOS.
 const SAMPLE_CUBE = new URL('../../test/sample_cube.stl', import.meta.url);
-function stlBounds(buffer) {
-  const points = [];
-  if (buffer.subarray(0, 5).toString('ascii').toLowerCase() === 'solid' && buffer.includes('facet')) {
-    for (const match of buffer.toString('ascii').matchAll(/vertex\s+(\S+)\s+(\S+)\s+(\S+)/g)) points.push(match.slice(1, 4).map(Number));
-  } else {
-    for (let i = 0, count = buffer.readUInt32LE(80); i < count; i++) {
-      for (let v = 0; v < 3; v++) points.push([0, 1, 2].map(axis => buffer.readFloatLE(84 + i * 50 + 12 + v * 12 + axis * 4)));
-    }
-  }
-  return [0, 1, 2].map(axis => Math.max(...points.map(p => p[axis])) - Math.min(...points.map(p => p[axis])));
-}
-
-// A binary STL box from (0,0,0) to the given size, so orientation is visible in its bounds.
-function boxStl([x, y, z]) {
-  const v = [[0,0,0],[x,0,0],[x,y,0],[0,y,0],[0,0,z],[x,0,z],[x,y,z],[0,y,z]];
-  const faces = [[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];
-  const buffer = Buffer.alloc(84 + faces.length * 50);
-  buffer.writeUInt32LE(faces.length, 80);
-  faces.forEach((face, i) => face.forEach((corner, k) => v[corner].forEach((value, axis) => buffer.writeFloatLE(value, 84 + i * 50 + 12 + k * 12 + axis * 4))));
-  return buffer;
-}
-
-for (const slicerType of ['orcaslicer', 'orcaslicer-bambulab']) {
-  // Orca adds each --rotate* to the object's Euler angles, so it rotates about X, then Y, then Z
-  // regardless of argument order; a 10x20x30 box tells the orders apart.
-  test(`${slicerType} rotates an STL mesh in OrcaSlicer's X, Y, Z order`, async t => {
-    const f = await fixture(t, slicerType);
-    await fs.writeFile(f.stl, boxStl([10, 20, 30]));
-    for (const [options, bounds] of [[{ rotate: 90, rotateX: 90 }, [30, 10, 20]], [{ rotateX: 90, rotateY: 90 }, [20, 30, 10]], [{ scale: 2, rotateY: 90 }, [60, 40, 20]]]) {
-      await f.slice({ ...options, arrange: true });
-      const args = await f.args();
-      assert.deepEqual(stlBounds(await fs.readFile(f.capture + '.input')).map(size => Math.round(size * 1000) / 1000), bounds, JSON.stringify(options));
-      await assert.rejects(fs.access(args.at(-1)), { code: 'ENOENT' }, 'the temporary mesh is removed after slicing');
-    }
-  });
-
-  test(`${slicerType} applies STL scale and tilts to the mesh instead of the crashing CLI flags`, async t => {
-    const f = await fixture(t, slicerType);
-    await fs.copyFile(SAMPLE_CUBE, f.stl);
-    await f.slice({ scale: 4, rotate: 90, rotateX: 90, arrange: true, repetitions: 3 });
-    const args = await f.args();
-    for (const flag of ['--scale', '--rotate', '--rotate-x', '--rotate-y', '--repetitions']) assert.equal(args.includes(flag), false, flag);
-    assert.deepEqual(args.slice(args.indexOf('--clone-objects'), args.indexOf('--clone-objects') + 2), ['--clone-objects', '3']);
-    const input = args.at(-1);
-    assert.notEqual(input, f.stl, 'the original STL is not modified');
-    assert.deepEqual(stlBounds(await fs.readFile(f.capture + '.input')).map(size => Math.round(size * 1000) / 1000), [40, 40, 40]);
-    assert.deepEqual(stlBounds(await fs.readFile(f.stl)).map(size => Math.round(size)), [10, 10, 10]);
-
-    // A Z rotation alone is safe and keeps its flag.
-    await f.slice({ rotate: 45 });
-    const zOnly = await f.args();
-    assert.equal(zOnly.at(-1), f.stl);
-    assert.deepEqual(zOnly.slice(zOnly.indexOf('--rotate'), zOnly.indexOf('--rotate') + 2), ['--rotate', '45']);
-  });
-
-  test(`${slicerType} refuses 3MF transforms that crash its CLI while arranging and conflicting STL copies`, async t => {
-    const f = await fixture(t, slicerType);
-    const project = await f.project(1);
-    for (const options of [{ scale: 2, arrange: true }, { rotateX: 45, arrange: true }, { rotateY: 30, arrange: true }]) {
-      await assert.rejects(f.slice(options, undefined, project), /OrcaSlicer's CLI crashes when scale above 1, rotate_x or rotate_y moves a 3MF object below the bed while arranging/);
-      await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-    }
-    await fs.copyFile(SAMPLE_CUBE, f.stl);
-    await assert.rejects(f.slice({ repetitions: 2, cloneObjects: '2' }), /either repetitions or clone_objects/);
-    await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
-    // Without arrange the 3MF keeps the CLI flags and its own --repetitions.
-    await f.slice({ scale: 2, arrange: false, repetitions: 2 }, undefined, project);
-    const args = await f.args();
-    assert.deepEqual(args.slice(args.indexOf('--scale'), args.indexOf('--scale') + 2), ['--scale', '2']);
-    assert.deepEqual(args.slice(args.indexOf('--repetitions'), args.indexOf('--repetitions') + 2), ['--repetitions', '2']);
-  });
-}
 
 test('BambuStudio keeps its transform and repetition flags unchanged', async t => {
-  const f = await fixture(t, 'bambustudio');
+  const f = await fixture(t);
   await f.slice({ scale: 4, rotate: 90, rotateX: 90, rotateY: 30, arrange: true, repetitions: 3 });
   const args = await f.args();
   for (const [flag, value] of [['--scale', '4'], ['--rotate', '90'], ['--rotate-x', '90'], ['--rotate-y', '30'], ['--repetitions', '3']]) {
@@ -834,16 +724,16 @@ test('BambuStudio keeps its transform and repetition flags unchanged', async t =
 });
 
 test('a Bambu-style CLI failure names its reason from a fresh result.json or its exit code', async t => {
-  const f = await fixture(t, 'orcaslicer');
+  const f = await fixture(t);
   await fs.copyFile(SAMPLE_CUBE, f.stl);
-  const failing = path.join(f.root, 'failing-orca');
+  const failing = path.join(f.root, 'failing-cli');
   await fs.writeFile(failing, `#!${process.execPath}
 const fs = require('fs'); const path = require('path'); const args = process.argv.slice(2);
 if (process.env.FAKE_RESULT_JSON) fs.writeFileSync(path.join(args[args.indexOf('--outputdir') + 1], 'result.json'), process.env.FAKE_RESULT_JSON);
 console.error('Errors'); process.exit(206);
 `, { mode: 0o755 });
   const manipulator = new STLManipulator(path.join(f.root, 'out'));
-  const slice = () => manipulator.sliceSTL(f.stl, 'orcaslicer', failing, undefined, undefined, 'Bambu Lab SAFETY 0.4 nozzle', {});
+  const slice = () => manipulator.sliceSTL(f.stl, 'bambustudio', failing, undefined, undefined, 'Bambu Lab SAFETY 0.4 nozzle', {});
   t.after(() => { delete process.env.FAKE_RESULT_JSON; });
 
   process.env.FAKE_RESULT_JSON = JSON.stringify({ return_code: -52, error_string: 'Some objects are located over the boundary of the heated bed.' });

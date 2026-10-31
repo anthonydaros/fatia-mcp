@@ -642,7 +642,7 @@ async function writeTemp(tempDir, kind, leafName, data) {
  *
  * Override via BAMBU_PROFILES_ROOT env.
  */
-export function detectProfilesRoot(slicerPath, slicerType = 'bambustudio') {
+export function detectProfilesRoot(slicerPath) {
     if (process.env["BAMBU_PROFILES_ROOT"]) {
         return process.env["BAMBU_PROFILES_ROOT"];
     }
@@ -661,9 +661,7 @@ export function detectProfilesRoot(slicerPath, slicerType = 'bambustudio') {
         }
         catch { /* Probe the supplied path below. */ }
         const bin = path.dirname(executable);
-        const installNames = slicerType === 'bambustudio'
-            ? ['BambuStudio', 'bambu-studio']
-            : ['OrcaSlicer', 'orca-slicer', 'OrcaStudio', 'orca-studio'];
+        const installNames = ['BambuStudio', 'bambu-studio'];
         const candidates = path.basename(bin) === 'MacOS'
             ? [path.resolve(bin, '..', 'Resources', 'profiles')]
             : [
@@ -674,13 +672,11 @@ export function detectProfilesRoot(slicerPath, slicerType = 'bambustudio') {
                     path.resolve(bin, '..', 'share', name, 'resources', 'profiles'),
                 ]),
             ];
-        const found = candidates.find(root => (existsSync(path.join(root, 'BBL', 'machine')) || existsSync(path.join(root, 'BBL.opc'))));
+        const found = candidates.find(root => existsSync(path.join(root, 'BBL', 'machine')));
         // Do not select another installation if this executable has no profile tree.
         // flattenForCli reports the missing tree and asks for BAMBU_PROFILES_ROOT.
         return found ?? candidates[0];
     }
     // Default macOS install.
-    return slicerType === 'bambustudio'
-        ? '/Applications/BambuStudio.app/Contents/Resources/profiles'
-        : '/Applications/OrcaSlicer.app/Contents/Resources/profiles';
+    return '/Applications/BambuStudio.app/Contents/Resources/profiles';
 }
