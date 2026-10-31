@@ -1,14 +1,17 @@
 // preflight_check: runs the knowledge-base rules that the file's own data can decide and says what it could not check.
-// Tier 1 only: the settings and structure of a 3MF. Geometry, G-code and Blender checks are listed as unchecked.
+// Tiers 1 and 2: the settings and structure of a 3MF, the box and triangle count of its objects (or of an STL/OBJ) against the
+// printer, and a sliced file's time and weight. G-code analysis, mesh analysis and Blender checks are listed as unchecked.
 import fs from "node:fs/promises";
 import path from "node:path";
 import { MAX_PRINT_FILE_BYTES } from "../safety/archive.js";
 import { normalizeModel } from "../safety/limits.js";
 import { evalCondition } from "./condition.js";
 import { openProject, savedVersion, settingsProvider } from "./facts/settings.js";
+import { sliceProvider } from "./facts/slice.js";
+import { EVIDENCE_ALSO, structureProvider, UNCONFIRMED_FACTS } from "./facts/structure.js";
 import { approvalFor, getKb, leaves } from "./loader.js";
 import { printerId } from "./tools.js";
-import type { Condition, Confidence, FactContext, FactProvider, FactValue, Facts, ProjectFiles, Rule, Severity } from "./types.js";
+import type { Condition, Confidence, FactContext, FactProvider, FactValue, Facts, MeshInfo, ProjectFiles, Rule, Severity } from "./types.js";
 import { appliesTo, matchVersion, parseVersionPredicate, type VersionStatus } from "./version.js";
 
 export interface PreflightDeps {
@@ -17,6 +20,8 @@ export interface PreflightDeps {
   validModels: readonly string[];
   /** Last resort when neither the call, the environment nor the 3MF name a supported printer (elicitation). */
   askModel(): Promise<string>;
+  /** STLManipulator.getSTLInfo: bounding boxes and triangle counts of an STL or 3MF. */
+  meshInfo(filePath: string): Promise<MeshInfo>;
   /** Installed Bambu Studio version, cached per process. */
   studioVersion(): Promise<string | null>;
   /** slicerInfo({checkUpdates: false}); not cached, because acknowledging a version changes it. */
@@ -24,7 +29,21 @@ export interface PreflightDeps {
 }
 
 /** Tiers still to come append their providers here. */
-const PROVIDERS: readonly FactProvider[] = [settingsProvider];
+const PROVIDERS: readonly FactProvider[] = [settingsProvider, structureProvider, sliceProvider];
+const supplied = (fact: string) => PROVIDERS.some(p => p.provides(fact));
+
+/**
+ * The cheapest input a fact needs: its provider's tier, else by area (G-code 3, mesh analysis 4, Blender 5),
+ * else 2 (declared by the user, or a key the guide has not confirmed). A rule's tier is the highest of its facts.
+ */
+export function factTier(fact: string): number {
+  const provider = PROVIDERS.find(p => p.provides(fact));
+  if (provider) return provider.tier;
+  const area = fact.split(".")[0];
+  return area === "gcode" || fact === "plate.waste_weight_g" || fact === "plate.tool_changes" ? 3 : area === "mesh" ? 4 : area === "blender" ? 5 : 2;
+}
+const VOLUME_FACTS = new Set(["mesh.exceeds_build_volume", "printer.bed_size_mm", "printer.build_volume_mm"]);
+const DECLARED: Record<string, string> = { "object.kind": "object_kind", "object.mold_kind": "mold_kind", "object.origin": "origin" };
 
 const SEVERITY: Record<Severity, number> = { blocker: 0, warning: 1, tip: 2 };
 /** Strong sources first (CONTRACT order); equal strength keeps the rule id order. */
@@ -132,17 +151,19 @@ interface Row { rule_id: string; severity: Severity; confidence: Confidence; [ke
 const order = (a: Row, b: Row) =>
   SEVERITY[a.severity] - SEVERITY[b.severity] || STRENGTH[a.confidence] - STRENGTH[b.confidence] || (a.rule_id < b.rule_id ? -1 : a.rule_id > b.rule_id ? 1 : 0);
 
-interface Why { kind: "3mf" | "mesh" | "gcode"; sliced: boolean; project?: ProjectFiles; checks: Options["checks"] }
+interface Why { kind: "3mf" | "mesh" | "gcode"; model: string; sliced: boolean; project?: ProjectFiles; checks: Options["checks"] }
 /** Why a fact could not be supplied: names the tier or input that is missing. */
 function whyUnknown(name: string, c: Why): string {
-  const area = name.split(".")[0];
-  if (area === "gcode") return c.kind === "gcode" || c.sliced || c.checks.gcode ? GCODE_PENDING : "precisa de G-code: fatie e rode de novo";
-  if (area === "mesh") return c.checks.mesh === "fast" ? "checks.mesh=fast pedido, mas a analise de malha ainda nao esta implementada" : "precisa de analise de malha (nao implementado)";
-  if (area === "blender") return c.checks.blender ? "checks.blender pedido, mas a sonda do Blender ainda nao esta implementada" : "precisa do Blender MCP (checks.blender)";
-  if (area === "plate") return "precisa do resultado do fatiamento (plate.*, nao implementado)";
-  const declared = ({ "object.kind": "object_kind", "object.mold_kind": "mold_kind", "object.origin": "origin" } as Record<string, string>)[name];
-  if (declared) return `precisa de context.${declared} (declarado pelo usuario, nenhum arquivo diz)`;
-  if (!PROVIDERS.some(p => p.provides(name))) return `fato ainda nao implementado: ${name}`;
+  const tier = factTier(name);
+  if (DECLARED[name]) return `pergunte ao usuario: context.${DECLARED[name]}`;
+  if (tier === 3) return c.kind === "gcode" || c.sliced || c.checks.gcode ? GCODE_PENDING : "precisa de G-code: fatie e rode de novo";
+  if (tier === 4) return c.checks.mesh === "fast" ? "checks.mesh=fast pedido, mas a analise de malha ainda nao esta implementada" : "precisa de analise de malha (nao implementado)";
+  if (tier === 5) return c.checks.blender ? "checks.blender pedido, mas a sonda do Blender ainda nao esta implementada" : "precisa do Blender MCP (checks.blender)";
+  if (UNCONFIRMED_FACTS.has(name)) return `chave do 3MF ainda nao confirmada numa X2D real: ${name}`;
+  if (!supplied(name)) return `fato ainda nao implementado: ${name}`;
+  if (name.startsWith("plate.")) return "precisa de 3MF fatiado (plate.*): fatie e rode de novo";
+  if (!normalizeModel(c.model) && VOLUME_FACTS.has(name)) return `modelo de impressora sem volume de impressao conhecido: ${c.model}`;
+  if (name.startsWith("mesh.") || name.startsWith("object.")) return c.kind === "gcode" ? GCODE_PENDING : `sem geometria legivel neste arquivo: ${name}`;
   if (!c.project) return c.kind === "gcode" ? GCODE_PENDING : "STL sem ajustes: fatie ou envie o 3MF do projeto";
   if (name === "studio.version") return "versao do Studio que salvou o 3MF desconhecida (sem X-BBL-Client-Version em slice_info.config)";
   if (name.startsWith("studio.")) return "versao do Studio desconhecida (instalada e a que salvou o 3MF)";
@@ -190,42 +211,44 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
   const sliced = project?.sliceInfo?.plate !== undefined;
   const plates = [].concat(project?.modelSettings?.plate ?? []).length;
   if (plates > 0 && options.plateIndex >= plates) throw new Error(`plate_index ${options.plateIndex} is out of range: the 3MF has ${plates} plate(s), numbered from 0.`);
-  const why: Why = { kind, sliced, project, checks: options.checks };
+  const why: Why = { kind, model, sliced, project, checks: options.checks };
 
-  // 1. Which rules can speak for this file. Blender rules and rules below min_severity are not checked, only counted or skipped.
+  // 1. Which rules can speak for this file. Every rule lands in exactly one bucket (see `accounting` below).
   const hidden = { other_printers: 0, ignored: 0, below_min_severity: 0, over_max_findings: 0 };
   const unchecked = new Map<string, number>();
+  let notFired = 0;
   const shown = (r: Rule) => SEVERITY[r.severity] <= SEVERITY[options.minSeverity];
   const version = new Map<string, VersionStatus>();
   const visible: Rule[] = [];
   for (const r of kb.rules) {
     if (options.ignore.has(r.id)) hidden.ignored++;
-    else if (r.domain === "blender") { if (shown(r)) bump(unchecked, whyUnknown("blender.", why)); }
+    else if (r.domain === "blender") bump(unchecked, whyUnknown("blender.", why)); // judged on a Blender scene, which no tier here reads
     else if (r.printers.length && !r.printers.includes(scope)) hidden.other_printers++;
     else {
       const status = appliesTo(r.applies_to, { bambu_studio: installed });
       version.set(r.id, status);
       if (status !== "not_applies") visible.push(r);
-      else if (shown(r)) bump(unchecked, "versao do Studio instalada fora do alcance da regra (applies_to)");
+      else bump(unchecked, "versao do Studio instalada fora do alcance da regra (applies_to)");
     }
   }
 
-  // 2. Facts: only those the visible rules read, and only from providers whose input exists.
-  const settingsOnly = (r: Rule) => !r.detect.when && r.detect.facts.length > 0 && r.detect.facts.every(f => f.startsWith("settings."));
+  // 2. Facts: only those the visible rules read (or show as current values), and only from providers whose input exists.
   const wanted = new Set<string>();
+  const want = (fact: string) => { wanted.add(fact); EVIDENCE_ALSO[fact]?.forEach(f => wanted.add(f)); };
   for (const r of visible) {
-    if (r.detect.when) for (const leaf of leafList(r)) wanted.add(leaf.fact);
-    else if (settingsOnly(r)) r.detect.facts.forEach(f => wanted.add(f));
+    if (r.detect.when) leafList(r).forEach(l => want(l.fact));
+    else r.detect.facts.filter(supplied).forEach(want);
   }
   if ([...wanted].some(f => f.startsWith("studio."))) wanted.add("studio.installed_version");
-  const context: FactContext = { project, plateIndex: options.plateIndex, targetPrinter: model, installedStudio: deps.studioVersion };
+  const context: FactContext = { filePath: full, kind, meshInfo: deps.meshInfo, project, plateIndex: options.plateIndex, targetPrinter: model, installedStudio: deps.studioVersion };
   const facts: Facts = { ...options.declared };
   for (const provider of PROVIDERS) {
     const names = [...wanted].filter(n => provider.provides(n));
     if (names.length && (project || !provider.needs.includes("3mf"))) Object.assign(facts, await provider.collect(context, names));
   }
 
-  // 3. Evaluate. true fires, false is silent, unknown goes to unchecked with the missing fact.
+  // 3. Evaluate. true fires, false is silent (counted), unknown goes to unchecked with the reason of its most demanding missing fact.
+  const worstMissing = (names: string[]) => names.filter(n => !known(facts, n)).sort((a, b) => factTier(b) - factTier(a))[0];
   const findings: Row[] = [];
   const checklist: Row[] = [];
   for (const r of visible) {
@@ -236,6 +259,7 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
         if (!visibleSeverity) { hidden.below_min_severity++; continue; }
         const names = [...new Set(leafList(r).map(l => l.fact))];
         if (names.some(n => n.startsWith("studio."))) names.push("studio.installed_version"); // both versions must show
+        names.push(...names.flatMap(n => EVIDENCE_ALSO[n] ?? []));
         findings.push({
           rule_id: r.id, severity: r.severity, confidence: r.confidence, stage: r.stage, title: r.title, problem: r.problem,
           evidence: Object.fromEntries([...new Set(names)].filter(n => known(facts, n)).map(n => [n, show(facts[n] as FactValue)])),
@@ -244,21 +268,26 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
           ...(version.get(r.id) === "unknown" ? { version_note: `valida para bambu_studio ${r.applies_to?.bambu_studio}; a versao instalada do Studio e desconhecida` } : {}),
           topic: r.topic, src: r.src,
         });
-      } else if (verdict === undefined && visibleSeverity) {
-        const missing = leafList(r).find(l => !known(facts, l.fact))?.fact;
+      } else if (verdict === false) {
+        notFired++;
+      } else {
+        const missing = worstMissing(leafList(r).map(l => l.fact));
         bump(unchecked, missing ? whyUnknown(missing, why) : "valor do 3MF nao avaliavel");
       }
-    } else if (r.detect.method === "manual" || r.detect.method === "none") {
-      if (!visibleSeverity) { hidden.below_min_severity++; continue; }
-      const current = settingsOnly(r) ? r.detect.facts.filter(f => known(facts, f)).map(f => [f, show(facts[f] as FactValue)]) : [];
-      checklist.push({
-        rule_id: r.id, severity: r.severity, confidence: r.confidence, title: r.title, why: r.problem,
-        ...(current.length ? { current_values: Object.fromEntries(current) } : {}),
-      });
-    } else if (visibleSeverity) {
-      // A detector that needs code (G-code, geometry, Blender) which does not exist yet.
-      const area = r.detect.method === "3mf-structure" || r.detect.method === "settings" ? "" : r.detect.method;
-      bump(unchecked, area ? whyUnknown(`${area}.`, why) : "regra sem condicao avaliavel");
+    } else {
+      // No machine condition: the source gave no threshold (or the check needs code). A manual rule is always a checklist item;
+      // any other becomes one, with the current values, when every fact it reads is known, else it is unchecked.
+      const manual = r.detect.method === "manual" || r.detect.method === "none";
+      const missing = manual ? undefined : worstMissing(r.detect.facts);
+      if (!manual && (missing || !r.detect.facts.length)) bump(unchecked, whyUnknown(missing ?? `${r.detect.method}.`, why)); // no facts: the method names the tier
+      else if (!visibleSeverity) hidden.below_min_severity++;
+      else {
+        const current = r.detect.facts.filter(f => known(facts, f)).map(f => [f, show(facts[f] as FactValue)]);
+        checklist.push({
+          rule_id: r.id, severity: r.severity, confidence: r.confidence, title: r.title, why: r.problem,
+          ...(current.length ? { current_values: Object.fromEntries(current) } : {}),
+        });
+      }
     }
   }
   findings.sort(order);
@@ -267,6 +296,7 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
   findings.length = Math.min(findings.length, options.maxFindings);
 
   const sortedReasons = [...unchecked].sort((a, b) => b[1] - a[1]);
+  const uncheckedTotal = sortedReasons.reduce((n, [, count]) => n + count, 0);
   const next: string[] = [];
   if (findings.length) next.push("Mostre os achados por severidade (bloqueadores primeiro), com a etiqueta de confianca, e peca aprovacao antes de mudar qualquer ajuste.");
   if (kind !== "3mf" || !sliced) next.push(`slice_stl com bambu_model ${model}${kind === "3mf" ? "" : " (ou envie o 3MF do projeto)"} e rode preflight_check de novo no resultado.`);
@@ -287,8 +317,17 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
     stage_reached: project?.config ? ["pre-slice", "project-settings"] : kind === "gcode" ? [] : ["pre-slice"],
     findings,
     checklist,
-    unchecked: { total: sortedReasons.reduce((n, [, count]) => n + count, 0), by_reason: Object.fromEntries(sortedReasons) },
+    unchecked: { total: uncheckedTotal, by_reason: Object.fromEntries(sortedReasons) },
     hidden,
+    // candidates = findings + checklist + not_fired + unchecked + hidden: no rule of the base is left out.
+    accounting: {
+      candidates: kb.rules.length,
+      findings: findings.length + hidden.over_max_findings,
+      checklist: checklist.length,
+      not_fired: notFired,
+      unchecked: uncheckedTotal,
+      hidden: hidden.other_printers + hidden.ignored + hidden.below_min_severity,
+    },
     version_review: versionReview(await deps.studioInfo(), kb.rules),
     next,
   };

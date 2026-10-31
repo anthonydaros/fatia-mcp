@@ -10,6 +10,7 @@ import JSZip from "jszip";
 import { settingsProvider } from "../dist/knowledge/facts/settings.js";
 import { getKb } from "../dist/knowledge/loader.js";
 import { preflightCheck } from "../dist/knowledge/preflight.js";
+import { STLManipulator } from "../dist/stl/stl-manipulator.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MODELS = ["p1s", "x1c", "a1", "a1mini", "h2d", "h2s", "h2c", "x2d"];
@@ -73,6 +74,7 @@ const deps = (extra = {}) => ({
   defaultModel: "x2d",
   validModels: MODELS,
   askModel: async () => { throw new Error("must not ask"); },
+  meshInfo: (file) => new STLManipulator(os.tmpdir()).getSTLInfo(file),
   studioVersion: async () => "02.08.04.57",
   studioInfo: async () => ({ changed_since_last_seen: false }),
   ...extra,
@@ -119,7 +121,8 @@ test("a missing fact is unchecked with the fact named; a false leaf still settle
   assert.equal(unknown.unchecked.total, Object.values(unknown.unchecked.by_reason).reduce((a, b) => a + b, 0));
 
   const settled = await run(await project(t, { raw: JSON.stringify({ ...without, filament_type: ["PLA"] }) }));
-  assert.equal(settled.unchecked.by_reason["fato ausente no 3MF: settings.curr_bed_type"], undefined, "no PETG: the rule is false whatever the bed is");
+  const reason = "fato ausente no 3MF: settings.curr_bed_type";
+  assert.ok((settled.unchecked.by_reason[reason] ?? 0) < unknown.unchecked.by_reason[reason], "no PETG: the PETG rule is false whatever the bed is, so one rule fewer is unchecked");
 });
 
 test("long third-party values are clipped to 80 characters in the evidence and in the saved-for printer name", async (t) => {
@@ -237,10 +240,10 @@ test("printer.* facts come from nozzle_diameter and printable_area; settings key
   const names = ["printer.model", "printer.nozzle_count", "printer.nozzle_diameter", "printer.nozzle_diameters_differ", "printer.bed_size_mm", "settings.sparse_infill_density", "settings.layer_height", "settings.nope", "settings.constructor", "settings.__proto__"];
   const facts = await settingsProvider.collect({ project, plateIndex: 0, targetPrinter: "x2d", installedStudio: async () => null }, names);
   assert.deepEqual(facts, {
-    "printer.model": "Bambu Lab X2D", "printer.nozzle_count": 2, "printer.nozzle_diameter": ["0.4", "0.6"], "printer.nozzle_diameters_differ": true,
-    "printer.bed_size_mm": 350, "settings.sparse_infill_density": "15%", "settings.layer_height": "0.2",
-  });
-  assert.ok(settingsProvider.provides("settings.anything") && settingsProvider.provides("studio.version") && !settingsProvider.provides("gcode.x"));
+    "printer.nozzle_count": 2, "printer.nozzle_diameter": ["0.4", "0.6"], "printer.nozzle_diameters_differ": true,
+    "settings.sparse_infill_density": "15%", "settings.layer_height": "0.2",
+  }); // printer.model and printer.bed_size_mm describe the printer being targeted: the structure provider owns them
+  assert.ok(settingsProvider.provides("settings.anything") && settingsProvider.provides("studio.version") && !settingsProvider.provides("gcode.x") && !settingsProvider.provides("printer.model"));
   assert.equal(settingsProvider.tier, 1);
   assert.deepEqual(settingsProvider.needs, ["3mf"]);
 });
@@ -395,7 +398,7 @@ test("a sliced 3MF reports the saving Studio, and what the user declares fills o
   assert.match(result.next.join(" "), /open_in_slicer/);
   const undeclared = await run(file, { min_severity: "tip" });
   assert.ok(!ids(undeclared).includes("bambu.facedown.elephant-foot-zero"));
-  assert.ok(undeclared.unchecked.by_reason["precisa de context.object_kind (declarado pelo usuario, nenhum arquivo diz)"] >= 1);
+  assert.ok(undeclared.unchecked.by_reason["pergunte ao usuario: context.object_kind"] >= 1);
 });
 
 test("version_review appears only when the installed Studio changed, lists rules whose verdict flips and never acknowledges", async (t) => {

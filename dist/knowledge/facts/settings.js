@@ -8,7 +8,11 @@ import { matchVersion } from "../version.js";
 const X2D_MINIMUM = ">=2.5.3.60";
 const MAX_XML_CHARS = 32 * 2 ** 20; // far above any real metadata file; a bigger one is treated as absent
 const STICKY_TYPES = new Set(["PETG", "PA", "TPU", "PCTG", "PPA"]);
-const asArray = (x) => (x === undefined ? [] : Array.isArray(x) ? x : [x]);
+export const asArray = (x) => (x === undefined ? [] : Array.isArray(x) ? x : [x]);
+/** Value of the <metadata key="..." value="..."/> child of an XML node parsed with mergeAttrs. */
+export const meta = (node, key) => asArray(node?.metadata).find(m => m?.key === key)?.value;
+/** The printer being targeted, spelled as the project settings spell it ("Bambu Lab X2D"). */
+export const targetName = (model) => `Bambu Lab ${model.toUpperCase()}`;
 const isScalar = (x) => ["string", "number", "boolean"].includes(typeof x);
 const has = (o, key) => Object.prototype.hasOwnProperty.call(o, key);
 const asFact = (v) => Array.isArray(v) ? (v.every(isScalar) ? v : undefined) : isScalar(v) ? v : undefined; // objects and nested lists are not facts
@@ -28,7 +32,12 @@ export async function openProject(filePath) {
             return undefined; // malformed XML counts as absent
         }
     };
-    const project = { sliceInfo: await xml("Metadata/slice_info.config"), modelSettings: await xml("Metadata/model_settings.config") };
+    const project = {
+        sliceInfo: await xml("Metadata/slice_info.config"),
+        modelSettings: await xml("Metadata/model_settings.config"),
+        names: Object.keys(zip.files),
+        read: async (name, maxBytes = Infinity) => (await zip.file(name)?.async("nodebuffer"))?.subarray(0, maxBytes),
+    };
     const raw = await read("Metadata/project_settings.config");
     if (raw === undefined) {
         project.configProblem = "3MF sem Metadata/project_settings.config (so geometria): fatie no Studio ou envie o 3MF do projeto";
@@ -46,21 +55,17 @@ export async function openProject(filePath) {
     }
     return project;
 }
-/** Largest side of the printable_area polygon ("0x0", "350x0", ...), in mm. */
-function bedSize(area) {
-    const points = list(area)?.map(p => /^(-?\d+(?:\.\d+)?)x(-?\d+(?:\.\d+)?)$/.exec(String(p)));
-    if (!points || points.length < 3 || points.some(p => !p))
-        return undefined;
-    const side = (i) => { const v = points.map(p => Number(p[i])); return Math.max(...v) - Math.min(...v); };
-    return Math.max(side(1), side(2));
+/** "object:instance" of each model_instance on one plate (plater_id is 1-based); undefined when model_settings.config has no such plate. */
+export function plateInstances(modelSettings, plateIndex) {
+    const plate = asArray(modelSettings?.plate).find(p => Number(meta(p, "plater_id")) === plateIndex + 1);
+    return plate && asArray(plate.model_instance).map(i => `${meta(i, "object_id")}:${meta(i, "instance_id") ?? 0}`);
 }
 /** Objects on the plate and the distinct filaments their objects and parts are assigned to. */
 function plateUsage(modelSettings, plateIndex) {
-    const meta = (node, key) => asArray(node?.metadata).find(m => m?.key === key)?.value;
-    const plate = asArray(modelSettings?.plate).find(p => Number(meta(p, "plater_id")) === plateIndex + 1);
-    if (!plate)
+    const instances = plateInstances(modelSettings, plateIndex);
+    if (!instances)
         return undefined;
-    const onPlate = new Set(asArray(plate.model_instance).map(i => String(meta(i, "object_id"))));
+    const onPlate = new Set(instances.map(i => i.slice(0, i.lastIndexOf(":"))));
     const filaments = new Set();
     // shortcut: only the filaments assigned to objects and parts; painted colours and support filaments are not seen, so this can undercount.
     for (const object of asArray(modelSettings.object)) {
@@ -73,7 +78,7 @@ function plateUsage(modelSettings, plateIndex) {
                 filaments.add(String(extruder));
         }
     }
-    return { objects: onPlate.size, filaments: filaments.size };
+    return { objects: instances.length, filaments: filaments.size };
 }
 /** The Studio that saved the 3MF; anything but a plain dotted version is treated as unknown (the value is third-party text). */
 export function savedVersion(project) {
@@ -82,11 +87,9 @@ export function savedVersion(project) {
 }
 const verdict = (v) => (v === "unknown" ? undefined : v === "applies");
 const DERIVED = {
-    "printer.model": (_c, _p, config) => text(config.printer_model),
     "printer.nozzle_diameter": (_c, _p, config) => list(config.nozzle_diameter),
     "printer.nozzle_count": (_c, _p, config) => list(config.nozzle_diameter)?.length,
     "printer.nozzle_diameters_differ": (_c, _p, config) => { const l = list(config.nozzle_diameter); return l && new Set(l.map(Number)).size > 1; },
-    "printer.bed_size_mm": (_c, _p, config) => bedSize(config.printable_area),
     "project.filament_types": (_c, _p, config) => list(config.filament_type),
     // Type and stickiness are compared at the same filament index, as the fact is declared.
     "filament.low_stickiness_on_sticky_type_count": (_c, _p, config) => {
@@ -94,7 +97,7 @@ const DERIVED = {
         return types && stickiness ? types.filter((t, i) => STICKY_TYPES.has(String(t)) && ["None", "Low"].includes(String(stickiness[i]))).length : undefined;
     },
     "project.source_printer": (_c, _p, config) => text(config.printer_model),
-    "project.target_printer": ctx => `Bambu Lab ${ctx.targetPrinter.toUpperCase()}`,
+    "project.target_printer": ctx => targetName(ctx.targetPrinter),
     "project.printer_changed": (ctx, _p, config) => {
         const source = normalizeModel(config.printer_model);
         return source === undefined ? undefined : source !== ctx.targetPrinter;

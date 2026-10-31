@@ -76,8 +76,49 @@ export interface ProjectFiles {
     sliceInfo?: any;
     /** Root <config> of Metadata/model_settings.config (objects, parts and plates). */
     modelSettings?: any;
+    /** Entry names of the archive. */
+    names?: string[];
+    /** The bytes of one entry of the safely opened archive, cut to maxBytes; undefined when absent. */
+    read?: (name: string, maxBytes?: number) => Promise<Buffer | undefined>;
+}
+/** The fields of STLManipulator.getSTLInfo that the box facts read. `objects` and `items` exist for 3MF input only. */
+export interface MeshInfo {
+    boundingBox: {
+        dimensions: {
+            x: number;
+            y: number;
+            z: number;
+        };
+    };
+    faceCount: number;
+    objects?: Array<{
+        faceCount: number;
+        boundingBox: {
+            min: {
+                x: number;
+                y: number;
+                z: number;
+            };
+            max: {
+                x: number;
+                y: number;
+                z: number;
+            };
+        };
+        item: number;
+        objectId: string;
+    }>;
+    items?: Array<{
+        objectId: string;
+        printable: boolean;
+    }>;
 }
 export interface FactContext {
+    /** Absolute path of the input file and what it is. */
+    filePath: string;
+    kind: "3mf" | "mesh" | "gcode";
+    /** getSTLInfo, injected so the facts never import the server. */
+    meshInfo: (filePath: string) => Promise<MeshInfo>;
     /** The opened 3MF; undefined for mesh and G-code input. */
     project?: ProjectFiles;
     /** 0-based plate the plate-level facts (object_count, filament_count) describe. */
@@ -89,6 +130,7 @@ export interface FactContext {
 }
 /** Computes only the facts asked for. The caller skips a provider whose `needs` are missing, so its facts stay unknown. */
 export interface FactProvider {
+    /** 1 settings, 2 cheap structure and box facts. A fact nobody provides is graded by its area (see factTier). */
     tier: number;
     provides(fact: string): boolean;
     needs: readonly "3mf"[];

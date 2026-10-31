@@ -258,14 +258,10 @@ export async function extractBambuTemplateSettings(
     throw new Error(`No slicer settings config found in template 3MF: ${filePath}`);
 }
 
-/** Per-plate time, weight, filament use and slicer warnings that Bambu Studio records in a sliced 3MF. */
-export async function readSliceResults(filePath: string) {
-    const zip = await JSZip.loadAsync(await fs.readFile(filePath));
-    const sliceInfo = zip.file('Metadata/slice_info.config');
-    if (!sliceInfo) throw new Error(`Sliced 3MF has no Metadata/slice_info.config: ${filePath}`);
-    const parsed = await parseStringPromise(await sliceInfo.async('string'), { explicitArray: false, mergeAttrs: true });
+/** Per-plate time, weight, filament use and slicer warnings from the parsed root <config> of a slice_info.config. */
+export function sliceResultsFrom(config: any) {
     const list = (value: any): any[] => value === undefined ? [] : Array.isArray(value) ? value : [value];
-    return list(parsed?.config?.plate).map((plate) => {
+    return list(config?.plate).map((plate) => {
         const metadata = Object.fromEntries(list(plate.metadata).map((item) => [item.key, item.value]));
         return {
             index: Number(metadata.index),
@@ -284,6 +280,15 @@ export async function readSliceResults(filePath: string) {
             })),
         };
     });
+}
+
+/** Per-plate time, weight, filament use and slicer warnings that Bambu Studio records in a sliced 3MF. */
+export async function readSliceResults(filePath: string) {
+    const zip = await JSZip.loadAsync(await fs.readFile(filePath));
+    const sliceInfo = zip.file('Metadata/slice_info.config');
+    if (!sliceInfo) throw new Error(`Sliced 3MF has no Metadata/slice_info.config: ${filePath}`);
+    const parsed = await parseStringPromise(await sliceInfo.async('string'), { explicitArray: false, mergeAttrs: true });
+    return sliceResultsFrom(parsed?.config);
 }
 
 const COLLAR_CHARM_ROLE_COLORS = {

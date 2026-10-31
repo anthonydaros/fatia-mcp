@@ -3377,6 +3377,7 @@ class BambuPrinterMCPServer {
                     case "preflight_check":
                         result = await preflightCheck(args ?? {}, {
                             defaultModel: DEFAULT_BAMBU_MODEL, validModels: VALID_BAMBU_MODELS, studioVersion, studioInfo,
+                            meshInfo: filePath => this.stlManipulator.getSTLInfo(filePath),
                             askModel: () => this.resolveBambuModel(undefined),
                         });
                         break;

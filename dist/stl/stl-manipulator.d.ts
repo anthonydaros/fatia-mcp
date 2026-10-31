@@ -108,6 +108,12 @@ export declare class STLManipulator extends EventEmitter {
             vertexCount: number;
             faceCount: number;
             boundingBox: BoundingBox;
+            item: number;
+            objectId: string;
+        }>;
+        items?: Array<{
+            objectId: string;
+            printable: boolean;
         }>;
     }>;
     /**

@@ -806,7 +806,8 @@ export class STLManipulator extends EventEmitter {
     boundingBox: BoundingBox;
     vertexCount: number;
     faceCount: number;
-    objects?: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox }>;
+    objects?: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox; item: number; objectId: string }>;
+    items?: Array<{ objectId: string; printable: boolean }>;
   }> {
     try {
       const fileStats = fs.statSync(stlFilePath);
@@ -860,7 +861,8 @@ export class STLManipulator extends EventEmitter {
     boundingBox: BoundingBox;
     vertexCount: number;
     faceCount: number;
-    objects: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox }>;
+    objects: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox; item: number; objectId: string }>;
+    items: Array<{ objectId: string; printable: boolean }>;
   }> {
     const JSZip = (await import('jszip')).default;
     const data = fs.readFileSync(filePath);
@@ -879,12 +881,14 @@ export class STLManipulator extends EventEmitter {
     const overallBox = new THREE.Box3();
     let totalVerts = 0;
     let totalFaces = 0;
-    const objects: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox }> = [];
+    // `item` ties each mesh to its <build> entry, so a caller can group the meshes of one object and map it to a plate.
+    const objects: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox; item: number; objectId: string }> = [];
+    const items: Array<{ objectId: string; printable: boolean }> = [];
     const point = new THREE.Vector3();
 
     // The depth limit bounds nesting, not fan-out: layered components multiply, so cap the total walk.
     let instances = 0;
-    const visit = async (file: string, id: string, matrix: THREE.Matrix4, depth: number): Promise<void> => {
+    const visit = async (file: string, id: string, matrix: THREE.Matrix4, depth: number, item: number): Promise<void> => {
       if (depth > 8) throw new Error('3MF components are nested too deeply.');
       if (++instances > 10_000) throw new Error('3MF has too many component instances.');
       const object = (await loadModel(file)).get(id);
@@ -901,10 +905,12 @@ export class STLManipulator extends EventEmitter {
           vertexCount: verts.length / 3,
           faceCount: object.faces,
           boundingBox: { min: box.min, max: box.max, center: box.getCenter(new THREE.Vector3()), dimensions: box.getSize(new THREE.Vector3()) },
+          item,
+          objectId: id,
         });
       }
       for (const component of object.components) {
-        await visit(component.path ?? file, component.id, matrix.clone().multiply(component.matrix), depth + 1);
+        await visit(component.path ?? file, component.id, matrix.clone().multiply(component.matrix), depth + 1, item);
       }
     };
 
@@ -912,7 +918,9 @@ export class STLManipulator extends EventEmitter {
     const build = /<(?:\w+:)?build\b[\s\S]*?<\/(?:\w+:)?build>/.exec(mainXml)?.[0] ?? '';
     for (const [, tag] of build.matchAll(/<(?:\w+:)?item\b([^>]*)>/g)) {
       const id = attributeOf(tag, 'objectid');
-      if (id) await visit(attributeOf(tag, 'path') ?? MAIN_3MF_MODEL, id, matrixOf3MF(attributeOf(tag, 'transform')), 0);
+      if (!id) continue;
+      items.push({ objectId: id, printable: attributeOf(tag, 'printable') !== '0' });
+      await visit(attributeOf(tag, 'path') ?? MAIN_3MF_MODEL, id, matrixOf3MF(attributeOf(tag, 'transform')), 0, items.length - 1);
     }
 
     if (totalVerts === 0) {
@@ -927,6 +935,7 @@ export class STLManipulator extends EventEmitter {
       vertexCount: totalVerts,
       faceCount: totalFaces,
       objects,
+      items,
     };
   }
 

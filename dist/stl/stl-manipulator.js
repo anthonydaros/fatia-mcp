@@ -683,11 +683,13 @@ export class STLManipulator extends EventEmitter {
         const overallBox = new THREE.Box3();
         let totalVerts = 0;
         let totalFaces = 0;
+        // `item` ties each mesh to its <build> entry, so a caller can group the meshes of one object and map it to a plate.
         const objects = [];
+        const items = [];
         const point = new THREE.Vector3();
         // The depth limit bounds nesting, not fan-out: layered components multiply, so cap the total walk.
         let instances = 0;
-        const visit = async (file, id, matrix, depth) => {
+        const visit = async (file, id, matrix, depth, item) => {
             if (depth > 8)
                 throw new Error('3MF components are nested too deeply.');
             if (++instances > 10000)
@@ -708,18 +710,22 @@ export class STLManipulator extends EventEmitter {
                     vertexCount: verts.length / 3,
                     faceCount: object.faces,
                     boundingBox: { min: box.min, max: box.max, center: box.getCenter(new THREE.Vector3()), dimensions: box.getSize(new THREE.Vector3()) },
+                    item,
+                    objectId: id,
                 });
             }
             for (const component of object.components) {
-                await visit(component.path ?? file, component.id, matrix.clone().multiply(component.matrix), depth + 1);
+                await visit(component.path ?? file, component.id, matrix.clone().multiply(component.matrix), depth + 1, item);
             }
         };
         const mainXml = zip.file(MAIN_3MF_MODEL) ? await zip.file(MAIN_3MF_MODEL).async('string') : '';
         const build = /<(?:\w+:)?build\b[\s\S]*?<\/(?:\w+:)?build>/.exec(mainXml)?.[0] ?? '';
         for (const [, tag] of build.matchAll(/<(?:\w+:)?item\b([^>]*)>/g)) {
             const id = attributeOf(tag, 'objectid');
-            if (id)
-                await visit(attributeOf(tag, 'path') ?? MAIN_3MF_MODEL, id, matrixOf3MF(attributeOf(tag, 'transform')), 0);
+            if (!id)
+                continue;
+            items.push({ objectId: id, printable: attributeOf(tag, 'printable') !== '0' });
+            await visit(attributeOf(tag, 'path') ?? MAIN_3MF_MODEL, id, matrixOf3MF(attributeOf(tag, 'transform')), 0, items.length - 1);
         }
         if (totalVerts === 0) {
             throw new Error('No mesh data found in 3MF file. The archive may not contain any 3D objects.');
@@ -732,6 +738,7 @@ export class STLManipulator extends EventEmitter {
             vertexCount: totalVerts,
             faceCount: totalFaces,
             objects,
+            items,
         };
     }
     /**
