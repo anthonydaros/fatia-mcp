@@ -1081,7 +1081,7 @@ This returns a compact summary of the high-signal settings such as printer prese
 
 #### slice_with_template
 
-Slice an STL or 3MF using a named template from the local registry. This is a higher-level wrapper over `slice_stl` for template-based workflows.
+Slice an STL or 3MF using a named template from the local registry. This is a higher-level wrapper over `slice_stl` for template-based workflows and returns the same `output_path` and `plates` result.
 
 ```json
 {
@@ -1095,7 +1095,26 @@ This uses the named template as the slicing profile source and still supports li
 
 #### slice_stl
 
-Slice an STL or 3MF file using an external slicer and return the path to the output file. The output is a sliced 3MF (for BambuStudio) or a G-code file (for PrusaSlicer, Cura, Slic3r).
+Slice an STL or 3MF file using an external slicer. The output is a sliced 3MF (for BambuStudio) or a G-code file (for PrusaSlicer, Cura, Slic3r).
+
+The result is JSON. `output_path` is the output file. For a sliced 3MF, `plates` lists what the slicer recorded for each plate (empty for G-code output):
+
+```json
+{
+  "output_path": "/tmp/bambu-printer-mcp-ab12/slice-Xy7Kq2/model_sliced.3mf",
+  "plates": [
+    {
+      "index": 1,
+      "prediction_s": 35464,
+      "weight_g": 234.76,
+      "filaments": [{ "type": "PLA", "color": "#000000", "used_g": 234.76, "used_m": 77.46 }],
+      "warnings": [{ "msg": "bed_temperature_too_high_than_filament", "level": 3, "error_code": "1000C001" }]
+    }
+  ]
+}
+```
+
+Every Bambu Studio slice writes into a fresh `slice-*` folder under `TEMP_DIR`, so repeated or concurrent slices never share files. The folder keeps only the sliced 3MF (the `plate_N.gcode` files are inside it). A `slicer_profile` path that does not exist is an error and the slicer does not run. Cancelling the request stops the slicer process.
 
 ```json
 {
@@ -1295,7 +1314,7 @@ STL manipulation tools load the entire mesh into memory as Three.js geometry. Fo
 - Files over 10 MB can consume several hundred MB of RAM during processing.
 - Running multiple operations sequentially on large files may cause memory to accumulate between garbage collection cycles.
 - If you encounter out-of-memory errors, try splitting large operations or working with smaller/simplified meshes.
-- The server has no built-in memory cap. On constrained systems, set the `TEMP_DIR` to a fast local path and avoid processing multiple large files concurrently.
+- The server has no built-in memory cap. On constrained systems, set the `TEMP_DIR` to a fast local path and avoid processing multiple large files concurrently. Each Bambu Studio slice keeps its sliced 3MF in its own `slice-*` folder there; delete old folders when you no longer need them.
 
 ### STL manipulation limitations
 

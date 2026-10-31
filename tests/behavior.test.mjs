@@ -2083,6 +2083,17 @@ function writeTemplateJsonFixture(
   return templatePath;
 }
 
+const FAKE_SLICE_INFO = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <plate>
+    <metadata key="index" value="1"/>
+    <metadata key="prediction" value="3600"/>
+    <metadata key="weight" value="12.5"/>
+    <filament id="1" type="PLA" color="#FFFFFF" used_m="4.2" used_g="12.5"/>
+    <warning msg="bed_temperature_too_high_than_filament" level="3" error_code ="1000C001"  />
+  </plate>
+</config>`;
+
 async function createFakeBambuSlicer() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bambu-mcp-template-slicer-"));
   const fakeSlicerPath = path.join(tempDir, "fake-slicer.mjs");
@@ -2102,6 +2113,8 @@ async function createFakeBambuSlicer() {
   writeProfile("machine", { name: "Bambu Lab P1S 0.4 nozzle", nozzle_diameter: ["0.4"], default_print_profile: "Behavior process", default_filament_profile: ["Behavior filament"], machine_start_gcode: "fixture start" });
   writeProfile("process", { name: "Behavior process", layer_height: "0.2" });
   writeProfile("filament", { name: "Behavior filament", filament_type: ["PLA"] });
+  // slice_stl reads the slicer's plate summary from the output 3MF.
+  const slicedBase64 = await new JSZip().file("Metadata/slice_info.config", FAKE_SLICE_INFO).generateAsync({ type: "base64" });
   fs.writeFileSync(
     fakeSlicerPath,
     `#!/usr/bin/env node
@@ -2113,7 +2126,7 @@ const outputDir = args[args.indexOf("--outputdir") + 1] || path.dirname(args[arg
 const exportArg = args[args.indexOf("--export-3mf") + 1];
 const outputPath = path.isAbsolute(exportArg) ? exportArg : path.join(outputDir, exportArg);
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-fs.writeFileSync(outputPath, "fake sliced 3mf");
+fs.writeFileSync(outputPath, Buffer.from(${JSON.stringify(slicedBase64)}, "base64"));
 `
   );
   fs.chmodSync(fakeSlicerPath, 0o755);
@@ -2161,6 +2174,14 @@ test("slice_with_template prefers named template settings over BAMBU_SLICER_PROF
   });
 
   assert.equal(result.isError, undefined);
+  const sliced = JSON.parse(result.content[0].text);
+  assert.match(path.basename(path.dirname(sliced.output_path)), /^slice-/);
+  assert.equal(path.basename(sliced.output_path), "sample_cube_sliced.3mf");
+  assert.deepEqual(sliced.plates, [{
+    index: 1, prediction_s: 3600, weight_g: 12.5,
+    filaments: [{ type: "PLA", color: "#FFFFFF", used_g: 12.5, used_m: 4.2 }],
+    warnings: [{ msg: "bed_temperature_too_high_than_filament", level: 3, error_code: "1000C001" }],
+  }]);
   const slicerArgs = JSON.parse(fs.readFileSync(fakeSlicer.argsOutPath, "utf8"));
   const settingsValue = slicerArgs[slicerArgs.indexOf("--load-settings") + 1];
   const processPath = settingsValue.split(";").at(-1);

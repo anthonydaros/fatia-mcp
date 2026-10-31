@@ -50,6 +50,7 @@ export interface BambuSliceOptions {
     skipModifiedGcodes?: boolean;
     slicePlate?: number;
 }
+export declare function bambuCliFailureReason(exitCode: unknown, resultPath: string): string | undefined;
 export declare class STLManipulator extends EventEmitter {
     private tempDir;
     private activeOperations;
@@ -121,10 +122,6 @@ export declare class STLManipulator extends EventEmitter {
     translateSTL(stlFilePath: string, translationValues: [number, number, number], // [x, y, z] in mm
     progressCallback?: ProgressCallback): Promise<string>;
     /**
-     * Cancel an ongoing operation
-     */
-    cancelOperation(operationId: string): boolean;
-    /**
      * Generate an SVG visualization of an STL file from multiple angles
      * @param stlFilePath Path to the STL file
      * @param width Width of each view in pixels
@@ -155,9 +152,10 @@ export declare class STLManipulator extends EventEmitter {
      * @param progressCallback Optional callback for progress updates
      * @param printerPreset Optional BambuStudio printer preset name (e.g., "Bambu Lab P1S 0.4 nozzle")
      * @param bambuOptions Optional BambuStudio-specific CLI flags
+     * @param signal Aborting kills the slicer process
      * @returns Path to the generated G-code or sliced 3MF file
      */
-    sliceSTL(stlFilePath: string, slicerType: SlicerType, slicerPath: string, slicerProfile?: string, progressCallback?: ProgressCallback, printerPreset?: string, bambuOptions?: BambuSliceOptions): Promise<string>;
+    sliceSTL(stlFilePath: string, slicerType: SlicerType, slicerPath: string, slicerProfile?: string, progressCallback?: ProgressCallback, printerPreset?: string, bambuOptions?: BambuSliceOptions, signal?: AbortSignal): Promise<string>;
     /**
      * Enhanced version of confirmTemperatures with better error handling
      * @param gcodePath Path to the G-code file

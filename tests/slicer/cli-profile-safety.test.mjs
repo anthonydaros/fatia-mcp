@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import JSZip from 'jszip';
-import { STLManipulator } from '../../dist/stl/stl-manipulator.js';
+import { STLManipulator, bambuCliFailureReason } from '../../dist/stl/stl-manipulator.js';
 import { flattenForCli, detectProfilesRoot } from '../../dist/slicer/profile-flatten.js';
 
 // Exercise profile preparation and the emitted CLI arguments; never run a real slicer.
@@ -723,7 +723,7 @@ test('BambuStudio keeps its transform and repetition flags unchanged', async t =
   assert.equal(args.at(-1), f.stl);
 });
 
-test('a Bambu-style CLI failure names its reason from a fresh result.json or its exit code', async t => {
+test('a Bambu-style CLI failure names its reason from result.json or its exit code', async t => {
   const f = await fixture(t);
   await fs.copyFile(SAMPLE_CUBE, f.stl);
   const failing = path.join(f.root, 'failing-cli');
@@ -739,10 +739,92 @@ console.error('Errors'); process.exit(206);
   process.env.FAKE_RESULT_JSON = JSON.stringify({ return_code: -52, error_string: 'Some objects are located over the boundary of the heated bed.' });
   await assert.rejects(slice(), /the slicer exited with code 206 \(Some objects are located over the boundary of the heated bed\. \[-52\]\)/);
 
-  // macOS writes no result.json; an old one from an earlier run must not be reused.
+  // Without a result.json (crashes, unhandled errors) the exit code names the reason.
   delete process.env.FAKE_RESULT_JSON;
-  const stale = path.join(f.root, 'out', 'result.json');
-  const old = new Date(Date.now() - 60_000);
-  await fs.utimes(stale, old, old);
   await assert.rejects(slice(), /the slicer exited with code 206 \(a plate is empty or has no object fully inside it; arrange the model or place it on the plate \[-50\]\)/);
+  // A failed slice leaves no folder behind.
+  assert.deepEqual((await fs.readdir(path.join(f.root, 'out'))).filter(name => name.startsWith('slice-')), []);
+});
+
+test('the exit code matches whether the OS reports it signed, as a byte, or unsigned (Windows)', () => {
+  for (const code of [-50, 206, 4294967246]) {
+    assert.match(bambuCliFailureReason(code, path.join(os.tmpdir(), 'no-such-result.json')), /a plate is empty .*\[-50\]/);
+  }
+  assert.equal(bambuCliFailureReason(1, path.join(os.tmpdir(), 'no-such-result.json')), undefined);
+});
+
+test('every slice writes into its own folder and keeps only the 3MF', { skip: process.platform === 'win32' }, async t => {
+  const f = await fixture(t);
+  // The real CLI also leaves a 40 MB plate_N.gcode and a result.json beside the 3MF.
+  await fs.writeFile(f.executable, `#!${process.execPath}
+const fs = require('fs'); const path = require('path'); const args = process.argv.slice(2);
+const dir = args[args.indexOf('--outputdir') + 1];
+fs.writeFileSync(path.join(dir, 'plate_1.gcode'), 'G1 X0'); fs.writeFileSync(path.join(dir, 'result.json'), '{}');
+fs.writeFileSync(path.join(dir, args[args.indexOf('--export-3mf') + 1]), 'fixture output');
+`, { mode: 0o755 });
+  const first = await f.slice();
+  const second = await f.slice();
+  assert.notEqual(first, second);
+  for (const output of [first, second]) {
+    assert.equal(path.basename(output), 'model_sliced.3mf');
+    assert.equal(path.dirname(path.dirname(output)), path.join(f.root, 'out'));
+    assert.match(path.basename(path.dirname(output)), /^slice-/);
+    assert.deepEqual(await fs.readdir(path.dirname(output)), ['model_sliced.3mf']);
+  }
+});
+
+test('a leftover that cannot be deleted never fails a good slice or hides the slicer error', { skip: process.platform === 'win32' || process.getuid?.() === 0 }, async t => {
+  const f = await fixture(t);
+  // A read-only folder stands in for a Windows file lock: removing what is inside it fails.
+  await fs.writeFile(f.executable, `#!${process.execPath}
+const fs = require('fs'); const path = require('path'); const args = process.argv.slice(2);
+const dir = args[args.indexOf('--outputdir') + 1];
+fs.mkdirSync(path.join(dir, 'locked')); fs.writeFileSync(path.join(dir, 'locked', 'plate_1.gcode'), 'G1 X0'); fs.chmodSync(path.join(dir, 'locked'), 0o500);
+if (process.env.FAKE_FAIL) process.exit(206);
+fs.writeFileSync(path.join(dir, args[args.indexOf('--export-3mf') + 1]), 'fixture output');
+`, { mode: 0o755 });
+  const out = path.join(f.root, 'out');
+  t.after(() => { delete process.env.FAKE_FAIL; });
+  try {
+    assert.equal(await fs.readFile(await f.slice(), 'utf8'), 'fixture output');
+    process.env.FAKE_FAIL = '1';
+    await assert.rejects(f.slice(), /the slicer exited with code 206/);
+  } finally {
+    for (const dir of (await fs.readdir(out)).filter(name => name.startsWith('slice-'))) {
+      await fs.chmod(path.join(out, dir, 'locked'), 0o700);
+    }
+  }
+});
+
+test('a slicer_profile that does not exist stops before the slicer runs', async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.slice({}, path.join(f.root, 'petg-016.json')), /Slicer profile not found: .*petg-016\.json/);
+  await assert.rejects(fs.access(f.capture), { code: 'ENOENT' });
+});
+
+test('aborting the request kills the slicer process', { skip: process.platform === 'win32' }, async t => {
+  const f = await fixture(t);
+  const pidFile = path.join(f.root, 'slicer.pid');
+  await fs.writeFile(f.executable, `#!${process.execPath}
+require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => {}, 1000);
+`, { mode: 0o755 });
+  const controller = new AbortController();
+  const sliced = new STLManipulator(path.join(f.root, 'out')).sliceSTL(
+    f.stl, 'bambustudio', f.executable, undefined, undefined, 'Bambu Lab SAFETY 0.4 nozzle', {}, controller.signal);
+  const settled = assert.rejects(sliced, /cancelled/);
+  let pid;
+  for (let i = 0; i < 100 && !pid; i++) {
+    pid = Number(await fs.readFile(pidFile, 'utf8').catch(() => '')) || undefined;
+    if (!pid) await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  assert.ok(pid, 'the fake slicer must have started');
+  controller.abort();
+  await settled;
+  const alive = () => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  for (let i = 0; i < 100 && alive(); i++) await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(alive(), false, 'the slicer process must be gone');
+  assert.deepEqual((await fs.readdir(path.join(f.root, 'out'))).filter(name => name.startsWith('slice-')), []);
+  // A request that is already cancelled never starts the slicer.
+  await assert.rejects(new STLManipulator(path.join(f.root, 'out')).sliceSTL(
+    f.stl, 'bambustudio', f.executable, undefined, undefined, 'Bambu Lab SAFETY 0.4 nozzle', {}, controller.signal));
 });

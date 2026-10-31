@@ -1,6 +1,8 @@
 import JSZip from 'jszip';
 import { parseStringPromise } from 'xml2js';
 import * as fs from 'fs/promises';
+import { createHash } from 'node:crypto';
+import * as path from 'node:path';
 // Parses Bambu Studio's JSON config data
 function parseBambuJSONConfig(jsonData) {
     const config = {};
@@ -233,11 +235,42 @@ export async function extractBambuTemplateSettings(filePath, outputDir) {
         if (!file)
             continue;
         const content = await file.async('string');
-        const outputPath = `${outputDir}/${name.replace(/\//g, '_')}`;
+        // Content hash in the name: templates sharing one TEMP_DIR must not overwrite each other.
+        const hash = createHash('sha256').update(content).digest('hex').slice(0, 16);
+        const { name: base, ext } = path.parse(name.replace(/\//g, '_'));
+        const outputPath = path.join(outputDir, `${base}_${hash}${ext}`);
         await fs.writeFile(outputPath, content, 'utf8');
         return outputPath;
     }
     throw new Error(`No slicer settings config found in template 3MF: ${filePath}`);
+}
+/** Per-plate time, weight, filament use and slicer warnings that Bambu Studio records in a sliced 3MF. */
+export async function readSliceResults(filePath) {
+    const zip = await JSZip.loadAsync(await fs.readFile(filePath));
+    const sliceInfo = zip.file('Metadata/slice_info.config');
+    if (!sliceInfo)
+        throw new Error(`Sliced 3MF has no Metadata/slice_info.config: ${filePath}`);
+    const parsed = await parseStringPromise(await sliceInfo.async('string'), { explicitArray: false, mergeAttrs: true });
+    const list = (value) => value === undefined ? [] : Array.isArray(value) ? value : [value];
+    return list(parsed?.config?.plate).map((plate) => {
+        const metadata = Object.fromEntries(list(plate.metadata).map((item) => [item.key, item.value]));
+        return {
+            index: Number(metadata.index),
+            prediction_s: Number(metadata.prediction),
+            weight_g: Number(metadata.weight),
+            filaments: list(plate.filament).map((filament) => ({
+                type: filament.type,
+                color: filament.color,
+                used_g: Number(filament.used_g),
+                used_m: Number(filament.used_m),
+            })),
+            warnings: list(plate.warning).map((warning) => ({
+                msg: warning.msg,
+                level: Number(warning.level),
+                error_code: warning.error_code,
+            })),
+        };
+    });
 }
 const COLLAR_CHARM_ROLE_COLORS = {
     inner: 'black',

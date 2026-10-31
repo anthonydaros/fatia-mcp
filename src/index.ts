@@ -41,7 +41,7 @@ import {
 import { importFileViaBambuConnect } from "./bambu-connect.js";
 import { BlenderMcpBridge } from "./blender-mcp-bridge.js";
 import { bridgeAmsMapping2Entry, bridgeAmsMappingValue, externalTrayForNozzle, hasAmsMappingInput, normalizeAmsMappingObject, normalizeBridgeAmsTrayValue } from "./ams-mapping.js";
-import { analyze3MFAmsRequirements, analyze3MFPlateObjects, analyzeCollarCharm3MF, extractBambuTemplateSettings, getCollarCharmRolePolicy, parse3MF } from './3mf_parser.js';
+import { analyze3MFAmsRequirements, analyze3MFPlateObjects, analyzeCollarCharm3MF, extractBambuTemplateSettings, getCollarCharmRolePolicy, parse3MF, readSliceResults } from './3mf_parser.js';
 import type { ThreeMFAmsRequirements } from "./types.js";
 import { BambuImplementation, assertDirectPrintSupported } from "./printers/bambu.js";
 import { inspectPrintFile } from "./safety/print-file.js";
@@ -816,6 +816,12 @@ async function resolveTemplateSlicerProfilePath(
   throw new Error(`Template profile must be a .3mf, .json, or .config file: ${templatePath}`);
 }
 
+/** The sliced file plus what the slicer recorded about it; G-code output has no plate data. */
+async function sliceResult(outputPath: string) {
+  const plates = outputPath.toLowerCase().endsWith(".3mf") ? await readSliceResults(outputPath) : [];
+  return { output_path: outputPath, plates };
+}
+
 function hasExplicitSlicerProfile(args: any): boolean {
   return typeof args?.slicer_profile === "string" && args.slicer_profile.trim().length > 0;
 }
@@ -1376,7 +1382,8 @@ class BambuPrinterMCPServer {
     args: Record<string, any>,
     printModel: string,
     printPreset: string | undefined,
-    bedType?: string
+    bedType?: string,
+    signal?: AbortSignal
   ): Promise<{ threeMFPath: string; autoSliced: boolean }> {
     const { slicerType, slicerPath, slicerProfile } =
       this.resolveSlicerConfigFromArgs(args, "print_3mf_bambu_network");
@@ -1409,7 +1416,8 @@ class BambuPrinterMCPServer {
       threeMFPath, slicerType, slicerPath, slicerProfile || undefined,
       undefined,
       printPreset,
-      autoSliceOptions
+      autoSliceOptions,
+      signal
     );
     console.error("Auto-sliced to: " + threeMFPath);
     return { threeMFPath, autoSliced: true };
@@ -1507,7 +1515,8 @@ class BambuPrinterMCPServer {
     host: string,
     bambuSerial: string,
     bambuToken: string,
-    native?: { onUpdate?: BambuNativeUpdateCallback; signal?: AbortSignal }
+    native?: { onUpdate?: BambuNativeUpdateCallback; signal?: AbortSignal },
+    signal: AbortSignal | undefined = native?.signal
   ): Promise<Record<string, unknown>> {
     if (!args?.three_mf_path) {
       throw new Error("Missing required parameter: three_mf_path");
@@ -1565,7 +1574,8 @@ class BambuPrinterMCPServer {
       args,
       printModel,
       printPreset,
-      printBedType
+      printBedType,
+      signal
     );
     const { useAMS, finalAmsMapping, finalAmsSlots } = await this.resolveAmsPrintSettings(
       threeMFPath,
@@ -1763,7 +1773,8 @@ class BambuPrinterMCPServer {
   }
 
   private async handoff3mfViaBambuConnect(
-    args: Record<string, any>
+    args: Record<string, any>,
+    signal?: AbortSignal
   ): Promise<Record<string, unknown>> {
     if (!args?.three_mf_path) {
       throw new Error("Missing required parameter: three_mf_path");
@@ -1783,7 +1794,8 @@ class BambuPrinterMCPServer {
       args,
       printModel,
       printPreset,
-      printBedType
+      printBedType,
+      signal
     );
     const threeMfFilename = path.basename(threeMFPath);
     const projectName = String(
@@ -1927,7 +1939,8 @@ class BambuPrinterMCPServer {
     bedType: string,
     host: string,
     bambuSerial: string,
-    bambuToken: string
+    bambuToken: string,
+    signal?: AbortSignal
   ): Promise<string> {
     if (!sourcePath.toLowerCase().endsWith(".3mf")) {
       throw new Error("print_collar_charm requires a prepared .3mf project or sliced 3MF.");
@@ -1980,7 +1993,8 @@ class BambuPrinterMCPServer {
       slicerProfile || template3mfPath || undefined,
       undefined,
       printPreset,
-      autoSliceOptions
+      autoSliceOptions,
+      signal
     );
   }
 
@@ -2403,7 +2417,7 @@ class BambuPrinterMCPServer {
           },
           {
             name: "slice_with_template",
-            description: "Slice an STL or 3MF using a named template from the local registry. This is a higher-level wrapper around slice_stl for template-based workflows.",
+            description: "Slice an STL or 3MF using a named template from the local registry. This is a higher-level wrapper around slice_stl for template-based workflows. Returns the same result: output_path plus per-plate time, weight, filament use and slicer warnings.",
             inputSchema: {
               type: "object",
               properties: {
@@ -2462,7 +2476,7 @@ class BambuPrinterMCPServer {
           },
           {
             name: "slice_stl",
-            description: "Slice an STL or 3MF file using a slicer to generate printable G-code or sliced 3MF. IMPORTANT: bambu_model must be specified to ensure the slicer generates safe G-code for the correct printer.",
+            description: "Slice an STL or 3MF file using a slicer to generate printable G-code or sliced 3MF. Returns {output_path, plates:[{index, prediction_s, weight_g, filaments:[{type,color,used_g,used_m}], warnings:[{msg,level,error_code}]}]} (plates is empty for G-code output). Each slice writes into its own folder. IMPORTANT: bambu_model must be specified to ensure the slicer generates safe G-code for the correct printer.",
             inputSchema: {
               type: "object",
               properties: {
@@ -3447,7 +3461,7 @@ class BambuPrinterMCPServer {
           }
 
           case "print_3mf_bambu_network": {
-            result = await this.print3mfViaBambuNetwork(args as Record<string, any>, host, bambuSerial, bambuToken);
+            result = await this.print3mfViaBambuNetwork(args as Record<string, any>, host, bambuSerial, bambuToken, undefined, extra.signal);
             break;
           }
 
@@ -3986,13 +4000,14 @@ class BambuPrinterMCPServer {
               }
             }
 
-            result = await this.stlManipulator.sliceSTL(
+            result = await sliceResult(await this.stlManipulator.sliceSTL(
               String(args.stl_path), slicerType, slicerPath,
               activeSlicerProfile,
               undefined,
               printerPreset,
-              sliceBambuOptions
-            );
+              sliceBambuOptions,
+              extra.signal
+            ));
             break;
           }
 
@@ -4074,13 +4089,14 @@ class BambuPrinterMCPServer {
               }
             }
 
-            result = await this.stlManipulator.sliceSTL(
+            result = await sliceResult(await this.stlManipulator.sliceSTL(
               String(args.stl_path), slicerType, slicerPath,
               activeSlicerProfile,
               undefined, // progressCallback
               printerPreset,
-              sliceBambuOptions
-            );
+              sliceBambuOptions,
+              extra.signal
+            ));
             break;
           }
 
@@ -4105,11 +4121,11 @@ class BambuPrinterMCPServer {
                 ? "bambu_native"
                 : connectionMode;
             if (effectiveConnectionMode === "bambu_connect") {
-              result = await this.handoff3mfViaBambuConnect(resolvedArgs);
+              result = await this.handoff3mfViaBambuConnect(resolvedArgs, extra.signal);
               break;
             }
             if (effectiveConnectionMode === "bambu_network") {
-              result = await this.print3mfViaBambuNetwork(resolvedArgs, host, bambuSerial, bambuToken);
+              result = await this.print3mfViaBambuNetwork(resolvedArgs, host, bambuSerial, bambuToken, undefined, extra.signal);
               break;
             }
             if (effectiveConnectionMode === "bambu_native") {
@@ -4187,7 +4203,8 @@ class BambuPrinterMCPServer {
                 threeMFPath, slicerType, slicerPath, activeSlicerProfile,
                 undefined, // progressCallback
                 printPreset,
-                autoSliceOptions
+                autoSliceOptions,
+                extra.signal
               );
               console.error("Auto-sliced to: " + threeMFPath);
             }
@@ -4337,7 +4354,8 @@ class BambuPrinterMCPServer {
               printBedType,
               host,
               bambuSerial,
-              bambuToken
+              bambuToken,
+              extra.signal
             );
 
             const collarAnalysis = await analyzeCollarCharm3MF(preparedThreeMFPath, 0);

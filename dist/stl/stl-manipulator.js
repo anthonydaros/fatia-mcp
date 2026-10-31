@@ -13,6 +13,8 @@ import { flattenForCli, detectProfilesRoot, resolveBblMachineProfile } from '../
 import { profileJsonFiles } from '../slicer/profile-files.js';
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
+// Best-effort: a leftover file is only wasted disk and must never fail a slice or mask its real error (Windows EBUSY/EPERM).
+const removeQuietly = (target) => fs.promises.rm(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => { });
 const BAMBU_PROFILE_ROOTS = [
     '/Applications/BambuStudio.app/Contents/Resources/profiles/BBL',
 ];
@@ -81,16 +83,22 @@ const PROFILE_METADATA_KEYS = new Set([
     'name', 'type', 'from', 'inherits', 'instantiation', 'setting_id', 'version', 'is_custom_defined',
     'compatible_printers', 'compatible_printers_condition', 'compatible_prints', 'compatible_prints_condition',
 ]);
-function describeSlicerFailure(error, stdout, stderr, cli) {
+/**
+ * Why the slicer process failed. execFile's message already carries stderr;
+ * a crash often leaves stderr empty, so name the signal or exit code and add
+ * the end of stdout instead. resultPath is the per-slice result.json of a
+ * Bambu-style CLI.
+ */
+function describeSlicerFailure(error, stdout, stderr, resultPath) {
     const status = typeof error.signal === "string" && error.signal
         ? `crashed with ${error.signal}`
         : typeof error.code === "number" ? `exited with code ${error.code}` : "failed";
-    const reason = cli ? bambuCliFailureReason(error.code, cli) : undefined;
+    const reason = resultPath ? bambuCliFailureReason(error.code, resultPath) : undefined;
     const output = stderr.trim() ? "" : stdout.trim().split("\n").slice(-20).join("\n");
     return `Slicer failed: the slicer ${status}${reason ? ` (${reason})` : ""}. ${error.message.trim()}${output ? `\nSlicer output: ${output}` : ""}`;
 }
-// Bambu Studio CLI errors (libslic3r/Utils.hpp). The process
-// exits with the low byte of the code; on Linux result.json names the error.
+// Bambu Studio CLI errors (libslic3r/Utils.hpp). The process exits with the
+// low byte of the code (Windows reports it unsigned); result.json names the error.
 const BAMBU_CLI_ERRORS = {
     [-2]: "invalid parameters to the slicer",
     [-3]: "input files not found",
@@ -112,21 +120,19 @@ const BAMBU_CLI_ERRORS = {
     [-101]: "G-code conflicts after slicing",
     [-102]: "G-code in an unprintable area",
 };
-function bambuCliFailureReason(exitCode, cli) {
+export function bambuCliFailureReason(exitCode, resultPath) {
     try {
-        if (fs.statSync(cli.resultPath).mtimeMs >= cli.startedAt) {
-            const result = JSON.parse(fs.readFileSync(cli.resultPath, "utf8"));
-            if (typeof result.error_string === "string" && result.error_string.trim()) {
-                return `${result.error_string.trim()} [${result.return_code}]`;
-            }
+        const result = JSON.parse(fs.readFileSync(resultPath, "utf8"));
+        if (typeof result.error_string === "string" && result.error_string.trim()) {
+            return `${result.error_string.trim()} [${result.return_code}]`;
         }
     }
     catch {
-        // result.json is written only on Linux and only for handled errors.
+        // No result.json for crashes and for errors the CLI did not handle.
     }
     if (typeof exitCode !== "number")
         return undefined;
-    const code = Object.keys(BAMBU_CLI_ERRORS).map(Number).find(value => (value & 0xff) === exitCode);
+    const code = Object.keys(BAMBU_CLI_ERRORS).map(Number).find(value => (value & 0xff) === (exitCode & 0xff));
     return code === undefined ? undefined : `${BAMBU_CLI_ERRORS[code]} [${code}]`;
 }
 export class STLManipulator extends EventEmitter {
@@ -222,12 +228,11 @@ export class STLManipulator extends EventEmitter {
         // Some machine leaves inherit their default process/filaments.
         // Resolve those selections before building the positional CLI bundle.
         machineConfig = await resolveBblMachineProfile(activeProfilesRoot ?? path.dirname(path.dirname(path.dirname(machinePath))), printerPreset);
-        const hasSlicerProfile = !!slicerProfile && fs.existsSync(slicerProfile);
         const filamentPaths = [];
         let processPath;
         let parsedProfile = null;
         let processSource;
-        if (hasSlicerProfile) {
+        if (slicerProfile) {
             try {
                 parsedProfile = this.readJsonFile(slicerProfile);
             }
@@ -283,7 +288,7 @@ export class STLManipulator extends EventEmitter {
                 }
             }
         }
-        else if (hasSlicerProfile) {
+        else if (slicerProfile) {
             processPath = slicerProfile;
         }
         if (!processPath) {
@@ -825,17 +830,6 @@ export class STLManipulator extends EventEmitter {
         }
     }
     /**
-     * Cancel an ongoing operation
-     */
-    cancelOperation(operationId) {
-        if (this.activeOperations.has(operationId)) {
-            this.activeOperations.set(operationId, false);
-            this.emit('operationCancelled', { operationId });
-            return true;
-        }
-        return false;
-    }
-    /**
      * Generate an SVG visualization of an STL file from multiple angles
      * @param stlFilePath Path to the STL file
      * @param width Width of each view in pixels
@@ -1198,22 +1192,23 @@ export class STLManipulator extends EventEmitter {
      * @param progressCallback Optional callback for progress updates
      * @param printerPreset Optional BambuStudio printer preset name (e.g., "Bambu Lab P1S 0.4 nozzle")
      * @param bambuOptions Optional BambuStudio-specific CLI flags
+     * @param signal Aborting kills the slicer process
      * @returns Path to the generated G-code or sliced 3MF file
      */
-    async sliceSTL(stlFilePath, slicerType, slicerPath, slicerProfile, progressCallback, printerPreset, bambuOptions) {
+    async sliceSTL(stlFilePath, slicerType, slicerPath, slicerProfile, progressCallback, printerPreset, bambuOptions, signal) {
         const operationId = this.generateOperationId();
-        this.activeOperations.set(operationId, true);
+        signal?.throwIfAborted();
         if (isPathLikeExecutable(slicerPath) && !fs.existsSync(slicerPath)) {
             throw new Error(`Slicer executable not found at: ${slicerPath}`);
         }
         if (slicerProfile && !fs.existsSync(slicerProfile)) {
-            console.warn(`Slicer profile specified but not found: ${slicerProfile}. Slicer might use defaults.`);
-            // Allow proceeding without profile, slicer might handle it
+            throw new Error(`Slicer profile not found: ${slicerProfile}`);
         }
         const outputFileName = path.basename(stlFilePath, '.stl') + '.gcode';
         let outputFilePath = path.join(this.tempDir, outputFileName);
         let args = [];
-        let cliResult;
+        let resultPath;
+        let sliceDir;
         try {
             if (progressCallback)
                 progressCallback(0, `Starting slicing with ${slicerType}...`);
@@ -1250,8 +1245,6 @@ export class STLManipulator extends EventEmitter {
                     {
                         const is3mf = stlFilePath.toLowerCase().endsWith('.3mf');
                         const outputBase = path.basename(stlFilePath, is3mf ? '.3mf' : '.stl');
-                        const bambuOutputPath = path.join(this.tempDir, outputBase + '_sliced.3mf');
-                        const outputDir = path.dirname(bambuOutputPath);
                         const profilesRoot = detectProfilesRoot(slicerPath);
                         const rawBundle = await this.resolveBambuLikeSettingsBundle(outputBase, slicerProfile, printerPreset, bambuOptions, profilesRoot);
                         // Resolve every BBL dependency before launching the slicer.
@@ -1270,12 +1263,14 @@ export class STLManipulator extends EventEmitter {
                             ].join(';');
                         }
                         const cliBundle = this.isolateMachineSettings(settingsBundle);
-                        cliResult = { resultPath: path.join(outputDir, 'result.json'), startedAt: Date.now() };
-                        // A result.json left by an earlier run must not explain this one.
-                        await fs.promises.rm(cliResult.resultPath, { force: true });
+                        // One folder per slice: the CLI's plate_N.gcode and result.json names are fixed,
+                        // so concurrent or repeated slices of one model must never share them.
+                        sliceDir = await fs.promises.mkdtemp(path.join(this.tempDir, 'slice-'));
+                        const bambuOutputPath = path.join(sliceDir, outputBase + '_sliced.3mf');
+                        resultPath = path.join(sliceDir, 'result.json');
                         args = [
                             '--slice', String(bambuOptions?.slicePlate ?? 0),
-                            '--outputdir', outputDir,
+                            '--outputdir', sliceDir,
                             '--export-3mf', path.basename(bambuOutputPath),
                         ];
                         if (cliBundle.settingsArg) {
@@ -1333,11 +1328,13 @@ export class STLManipulator extends EventEmitter {
             console.error(`Executing: ${slicerPath} ${args.join(' ')}`);
             // Execute the slicer
             await new Promise((resolve, reject) => {
-                const process = execFile(slicerPath, args, (error, stdout, stderr) => {
+                execFile(slicerPath, args, { signal }, (error, stdout, stderr) => {
                     if (error) {
                         console.error(`Slicer Error: ${error.message}`);
                         console.error(`Slicer Stderr: ${stderr}`);
-                        reject(new Error(describeSlicerFailure(error, stdout, stderr, cliResult)));
+                        reject(new Error(signal?.aborted
+                            ? `Slicing cancelled; the slicer process was stopped: ${stlFilePath}`
+                            : describeSlicerFailure(error, stdout, stderr, resultPath)));
                     }
                     else {
                         console.error(`Slicer Stdout: ${stdout}`);
@@ -1347,32 +1344,15 @@ export class STLManipulator extends EventEmitter {
                         resolve();
                     }
                 });
-                // Optional: Add listeners for stdout/stderr for real-time progress if slicer provides it
-                // process.stdout?.on('data', (data) => { console.error(`Slicer stdout: ${data}`); });
-                // process.stderr?.on('data', (data) => { console.error(`Slicer stderr: ${data}`); });
-                // Check for cancellation periodically
-                const checkCancel = setInterval(() => {
-                    if (!this.activeOperations.get(operationId)) {
-                        clearInterval(checkCancel);
-                        try {
-                            process.kill(); // Attempt to kill the slicer process
-                            reject(new Error("Slicing operation cancelled"));
-                        }
-                        catch (killError) {
-                            console.error("Error attempting to kill slicer process:", killError);
-                            reject(new Error("Slicing operation cancelled, but failed to kill process."));
-                        }
-                    }
-                }, 500);
-                process.on('exit', () => clearInterval(checkCancel));
-                process.on('error', () => clearInterval(checkCancel)); // Ensure interval cleared on process error too
             });
-            if (!this.activeOperations.get(operationId)) {
-                // This check might be redundant if the promise rejected on kill, but good safety
-                throw new Error("Slicing operation cancelled after process finished");
-            }
             if (!fs.existsSync(outputFilePath)) {
                 throw new Error(`Slicer finished but output file not found: ${outputFilePath}`);
+            }
+            if (sliceDir) {
+                // The gcode and result files are inside the 3MF; the CLI's copies are 40 MB per plate.
+                const keep = path.basename(outputFilePath);
+                await Promise.all((await fs.promises.readdir(sliceDir)).filter(name => name !== keep)
+                    .map(name => removeQuietly(path.join(sliceDir, name))));
             }
             if (progressCallback)
                 progressCallback(100, "Slicing completed successfully");
@@ -1386,15 +1366,14 @@ export class STLManipulator extends EventEmitter {
         }
         catch (error) {
             console.error(`Slicing failed for ${stlFilePath}:`, error);
+            if (sliceDir)
+                await removeQuietly(sliceDir);
             this.emit('operationError', {
                 operationId,
                 type: 'slice',
                 error: error instanceof Error ? error.message : String(error)
             });
             throw error;
-        }
-        finally {
-            this.activeOperations.delete(operationId);
         }
     }
     /**
