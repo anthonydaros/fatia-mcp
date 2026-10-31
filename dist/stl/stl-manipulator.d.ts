@@ -111,7 +111,8 @@ export declare class STLManipulator extends EventEmitter {
         }>;
     }>;
     /**
-     * Extract mesh info from a 3MF file by parsing the XML object models.
+     * Extract mesh info from a 3MF file: walk the build items and their component
+     * trees, applying every transform, so the box matches what the slicer places.
      */
     private get3MFInfo;
     /**
@@ -143,13 +144,15 @@ export declare class STLManipulator extends EventEmitter {
      */
     modifySection(stlFilePath: string, selection: THREE.Box3 | 'top' | 'bottom' | 'center', transformation: TransformationParams, progressCallback?: ProgressCallback): Promise<string>;
     /**
-     * Enhanced version of extendBase with progress reporting
+     * Add a slab under the model: the model moves up by the extension along Z (the
+     * printing axis), so the result is exactly the original height plus the extension.
+     * The slab spans the model's bounding rectangle.
      * @param stlFilePath Path to the input STL file
-     * @param extensionInches Amount to extend base in inches
+     * @param extensionMm Amount to extend the base, in millimeters
      * @param progressCallback Optional callback for progress updates
      * @returns Path to the modified STL file
      */
-    extendBase(stlFilePath: string, extensionInches: number, progressCallback?: ProgressCallback): Promise<string>;
+    extendBase(stlFilePath: string, extensionMm: number, progressCallback?: ProgressCallback): Promise<string>;
     /**
      * Slice an STL or 3MF file using the specified slicer
      * @param stlFilePath Path to the input STL or 3MF file

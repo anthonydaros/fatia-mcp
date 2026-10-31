@@ -28,6 +28,63 @@ const BAMBU_CLI_BED_TYPES: Record<string, string> = {
   hot_plate: 'High Temp Plate',
 };
 
+const MAIN_3MF_MODEL = '3D/3dmodel.model';
+type Model3MFObject = {
+  verts: number[];
+  faces: number;
+  components: Array<{ id: string; path?: string; matrix: THREE.Matrix4 }>;
+};
+
+const attributeOf = (tag: string, name: string) => new RegExp(`\\s(?:\\w+:)?${name}="([^"]*)"`).exec(tag)?.[1];
+
+// A 3MF transform is 12 numbers, a row-vector 3x4 matrix: x' = x*m00 + y*m10 + z*m20 + m30.
+function matrixOf3MF(transform?: string): THREE.Matrix4 {
+  const matrix = new THREE.Matrix4();
+  if (transform === undefined) return matrix;
+  const t = transform.trim().split(/\s+/).map(Number);
+  if (t.length !== 12 || !t.every(Number.isFinite)) throw new Error(`Invalid 3MF transform "${transform}".`);
+  return matrix.set(t[0], t[3], t[6], t[9], t[1], t[4], t[7], t[10], t[2], t[5], t[8], t[11], 0, 0, 0, 1);
+}
+
+/** Objects of one 3MF model file: mesh vertices (flat x,y,z) and component references. */
+function parse3MFModel(xml: string): Map<string, Model3MFObject> {
+  const objects = new Map<string, Model3MFObject>();
+  for (const [, tag, body] of xml.matchAll(/<(?:\w+:)?object\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?object>/g)) {
+    const id = attributeOf(tag, 'id');
+    if (!id) continue;
+    const verts: number[] = [];
+    for (const v of body.matchAll(/<(?:\w+:)?vertex\s+x="([^"]+)"\s+y="([^"]+)"\s+z="([^"]+)"/g)) {
+      verts.push(parseFloat(v[1]), parseFloat(v[2]), parseFloat(v[3]));
+    }
+    const components = [...body.matchAll(/<(?:\w+:)?component\b([^>]*)>/g)].flatMap(([, ctag]) => {
+      const componentId = attributeOf(ctag, 'objectid');
+      return componentId ? [{ id: componentId, path: attributeOf(ctag, 'path'), matrix: matrixOf3MF(attributeOf(ctag, 'transform')) }] : [];
+    });
+    objects.set(id, { verts, faces: body.match(/<(?:\w+:)?triangle\s/g)?.length ?? 0, components });
+  }
+  return objects;
+}
+
+/** Andrew's monotone chain; returns the hull counter-clockwise. */
+function convexHull(points: Array<[number, number]>): Array<[number, number]> {
+  const sorted = [...points].sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  const turn = (o: [number, number], p: [number, number], q: [number, number]) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  const half = (input: Array<[number, number]>) => {
+    const chain: Array<[number, number]> = [];
+    for (const point of input) {
+      while (chain.length >= 2 && turn(chain[chain.length - 2], chain[chain.length - 1], point) <= 0) chain.pop();
+      chain.push(point);
+    }
+    return chain.slice(0, -1);
+  };
+  return [...half(sorted), ...half(sorted.reverse())];
+}
+
+// Per-face normals, UVs and colours differ between corners of the same position and block merging; STL export needs positions only.
+function keepPositionOnly(geometry: THREE.BufferGeometry): void {
+  for (const name of Object.keys(geometry.attributes)) if (name !== 'position') geometry.deleteAttribute(name);
+}
+
 // Define types for progress tracking
 export type ProgressCallback = (progress: number, message?: string) => void;
 export type OperationResult = {
@@ -793,7 +850,8 @@ export class STLManipulator extends EventEmitter {
   }
 
   /**
-   * Extract mesh info from a 3MF file by parsing the XML object models.
+   * Extract mesh info from a 3MF file: walk the build items and their component
+   * trees, applying every transform, so the box matches what the slicer places.
    */
   private async get3MFInfo(filePath: string, fileSize: number): Promise<{
     filePath: string;
@@ -808,93 +866,64 @@ export class STLManipulator extends EventEmitter {
     const data = fs.readFileSync(filePath);
     const zip = await JSZip.loadAsync(data);
 
-    // Find all object model files
-    const objectFiles = Object.keys(zip.files).filter(
-      (name) => /^3D\/Objects\/.*\.model$/i.test(name)
-    );
+    const models = new Map<string, Map<string, Model3MFObject>>();
+    const loadModel = async (name: string) => {
+      const entry = name.replace(/^\/+/, '');
+      if (!models.has(entry)) {
+        const file = zip.file(entry);
+        models.set(entry, file ? parse3MFModel(await file.async('string')) : new Map());
+      }
+      return models.get(entry)!;
+    };
 
-    const overallBox = new THREE.Box3(
-      new THREE.Vector3(Infinity, Infinity, Infinity),
-      new THREE.Vector3(-Infinity, -Infinity, -Infinity)
-    );
+    const overallBox = new THREE.Box3();
     let totalVerts = 0;
     let totalFaces = 0;
     const objects: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox }> = [];
+    const point = new THREE.Vector3();
 
-    for (const objFile of objectFiles) {
-      const content = await zip.file(objFile)!.async('string');
-      // Parse vertices from XML: <vertex x="..." y="..." z="..."/>
-      const vertexRegex = /<(?:\w+:)?vertex\s+x="([^"]+)"\s+y="([^"]+)"\s+z="([^"]+)"/g;
-      const triangleRegex = /<(?:\w+:)?triangle\s/g;
-
-      const objBox = new THREE.Box3(
-        new THREE.Vector3(Infinity, Infinity, Infinity),
-        new THREE.Vector3(-Infinity, -Infinity, -Infinity)
-      );
-      let vCount = 0;
-      let match: RegExpExecArray | null;
-      while ((match = vertexRegex.exec(content)) !== null) {
-        const x = parseFloat(match[1]);
-        const y = parseFloat(match[2]);
-        const z = parseFloat(match[3]);
-        objBox.expandByPoint(new THREE.Vector3(x, y, z));
-        overallBox.expandByPoint(new THREE.Vector3(x, y, z));
-        vCount++;
-      }
-
-      let fCount = 0;
-      while (triangleRegex.exec(content) !== null) fCount++;
-
-      totalVerts += vCount;
-      totalFaces += fCount;
-
-      if (vCount > 0) {
-        const center = new THREE.Vector3();
-        objBox.getCenter(center);
-        const dims = new THREE.Vector3();
-        objBox.getSize(dims);
+    // The depth limit bounds nesting, not fan-out: layered components multiply, so cap the total walk.
+    let instances = 0;
+    const visit = async (file: string, id: string, matrix: THREE.Matrix4, depth: number): Promise<void> => {
+      if (depth > 8) throw new Error('3MF components are nested too deeply.');
+      if (++instances > 10_000) throw new Error('3MF has too many component instances.');
+      const object = (await loadModel(file)).get(id);
+      if (!object) return;
+      const { verts } = object;
+      if (verts.length > 0) {
+        const box = new THREE.Box3();
+        for (let i = 0; i < verts.length; i += 3) box.expandByPoint(point.set(verts[i], verts[i + 1], verts[i + 2]).applyMatrix4(matrix));
+        overallBox.union(box);
+        totalVerts += verts.length / 3;
+        totalFaces += object.faces;
         objects.push({
-          name: path.basename(objFile),
-          vertexCount: vCount,
-          faceCount: fCount,
-          boundingBox: { min: objBox.min, max: objBox.max, center, dimensions: dims },
+          name: file === MAIN_3MF_MODEL ? `object ${id}` : path.basename(file),
+          vertexCount: verts.length / 3,
+          faceCount: object.faces,
+          boundingBox: { min: box.min, max: box.max, center: box.getCenter(new THREE.Vector3()), dimensions: box.getSize(new THREE.Vector3()) },
         });
       }
-    }
-
-    // If no object files found, try the main 3dmodel.model
-    if (objects.length === 0) {
-      const mainModel = zip.file('3D/3dmodel.model');
-      if (mainModel) {
-        const content = await mainModel.async('string');
-        const vertexRegex = /<(?:\w+:)?vertex\s+x="([^"]+)"\s+y="([^"]+)"\s+z="([^"]+)"/g;
-        const triangleRegex = /<(?:\w+:)?triangle\s/g;
-        let match: RegExpExecArray | null;
-        while ((match = vertexRegex.exec(content)) !== null) {
-          const x = parseFloat(match[1]);
-          const y = parseFloat(match[2]);
-          const z = parseFloat(match[3]);
-          overallBox.expandByPoint(new THREE.Vector3(x, y, z));
-          totalVerts++;
-        }
-        while (triangleRegex.exec(content) !== null) totalFaces++;
+      for (const component of object.components) {
+        await visit(component.path ?? file, component.id, matrix.clone().multiply(component.matrix), depth + 1);
       }
+    };
+
+    const mainXml = zip.file(MAIN_3MF_MODEL) ? await zip.file(MAIN_3MF_MODEL)!.async('string') : '';
+    const build = /<(?:\w+:)?build\b[\s\S]*?<\/(?:\w+:)?build>/.exec(mainXml)?.[0] ?? '';
+    for (const [, tag] of build.matchAll(/<(?:\w+:)?item\b([^>]*)>/g)) {
+      const id = attributeOf(tag, 'objectid');
+      if (id) await visit(attributeOf(tag, 'path') ?? MAIN_3MF_MODEL, id, matrixOf3MF(attributeOf(tag, 'transform')), 0);
     }
 
     if (totalVerts === 0) {
       throw new Error('No mesh data found in 3MF file. The archive may not contain any 3D objects.');
     }
 
-    const center = new THREE.Vector3();
-    overallBox.getCenter(center);
-    const dimensions = new THREE.Vector3();
-    overallBox.getSize(dimensions);
-
     return {
       filePath,
       fileName: path.basename(filePath),
       fileSize,
-      boundingBox: { min: overallBox.min, max: overallBox.max, center, dimensions },
+      boundingBox: { min: overallBox.min, max: overallBox.max, center: overallBox.getCenter(new THREE.Vector3()), dimensions: overallBox.getSize(new THREE.Vector3()) },
       vertexCount: totalVerts,
       faceCount: totalFaces,
       objects,
@@ -1444,23 +1473,28 @@ export class STLManipulator extends EventEmitter {
   }
 
   /**
-   * Enhanced version of extendBase with progress reporting
+   * Add a slab under the model: the model moves up by the extension along Z (the
+   * printing axis), so the result is exactly the original height plus the extension.
+   * The slab spans the model's bounding rectangle.
    * @param stlFilePath Path to the input STL file
-   * @param extensionInches Amount to extend base in inches
+   * @param extensionMm Amount to extend the base, in millimeters
    * @param progressCallback Optional callback for progress updates
    * @returns Path to the modified STL file
    */
   async extendBase(
     stlFilePath: string, 
-    extensionInches: number,
+    extensionMm: number,
     progressCallback?: ProgressCallback
   ): Promise<string> {
     const operationId = this.generateOperationId();
     this.activeOperations.set(operationId, true);
     
     try {
+      if (!Number.isFinite(extensionMm) || extensionMm <= 0) {
+        throw new Error("extension_height must be a positive number of millimeters");
+      }
       if (progressCallback) progressCallback(0, "Starting base extension operation...");
-      console.error(`Extending base of ${stlFilePath} by ${extensionInches} inches`);
+      console.error(`Extending base of ${stlFilePath} by ${extensionMm} mm`);
       
       // Load the STL file
       const { geometry, boundingBox } = await this.loadSTL(stlFilePath, progressCallback);
@@ -1471,53 +1505,29 @@ export class STLManipulator extends EventEmitter {
       
       if (progressCallback) progressCallback(60, "Creating extended base geometry...");
       
-      // Find the minimum Y value (assuming Y is up, which is common in 3D printing)
-      const minY = boundingBox.min.y;
-      
-      // Convert inches to millimeters (STL files typically use mm)
-      const extensionMm = extensionInches * 25.4;
-      
-      // Create a transformation matrix to move the mesh up by the extension amount
-      const matrix = new THREE.Matrix4().makeTranslation(0, extensionMm, 0);
-      geometry.applyMatrix4(matrix);
-      
-      // Create a box geometry for the base extension
-      const baseWidth = boundingBox.max.x - boundingBox.min.x;
-      const baseDepth = boundingBox.max.z - boundingBox.min.z;
+      // The slab keeps the model's original bottom plane (minZ) and fills up to the moved model.
+      // Build it before translating: the geometry updates boundingBox in place.
       const baseGeometry = new THREE.BoxGeometry(
-        baseWidth,
-        extensionMm,
-        baseDepth
-      );
-      
-      // Position the base geometry
-      const baseMatrix = new THREE.Matrix4().makeTranslation(
+        boundingBox.max.x - boundingBox.min.x,
+        boundingBox.max.y - boundingBox.min.y,
+        extensionMm
+      ).toNonIndexed();
+      baseGeometry.translate(
         (boundingBox.min.x + boundingBox.max.x) / 2,
-        minY + extensionMm / 2,
-        (boundingBox.min.z + boundingBox.max.z) / 2
+        (boundingBox.min.y + boundingBox.max.y) / 2,
+        boundingBox.min.z + extensionMm / 2
       );
-      baseGeometry.applyMatrix4(baseMatrix);
+      geometry.translate(0, 0, extensionMm);
       
       if (!this.activeOperations.get(operationId)) {
         throw new Error("Operation cancelled");
       }
       
-      if (progressCallback) progressCallback(70, "Merging geometries...");
+      if (progressCallback) progressCallback(75, "Merging geometries...");
       
-      if (progressCallback) progressCallback(75, "Creating merged geometry...");
-      
-      // Create material for both meshes
-      const material = new THREE.MeshStandardMaterial();
-      
-      // Create individual meshes
-      const originalMesh = new THREE.Mesh(geometry, material);
-      const baseMesh = new THREE.Mesh(baseGeometry, material);
-      
-      // Export each mesh separately and merge the STL strings
-      const exporter = new STLExporter();
-      
-      const originalStl = exporter.parse(originalMesh);
-      const baseStl = exporter.parse(baseMesh);
+      keepPositionOnly(geometry);
+      keepPositionOnly(baseGeometry);
+      const merged = BufferGeometryUtils.mergeGeometries([geometry, baseGeometry]);
       
       // Generate output file path
       const outputFileName = path.basename(stlFilePath, '.stl') + '_extended.stl';
@@ -1525,8 +1535,7 @@ export class STLManipulator extends EventEmitter {
       
       if (progressCallback) progressCallback(90, "Saving extended STL...");
       
-      // Write the combined STL data to file
-      await writeFileAsync(outputFilePath, originalStl + baseStl);
+      await this.saveSTL(merged, outputFilePath);
       
       if (progressCallback) progressCallback(100, "STL saved successfully");
       
@@ -1887,7 +1896,9 @@ export class STLManipulator extends EventEmitter {
       if (progressCallback) progressCallback(60, "Merging vertices...");
 
       const originalVertexCount = geometry.attributes.position.count;
+      keepPositionOnly(geometry);
       const mergedGeometry = BufferGeometryUtils.mergeVertices(geometry, tolerance);
+      mergedGeometry.computeVertexNormals();
       const newVertexCount = mergedGeometry.attributes.position.count;
 
       console.error(`Merged vertices: ${originalVertexCount} -> ${newVertexCount} (Tolerance: ${tolerance}mm)`);
@@ -1984,91 +1995,101 @@ export class STLManipulator extends EventEmitter {
       const positionAttribute = geometry.getAttribute('position');
       if (!positionAttribute) throw new Error("Geometry has no position attribute.");
 
-      const faces: { normal: THREE.Vector3; area: number; vertices: THREE.Vector3[] }[] = [];
-      const vA = new THREE.Vector3();
-      const vB = new THREE.Vector3();
-      const vC = new THREE.Vector3();
-      const faceNormal = new THREE.Vector3();
-      const cb = new THREE.Vector3(), ab = new THREE.Vector3();
+      // Triangles in one plane (same quantized normal and offset) form one face, in a single pass.
+      // shortcut: a plane exactly on a bucket edge could split in two; widen the buckets if that shows up.
+      const center = boundingBox.getCenter(new THREE.Vector3());
+      const faces = new Map<string, { area: number; normal: THREE.Vector3; triangles: number[] }>();
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+      const cross = new THREE.Vector3(), edge = new THREE.Vector3();
+      const volumeMoment = new THREE.Vector3(), surfaceMoment = new THREE.Vector3();
+      let volume = 0, surface = 0;
+      const vertexAt = (target: THREE.Vector3, index: number) => target.fromBufferAttribute(positionAttribute, index).sub(center);
 
-      // Iterate through faces (triangles)
-      for (let i = 0; i < positionAttribute.count; i += 3) {
-          vA.fromBufferAttribute(positionAttribute, i);
-          vB.fromBufferAttribute(positionAttribute, i + 1);
-          vC.fromBufferAttribute(positionAttribute, i + 2);
+      for (let i = 0; i + 2 < positionAttribute.count; i += 3) {
+          vertexAt(a, i); vertexAt(b, i + 1); vertexAt(c, i + 2);
+          cross.subVectors(c, b).cross(edge.subVectors(a, b));
+          const area = cross.length() / 2;
+          if (!(area > 1e-12)) continue; // degenerate triangle
 
-          // Calculate face normal
-          cb.subVectors(vC, vB);
-          ab.subVectors(vA, vB);
-          cb.cross(ab);
-          faceNormal.copy(cb).normalize();
+          // Centre of mass: signed tetrahedra against the centre for a closed mesh, triangle areas otherwise.
+          const tetra = a.dot(edge.crossVectors(b, c)) / 6;
+          volume += tetra;
+          volumeMoment.addScaledVector(edge.copy(a).add(b).add(c), tetra / 4);
+          surface += area;
+          surfaceMoment.addScaledVector(edge.copy(a).add(b).add(c), area / 3);
 
-          // Calculate face area (using cross product magnitude / 2)
-          const area = cb.length() / 2;
-          
-          faces.push({
-              normal: faceNormal.clone(),
-              area: area,
-              vertices: [vA.clone(), vB.clone(), vC.clone()] // Store vertices if needed for center calculation
+          const normal = cross.divideScalar(2 * area);
+          const key = [normal.x, normal.y, normal.z].map(v => Math.round(v * 1000)).join(',') + ',' + Math.round(normal.dot(a) / 0.05);
+          const face = faces.get(key) ?? { area: 0, normal: new THREE.Vector3(), triangles: [] };
+          face.area += area;
+          face.normal.addScaledVector(normal, area);
+          face.triangles.push(i);
+          faces.set(key, face);
+      }
+
+      for (const face of faces.values()) face.normal.normalize(); // summed so far, area-weighted
+
+      if (!this.activeOperations.get(operationId)) throw new Error("Operation cancelled");
+      if (progressCallback) progressCallback(65, "Finding largest stable flat face...");
+
+      // shortcut: the volume centroid assumes a closed, consistently wound mesh.
+      const size = boundingBox.getSize(new THREE.Vector3());
+      const centerOfMass = Math.abs(volume) > 1e-9 * size.x * size.y * size.z
+        ? volumeMoment.divideScalar(volume)
+        : surfaceMoment.divideScalar(surface);
+
+      // A face is a stable base when its plane supports the whole mesh (nothing sticks out past it, which
+      // rules out the flank of a fin) and the centre of mass, projected along the face normal,
+      // falls inside the convex hull of the face's points.
+      const isStable = (face: { normal: THREE.Vector3; triangles: number[] }): boolean => {
+          const u = new THREE.Vector3(Math.abs(face.normal.x) < 0.9 ? 1 : 0, Math.abs(face.normal.x) < 0.9 ? 0 : 1, 0).cross(face.normal).normalize();
+          const v = new THREE.Vector3().crossVectors(face.normal, u);
+          const points: Array<[number, number]> = [];
+          for (const start of face.triangles) {
+              for (let k = 0; k < 3; k++) {
+                  vertexAt(a, start + k);
+                  points.push([a.dot(u), a.dot(v)]);
+              }
+          }
+          const hull = convexHull(points);
+          const px = centerOfMass.dot(u), py = centerOfMass.dot(v);
+          const supportsCenter = hull.length >= 3 && hull.every(([x1, y1], k) => {
+              const [x2, y2] = hull[(k + 1) % hull.length];
+              return (x2 - x1) * (py - y1) - (y2 - y1) * (px - x1) >= -1e-6 * Math.hypot(x2 - x1, y2 - y1);
           });
-      }
+          if (!supportsCenter) return false;
+          // The O(vertices) scan runs last, only for the few faces whose hull holds the centre of mass.
+          const planeD = vertexAt(a, face.triangles[0]).dot(face.normal);
+          for (let q = 0; q < positionAttribute.count; q++) {
+              if (vertexAt(a, q).dot(face.normal) > planeD + 0.05) return false;
+          }
+          return true;
+      };
 
-      if (faces.length === 0) throw new Error("No faces found in geometry.");
+      const ranked = [...faces.values()].sort((p, q) => q.area - p.area);
+      let target: { area: number; normal: THREE.Vector3 } | undefined;
+      for (const face of ranked) {
+          if (target && face.area < target.area * (1 - 1e-6)) break;
+          if (!isStable(face)) continue;
+          // Equal areas (a plate's top and bottom): prefer the face already pointing down so a seated part is not flipped.
+          if (!target || face.normal.z < target.normal.z) target = face;
+      }
+      if (!target && ranked.length > 0) {
+          console.error("No flat face supports the centre of mass; using the largest flat face.");
+          target = ranked[0];
+      }
 
       if (!this.activeOperations.get(operationId)) throw new Error("Operation cancelled");
-      if (progressCallback) progressCallback(65, "Grouping faces by normal...");
 
-      // Group faces by similar normal vectors (tolerance for floating point errors)
-      const normalGroups: Map<string, { totalArea: number; representativeNormal: THREE.Vector3 }> = new Map();
-      const tolerance = 1e-5; 
-
-      for (const face of faces) {
-          let foundGroup = false;
-          for (const [key, group] of normalGroups.entries()) {
-              if (face.normal.distanceToSquared(group.representativeNormal) < tolerance) {
-                  group.totalArea += face.area;
-                  // Optional: Average the normal? For now, just use the first one.
-                  foundGroup = true;
-                  break;
-              }
-          }
-          if (!foundGroup) {
-              const key = `${face.normal.x.toFixed(5)},${face.normal.y.toFixed(5)},${face.normal.z.toFixed(5)}`;
-              if (!normalGroups.has(key)) { // Ensure unique key even if floats slightly differ after toFixed
-                   normalGroups.set(key, { totalArea: face.area, representativeNormal: face.normal });
-              }
-          }
-      }
-      
-      if (normalGroups.size === 0) throw new Error("Could not group faces by normal.");
-
-      if (!this.activeOperations.get(operationId)) throw new Error("Operation cancelled");
-      if (progressCallback) progressCallback(75, "Finding largest flat surface...");
-
-      // Include already-horizontal faces: excluding Z-aligned normals can
-      // stand a flat model on its edge, including on a repeated layFlat call.
-      let largestArea = 0;
-      let targetNormal: THREE.Vector3 | null = null;
-      const downVector = new THREE.Vector3(0, 0, -1); // Target normal (pointing down)
-
-      // Faces are grouped by direction, so a part whose flat faces are all
-      // horizontal has equal up- and down-facing areas. On a tie, keep the
-      // face that already points down so a seated part is not flipped.
-      for (const group of normalGroups.values()) {
-          const tied = targetNormal !== null && Math.abs(group.totalArea - largestArea) <= largestArea * 1e-6;
-          if (tied ? group.representativeNormal.z < targetNormal!.z : group.totalArea > largestArea) {
-              largestArea = group.totalArea;
-              targetNormal = group.representativeNormal;
-          }
-      }
-
-      if (!targetNormal) {
+      if (!target) {
           // Only a mesh without any face area reaches this.
           console.warn("Could not find a suitable large flat face to lay down. No changes made.");
           this.emit('operationComplete', { operationId, type: 'layFlat', success: true, output: stlFilePath, message: "No suitable flat face found." });
           return stlFilePath;
       }
-      
+      const targetNormal = target.normal;
+      const downVector = new THREE.Vector3(0, 0, -1); // Target normal (pointing down)
+
       if (progressCallback) progressCallback(80, "Calculating rotation...");
       
       // Calculate the rotation needed to align targetNormal with downVector
@@ -2076,8 +2097,6 @@ export class STLManipulator extends EventEmitter {
       const rotationMatrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
 
       // Rotate around the model's center
-      const center = new THREE.Vector3();
-      boundingBox.getCenter(center);
       const toOriginMatrix = new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z);
       const fromOriginMatrix = new THREE.Matrix4().makeTranslation(center.x, center.y, center.z);
 

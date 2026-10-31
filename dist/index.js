@@ -1830,12 +1830,12 @@ class BambuPrinterMCPServer {
                     },
                     {
                         name: "extend_stl_base",
-                        description: "Extend the base of an STL file by a specified amount",
+                        description: "Extend the base of an STL file: add a slab of the given height under the model along Z (the printing axis), covering the model's bounding rectangle. The model moves up, so the result is exactly that much taller.",
                         inputSchema: {
                             type: "object",
                             properties: {
                                 stl_path: { type: "string", description: "Path to the STL file to modify" },
-                                extension_height: { type: "number", description: "Height in mm to extend the base by" }
+                                extension_height: { type: "number", description: "Height in mm to add under the model (greater than 0)" }
                             },
                             required: ["stl_path", "extension_height"]
                         }
@@ -1870,11 +1870,11 @@ class BambuPrinterMCPServer {
                     },
                     {
                         name: "get_stl_info",
-                        description: "Get detailed information about an STL file (bounding box, face count, dimensions)",
+                        description: "Get detailed information about an STL or 3MF file (bounding box, face count, dimensions). For a 3MF, build item and component transforms (rotation, translation) are applied, so the box matches the slicer's placement.",
                         inputSchema: {
                             type: "object",
                             properties: {
-                                stl_path: { type: "string", description: "Path to the STL file to analyze" }
+                                stl_path: { type: "string", description: "Path to the STL or 3MF file to analyze" }
                             },
                             required: ["stl_path"]
                         }
@@ -2696,7 +2696,7 @@ class BambuPrinterMCPServer {
                     },
                     {
                         name: "lay_flat",
-                        description: "Rotate the model so its largest flat face lies on the XY plane (Z=0)",
+                        description: "Rotate the model so its largest flat face lies on the XY plane (Z=0). Coplanar triangles form one face; a face is used only if the model's center of mass sits over it, so thin fins are not chosen.",
                         inputSchema: {
                             type: "object",
                             properties: {

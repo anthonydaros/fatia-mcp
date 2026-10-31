@@ -449,7 +449,7 @@ All STL tools load the full mesh geometry into memory. For files larger than 10 
 
 #### get_stl_info
 
-Inspect an STL file without modifying it. Returns bounding box dimensions, face count, vertex count, and model center.
+Inspect an STL or 3MF file without modifying it. Returns bounding box dimensions, face count, vertex count, and model center. For a 3MF, the rotation and translation of each build item and component are applied, and `objects` lists every mesh with its own bounding box in the slicer's placement.
 
 ```json
 {
@@ -496,7 +496,7 @@ Rotate an STL model around one or more axes. Angles are in degrees. Omitted axes
 
 #### extend_stl_base
 
-Add solid geometry underneath the model to increase its base height. Useful for improving bed adhesion on models with a small or unstable footprint.
+Add a slab underneath the model to increase its base height. The model moves up along Z (the printing axis) and the slab fills the gap, so the result is exactly `extension_height` taller and its bottom stays where it was. Useful for improving bed adhesion on models with a small or unstable footprint.
 
 ```json
 {
@@ -505,11 +505,11 @@ Add solid geometry underneath the model to increase its base height. Useful for 
 }
 ```
 
-`extension_height` is in millimeters.
+`extension_height` is in millimeters and must be greater than 0. The slab covers the model's bounding rectangle.
 
 #### merge_vertices
 
-Merge vertices that are closer together than the specified tolerance. This can close small gaps in a mesh and slightly reduce file size. Useful as a cleanup step before slicing.
+Weld vertices that are closer together than the specified tolerance onto one position, so hairline cracks between triangles close. Normals do not keep vertices apart. An STL file lists each triangle's corners separately, so a mesh whose corners already coincide exactly comes out identical. Useful as a cleanup step before slicing.
 
 ```json
 {
@@ -532,7 +532,7 @@ Translate the model so the center of its bounding box sits at the world origin (
 
 #### lay_flat
 
-Identify the largest flat surface on the model and rotate the model so that face is oriented downward on the XY plane (Z = 0). This is a common preparation step before slicing to minimize the need for supports.
+Identify the largest flat surface on the model and rotate the model so that face is oriented downward on the XY plane (Z = 0). Coplanar triangles count as one face, and a face qualifies only if the model lies entirely on one side of its plane and the model's center of mass projects inside the face's outline (its convex hull), so a large fin that would tip the part over is skipped. If no face qualifies, the largest one is used. This is a common preparation step before slicing to minimize the need for supports.
 
 ```json
 {
@@ -1353,8 +1353,8 @@ STL manipulation tools load the entire mesh into memory as Three.js geometry. Fo
 
 ### STL manipulation limitations
 
-- `lay_flat` identifies the largest flat face by analyzing surface normals. It works reliably on mechanical parts with clear flat faces and less reliably on organic or curved models where no single dominant face exists.
-- `extend_stl_base` adds a new rectangular solid beneath the model. For models with complex or non-planar undersides, the result may include gaps or intersections at the join. Review the modified STL before printing.
+- `lay_flat` groups coplanar triangles into faces and picks the largest one that supports the center of mass (assumes a closed mesh). It works reliably on mechanical parts with clear flat faces and less reliably on organic or curved models where no single dominant face exists.
+- `extend_stl_base` adds a new rectangular slab beneath the model, spanning its bounding rectangle. For models with complex or non-planar undersides, the result may include gaps or intersections at the join. Review the modified STL before printing.
 - `merge_vertices` uses a distance tolerance to identify near-duplicate vertices. Setting the tolerance too high can alter model geometry. The default of 0.01 mm is safe for most models.
 - Non-manifold meshes (meshes with holes, overlapping faces, or internal geometry) may produce unpredictable results for any transformation operation. Use a mesh repair tool (Meshmixer, PrusaSlicer's repair function, or Bambu Studio's repair option) before working with problematic files.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Add `extend_stl_base` height in millimeters along Z, as its schema promises, instead of converting it as inches along Y: a 20 mm cube with +5 is now exactly 25 mm tall and keeps its bottom plane. Write one solid and reject a non-positive height.
+- Make `merge_vertices` weld vertices: per-face normals no longer keep the corners of a cube apart (36 vertices become 8), so near-duplicate corners snap together and the output differs from the input.
+- Make `lay_flat` linear in the triangle count (65k triangles: about 0.3 s instead of 13 s). Coplanar triangles form one face, so parallel fins no longer add up to beat the base, and a face is used only when its plane supports the whole mesh (nothing sticks out past it, so a fin flank never qualifies) and the center of mass projects inside its convex hull.
+- Apply 3MF build item and component transforms in `get_stl_info`, so the bounding box and each object's box match the slicer's placement. `objects` now lists every mesh instance in the build. Reject a malformed transform, and a 3MF that expands to more than 10,000 component instances.
+
 ## [1.1.43] – 2026-10-31
 
 ### Fixed
