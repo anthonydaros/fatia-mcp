@@ -139,6 +139,7 @@ BLENDER_MCP_TIMEOUT_MS=120000
 | `BLENDER_MCP_BRIDGE_COMMAND` | | No | Legacy custom executable receiving `MCP_BLENDER_PAYLOAD`; separate from the standard MCP integration |
 | `BAMBU_CLI_FLATTEN` | automatic | No | Legacy setting; BBL profile resolution now always runs when profiles contain inheritance or includes. A false/unset value cannot bypass required machine G-code. Standalone custom files without dependencies pass through. See [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md). |
 | `BAMBU_PROFILES_ROOT` | derived from `SLICER_PATH` | No | Override path to the selected slicer's `Resources/profiles` directory containing `BBL`. BambuStudio uses this tree exclusively for bundled profiles. Useful for non-standard installs or dev environments. |
+| `SLICER_STATE_FILE` | `~/.bambu-printer-mcp/slicers.json` | No | JSON file where `slicer_info` records the Bambu Studio app and profile versions you last approved (`acknowledge: true`), so it can report `changed_since_last_seen`. The folder is created on first write |
 
 SuperTack can be passed for pre-sliced print jobs, but BambuStudio CLI slicing currently fails fast for `supertack_plate` because the accepted CLI bed identifier is not verified. Use a pre-sliced 3MF for SuperTack until this is confirmed.
 

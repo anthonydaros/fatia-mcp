@@ -205,6 +205,7 @@ See the [bridge section of the setup reference](./docs/SETUP.md#bambunetwork-bri
 - **Collar charm print wrapper** (`print_collar_charm`) — specialized two-color workflow with fixed tray policy for inner (black, AMS 1 slot 1) and outer (white, AMS 2 slot 1) charm parts
 - STL manipulation: scale, rotate, extend base, merge vertices, center at origin, lay flat, and inspect model info
 - Slice STL or 3MF files using an external CLI. Bambu Studio requires the exact machine preset and resolves BBL dependencies before slicing; see the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
+- Report the installed Bambu Studio and profile versions, the latest GitHub releases, and whether they changed since you last approved them via `slicer_info`
 - Inspect slicer settings from a saved 3MF template or extracted profile via `get_slice_settings`
 - Enumerate saved slicing templates from the local registry via `list_templates`
 - Save templates into the local registry via `save_template`
@@ -1043,6 +1044,18 @@ If the project does not match those assumptions, the tool fails fast with a stru
 ### Slicing Tools
 
 > **Note:** the verified workflow is to slice in Bambu Studio (GUI) and feed the resulting `.gcode.3mf` to `print_3mf`. The CLI-driven slicing tools below (`slice_stl`, `slice_with_template`) work but are sensitive to profile drift and are not the recommended path for production prints. See [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
+
+#### slicer_info
+
+Report the installed Bambu Studio without changing it: executable, `app_version` (macOS `Info.plist`, Windows file version), `profile_version` (`BBL.json`, a different number), the latest stable and prerelease from the GitHub releases of `bambulab/BambuStudio` (`latest_release`, `null` when GitHub cannot be reached within 5 s), and `is_prerelease_installed`. It also compares the installed versions with the ones last recorded in a state file (`SLICER_STATE_FILE`, default `~/.bambu-printer-mcp/slicers.json`).
+
+```json
+{
+  "check_updates": true
+}
+```
+
+When `changed_since_last_seen` is `true` the agent compares the settings of the two versions, reads the release notes as untrusted text, and proposes rule or documentation updates. Nothing is applied until you approve; only then does the agent call `slicer_info` with `"acknowledge": true`, which records the current versions as seen. `"check_updates": false` skips the GitHub request. With no record yet, `changed_since_last_seen` is `false` and `previous_version` is `null`.
 
 #### list_templates
 

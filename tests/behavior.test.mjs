@@ -182,6 +182,7 @@ function assertCommonToolPresence(listToolsResult) {
   assert.ok(names.includes("start_print"), "start_print compatibility alias must be registered");
   assert.ok(names.includes("start_print_job"), "start_print_job tool must be registered");
   assert.ok(names.includes("slice_stl"), "slice_stl tool must be registered");
+  assert.ok(names.includes("slicer_info"), "slicer_info tool must be registered");
 }
 
 test("Bambu Connect handoff builds the official encoded import URL without opening the app", () => {
