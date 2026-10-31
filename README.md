@@ -1,7 +1,5 @@
 # bambu-printer-mcp
 
-[![bambu-printer-mcp — Print from a conversation. Browse the documentation site.](https://dmontgomery40.github.io/bambu-printer-mcp/social-card.png)](https://dmontgomery40.github.io/bambu-printer-mcp/)
-
 [![npm version](https://img.shields.io/npm/v/bambu-printer-mcp.svg)](https://www.npmjs.com/package/bambu-printer-mcp)
 [![License: GPL-2.0](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
@@ -10,8 +8,6 @@
 [![Downloads](https://img.shields.io/npm/dm/bambu-printer-mcp.svg)](https://www.npmjs.com/package/bambu-printer-mcp)
 
 A Bambu Lab-focused MCP server for controlling Bambu printers, manipulating STL files, and managing end-to-end 3MF print workflows from Claude Desktop, Claude Code, or any MCP-compatible client.
-
-**[Browse the documentation site](https://dmontgomery40.github.io/bambu-printer-mcp/)** for searchable setup guides, slicing and AMS guidance, and the full tool reference. It is generated from this README and the docs folder.
 
 Built with help from our [contributors](./CONTRIBUTORS.md). Huge thanks to everyone sharing fixes, careful bug reports, and real printer testing!
 

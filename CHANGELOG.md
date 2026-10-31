@@ -13,6 +13,7 @@
 
 ### Removed
 - Remove the BambuNetwork bridge: the `bambu_network_bridge_status`, `bambu_network_call` and `print_3mf_bambu_network` tools, `print_3mf` with `connection_mode: "bambu_network"` (and its `connection_type`, `bambu_network_method`, `bambu_network_config_dir`, `country_code`, `user_info` and `bridge_command` arguments), the `BAMBU_NETWORK_*`, `PJARCZAK_*` and `BAMBU_DEV_ID` settings, and the bundled certificates and framed-protocol host client. The fork is now an add-on between Bambu Studio and Blender only. The X2D `bambu_native` route (Bambu Studio's installed plug-in through the local helper), `lan_mqtt_ftps` and `bambu_connect` are unchanged, and the same fresh-state, inspection and bed-clearance checks guard `bambu_native`. `print_3mf` now rejects `connection_mode: "bambu_network"` as unsupported.
+- Remove the `site/` VitePress documentation site and its `Pages` workflow. The README, `docs/SETUP.md` and `docs/SLICING.md` remain the documentation, and the repository no longer builds or deploys GitHub Pages.
 
 ### Fixed
 - Judge a project saved for another printer against the printer being targeted: `printer.model` is now the targeted printer (as `project.target_printer` already was), so an H2D project sliced for the X2D evaluates the X2D rules instead of silently skipping them. `printer.bed_size_mm` follows the same volume, and `project.object_count` counts instances, so two copies of a part on a plate are two objects.

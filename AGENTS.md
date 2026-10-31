@@ -14,7 +14,6 @@ This file is the repository's shared source of truth for local agents, GitHub Co
 - Create a `v<version>` tag on the final merged release commit and a GitHub Release. The tag workflow builds and uploads the `.mcpb` extension. Verify npm, package/manifest versions, the release asset, and fresh installed startup before declaring the release complete. Never move a published tag.
 - After merging and verifying the release, switch back to main and delete the merged temporary integration branch locally and from origin.
 - Changes to src/, scripts/, or printer behavior need a present-tense CHANGELOG.md entry under `## Unreleased` while preparing the release. Run `npm version patch` only after accumulating the release notes: its version hook promotes that heading to the new version and date. If review adds notes after the bump, place them in that release's section. Released changes must never remain under `Unreleased` on main. Use that version's entries in GitHub release notes, with contributor credit and validation limits. Supply multiline notes via a body file.
-- Verify the Pages deployment on the merged release commit and read the live `/project/changelog` page before declaring a release complete. Confirm the latest version/date and changes appear under their released version, not `Unreleased`; a passing site build alone is insufficient.
 
 ## Build and test
 
@@ -78,4 +77,3 @@ This file is the repository's shared source of truth for local agents, GitHub Co
 
 - `.gitignore` excludes agent scratch plans, progress logs, handoff notes, and draft comments with `*.md`, while explicitly allowing shared AGENTS/CLAUDE rules and public README, CHANGELOG, CONTRIBUTORS, and docs/SLICING documentation. Keep public docs and rules tracked and current; leave private agent notes local. Add an explicit exception for intentional new public documentation.
 - Keep real credentials and private artifacts out of Git. Do not print secrets from .env or local configuration.
-- The GitHub Pages site in site/ is generated from README.md, docs/, CHANGELOG.md, and CONTRIBUTORS.md; edit those sources, not generated output. Map new or renamed README sections in site/scripts/pages.mjs, keep the home page's model notes in site/scripts/sync-docs.mjs aligned with supported printing, and check documentation changes with `npm --prefix site ci && npm --prefix site run build`.

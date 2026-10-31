@@ -8,7 +8,6 @@
 
 # Reference / doc-only material not needed at runtime
 docs/
-site/
 CHANGELOG.md
 AGENTS.md
 CLAUDE.md
