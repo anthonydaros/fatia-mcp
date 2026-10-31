@@ -12,6 +12,8 @@ export declare function readAppVersion(executable: string): Promise<string | nul
 export declare function readProfileVersion(executable: string): string | null;
 /** Published (non-draft) releases of bambulab/BambuStudio, newest first; null on any failure or after 5 s. */
 export declare function fetchReleases(fetchImpl?: typeof fetch): Promise<Release[] | null>;
+export declare const normalizeVersion: (v: string) => string;
+export declare const sameVersion: (a: string, b: string) => boolean;
 export declare function stateFilePath(): string;
 export interface SlicerInfoOptions {
     executable: string;

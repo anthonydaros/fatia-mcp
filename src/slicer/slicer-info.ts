@@ -76,10 +76,8 @@ export async function fetchReleases(fetchImpl: typeof fetch = fetch): Promise<Re
 }
 
 // "v02.08.04.57" and "2.8.4.57" name the same build.
-const sameVersion = (a: string, b: string) => {
-  const norm = (v: string) => v.trim().replace(/^v/i, "").replace(/\b0+(?=\d)/g, "");
-  return norm(a) === norm(b);
-};
+export const normalizeVersion = (v: string) => v.trim().replace(/^v/i, "").replace(/\b0+(?=\d)/g, "");
+export const sameVersion = (a: string, b: string) => normalizeVersion(a) === normalizeVersion(b);
 
 export function stateFilePath(): string {
   return path.resolve(process.env.SLICER_STATE_FILE?.trim() || path.join(os.homedir(), ".bambu-printer-mcp", "slicers.json"));

@@ -53,7 +53,7 @@ export function packageMcpb({ root = ROOT, outputPath = path.join(root, "bambu-p
   try {
     // Never pack the working tree: .gitignore is not read by mcpb, and local
     // printer credentials, certificates, and models can live beside the source.
-    for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "patches", "LICENSE", "README.md"]) {
+    for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "knowledge", "patches", "LICENSE", "README.md"]) {
       copyReleaseInput(path.join(root, name), path.join(staging, name));
     }
     fs.mkdirSync(path.join(staging, "scripts"));

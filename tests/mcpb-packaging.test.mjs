@@ -15,7 +15,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 test("MCPB archive preserves runtime and licenses without local secrets or pruning developer dependencies", { timeout: 180_000 }, async (t) => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "bambu-mcpb-test-"));
   t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
-  for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "patches", "native", "LICENSE", "README.md"]) {
+  for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "knowledge", "patches", "native", "LICENSE", "README.md"]) {
     fs.cpSync(path.join(ROOT, name), path.join(fixture, name), { recursive: true });
   }
   fs.mkdirSync(path.join(fixture, "scripts"));
@@ -34,7 +34,7 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
   packageMcpb({ root: fixture, outputPath, quiet: true });
 
   const archive = await JSZip.loadAsync(fs.readFileSync(outputPath));
-  for (const name of ["manifest.json", "package.json", "dist/index.js", "src/index.ts", "patches/bambu-node+3.22.21.patch", "scripts/install-patches.mjs", "scripts/build-bambu-native.sh", "scripts/setup-bambu-native.mjs", "native/bambu-native-print.cpp", "LICENSE", "README.md", "CONTRIBUTORS.md", "node_modules/mqtt/LICENSE.md", "node_modules/bambu-node/LICENSE", "node_modules/three/LICENSE", "node_modules/basic-ftp/LICENSE.txt"]) {
+  for (const name of ["manifest.json", "package.json", "dist/index.js", "src/index.ts", "knowledge/rules.json", "knowledge/manifest.json", "patches/bambu-node+3.22.21.patch", "scripts/install-patches.mjs", "scripts/build-bambu-native.sh", "scripts/setup-bambu-native.mjs", "native/bambu-native-print.cpp", "LICENSE", "README.md", "CONTRIBUTORS.md", "node_modules/mqtt/LICENSE.md", "node_modules/bambu-node/LICENSE", "node_modules/three/LICENSE", "node_modules/basic-ftp/LICENSE.txt"]) {
     assert.ok(archive.file(name), `missing release file: ${name}`);
   }
   for (const name of Object.keys(archive.files)) {
@@ -73,6 +73,9 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
     await client.connect(transport);
     assert.equal(client.getServerVersion()?.name, "bambu-printer-mcp");
     assert.ok((await client.listTools()).tools.some((tool) => tool.name === "print_3mf"));
+    const consulted = JSON.parse((await client.callTool({ name: "consult_knowledge", arguments: { query: "z hop" } })).content[0].text);
+    assert.equal(consulted.kb.integrity, "ok", "the installed extension finds and verifies its knowledge folder");
+    assert.equal(consulted.results[0].id, "bambu.travel.zhop-types");
     assert.equal(fs.existsSync(path.join(launchDirectory, "temp")), false, "extension startup must not create a cwd-relative temp directory");
   } finally {
     await client.close();

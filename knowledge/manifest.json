@@ -1,0 +1,25 @@
+{
+  "kb_version": "7dfaf8f16bfd",
+  "counts": {
+    "topics": 195,
+    "rules": 320,
+    "facts": 156,
+    "synonym_groups": 61,
+    "questions": 159,
+    "scenarios": 76
+  },
+  "files": {
+    "rules.json": "38635a12737ba4af52c8efcc7e426297df8d4990bb3115bbff72c32087532954",
+    "facts.json": "f1f46eba86278f68777f95a9e011f73e258b1bc15f392e9d70faeb4aa4838187",
+    "bambu.topics.json": "893751b41121080921a43cf33e225b38029ba5bde8e2c5e1676f6416613117d6",
+    "blender.topics.json": "c680a8aa217d629522a632b292623125ca08d69ec16315b50714be431724f503",
+    "synonyms.json": "4177478b1a81cbc1da8bb856841435f6d71f7ad3ed2b3e532cc422046e55853a"
+  },
+  "sources": {
+    "rules.json": "kb/out",
+    "facts.json": "kb/out",
+    "bambu.topics.json": "kb/out",
+    "blender.topics.json": "kb/out",
+    "synonyms.json": "authored in this repo"
+  }
+}

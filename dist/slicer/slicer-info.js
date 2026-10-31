@@ -70,10 +70,8 @@ export async function fetchReleases(fetchImpl = fetch) {
     }
 }
 // "v02.08.04.57" and "2.8.4.57" name the same build.
-const sameVersion = (a, b) => {
-    const norm = (v) => v.trim().replace(/^v/i, "").replace(/\b0+(?=\d)/g, "");
-    return norm(a) === norm(b);
-};
+export const normalizeVersion = (v) => v.trim().replace(/^v/i, "").replace(/\b0+(?=\d)/g, "");
+export const sameVersion = (a, b) => normalizeVersion(a) === normalizeVersion(b);
 export function stateFilePath() {
     return path.resolve(process.env.SLICER_STATE_FILE?.trim() || path.join(os.homedir(), ".bambu-printer-mcp", "slicers.json"));
 }

@@ -1,0 +1,1932 @@
+[
+  {
+    "id": "blender.overview.playbook-scope",
+    "domain": "blender",
+    "title": "Escopo do playbook Blender e compatibilidade de versões",
+    "tags": [
+      "blender",
+      "playbook",
+      "visão geral",
+      "versão"
+    ],
+    "symptoms": [
+      "o que o playbook de blender cobre",
+      "qual versão do blender usar para impressão 3d",
+      "blender 4.2 LTS ou 5.0",
+      "how to prepare an STL in blender for 3d printing",
+      "playbook de fatiamento e preparação no blender",
+      "o que dá para fazer no blender antes de fatiar"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "O playbook consolida fluxos de trabalho compatíveis com Blender 4.2 LTS a 5.0+ para: cortar modelos complexos; criar pinos de encaixe (keys) com tolerância exata; separar peças para impressão multicolorida sem AMS; limpar malhas vindas de IA; aplicar texturas físicas (incluindo efeito crochê/tricô); e projetar moldes de produção para silicone, velas e resina. A Parte 1 é um levantamento técnico de 20 vídeos de referência agrupados por especialidade: Bloco A (cortes, encaixes, oco e multipartes sem AMS, vídeos 1 a 7), Bloco B (texturização física e crochê/tricô, vídeos 8 a 12), Bloco C (limpeza de malha, reparo de STL e otimização de modelos de IA, vídeos 13 a 15) e Bloco D (moldes e contra-moldes, vídeos 16 a 20). O playbook é material de terceiros, aparentemente uma síntese dos vídeos, e não traz etiquetas de confiança; tudo o que vem dele conta como [relato]. Esta parte descreve foco e pontos críticos de cada vídeo, mas quase não traz valores numéricos: limiares, folgas e espessuras precisam vir de outras partes do playbook, do guia da Bambu Studio ou de teste de impressão. Os parágrafos 'Verificação' dos outros tópicos foram conferidos no manual oficial do Blender (4.2 LTS a 5.0) ou em extensions.blender.org e não fazem parte do playbook.",
+    "src": [
+      "playbook:1-9"
+    ]
+  },
+  {
+    "id": "blender.fdm.units-bevel-solidify",
+    "domain": "blender",
+    "title": "Dicas para FDM funcional: escala em mm, 3D Print Toolbox, Bevel 45°, Solidify, 3D Cursor",
+    "tags": [
+      "unit scale",
+      "escala",
+      "milímetros",
+      "3d print toolbox",
+      "bevel",
+      "chanfro",
+      "solidify",
+      "3d cursor",
+      "suporte"
+    ],
+    "symptoms": [
+      "peça exportada do blender com tamanho errado",
+      "modelo vem 1000 vezes maior ou menor no fatiador",
+      "como configurar blender em milímetros",
+      "unit scale 0.001",
+      "como evitar suporte com chanfro",
+      "cantos vivos quebram na peça funcional",
+      "how to chamfer overhangs in blender",
+      "3d print toolbox blender",
+      "como dar espessura a uma superfície"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Dicas rápidas voltadas à impressão FDM funcional, resumidas de um vídeo de 67 dicas: (1) calibrar a escala em milímetros com Unit Scale = 0.001; (2) usar o 3D Print Toolbox; (3) substituir cantos vivos por Bevel, com chanfros a 45° para eliminar suportes e concentradores de tensão; (4) espessar superfícies com Solidify; (5) usar atalhos de alinhamento pelo 3D Cursor; (6) usar operações booleanas não-destrutivas. Tudo é [relato]. A fonte resume apenas esses itens: não dá o tamanho do chanfro, o caminho de menu do Unit Scale nem as opções do 3D Print Toolbox, e as 67 dicas completas não estão no texto. Verificação (manual oficial do Blender): o Unit Scale fica em Properties ▸ Scene ▸ Units; o manual diz que ele só influencia os valores exibidos na interface, e o exportador STL tem as opções Scale e Scene Unit ('aplica a unidade da cena, definida pelo Unit Scale, aos dados exportados'). O 3D Print Toolbox é um add-on publicado como extensão (extensions.blender.org/add-ons/print3d-toolbox/, a partir do Blender 4.2) e precisa ser instalado. Bevel e Solidify são modificadores documentados e o 3D Cursor também.",
+    "src": [
+      "playbook:19-20"
+    ]
+  },
+  {
+    "id": "blender.texture.displace-workflow",
+    "domain": "blender",
+    "title": "Textura física no Blender: UV Unwrap, Vertex Groups, Subdivision Surface Simple e Displace",
+    "tags": [
+      "textura",
+      "displace",
+      "displacement",
+      "subdivision surface",
+      "vertex group",
+      "uv unwrap",
+      "polyhaven"
+    ],
+    "symptoms": [
+      "como aplicar textura em relevo no STL",
+      "textura física para impressão 3d no blender",
+      "usar mapa de altura (height map) no modelo",
+      "apply texture blender 3d printing",
+      "displace modifier não faz relevo",
+      "texturizar só uma parte da peça",
+      "subdivision surface simple para displace"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Método clássico para transformar texturas 2D (mapas Height/Displacement do PolyHaven) em relevo físico real no STL: (1) abrir a malha com UV Unwrap; (2) criar Vertex Groups para isolar a área texturizada; (3) subdividir densamente a malha com Subdivision Surface em modo Simple; (4) aplicar o modificador Displace. A fonte não indica níveis de subdivisão, a força (Strength) do Displace, nem a profundidade de relevo adequada para FDM, e não diz como controlar o peso do arquivo resultante (veja blender.texture.knit-woven-geometry para Remesh e Decimate e blender.texture.meshtexture-web-tool para uma alternativa web). Tudo é [relato]. Verificação (manual oficial do Blender): o modificador Subdivision Surface tem os modos Catmull-Clark e Simple, e o manual diz que o Simple pode ser usado para aumentar a resolução da malha base ao usar mapas de deslocamento; o modificador Displace tem os campos Texture, Direction, Strength, Midlevel e Vertex Group (grupo que controla a influência do modificador).",
+    "src": [
+      "playbook:29-30"
+    ]
+  },
+  {
+    "id": "blender.texture.meshtexture-web-tool",
+    "domain": "blender",
+    "title": "MeshTexture (web) e texturas 3D automatizadas como alternativa ao Displace",
+    "tags": [
+      "meshtexture",
+      "textura",
+      "smart fill",
+      "amplitude",
+      "refine",
+      "manifold",
+      "knurling",
+      "crochê"
+    ],
+    "symptoms": [
+      "textura rápida sem usar UV no blender",
+      "ferramenta web para texturizar STL",
+      "meshtexture smart fill amplitude refine",
+      "textura de couro madeira fibra de carbono no STL",
+      "knurling grip em STL",
+      "textura crochê amigurumi sem esculpir",
+      "stl com textura trava o fatiador"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Alternativa ultrarrápida ao fluxo UV/Displacement do Blender: a ferramenta web gratuita MeshTexture (meshtexture.com). No navegador, selecionar faces específicas do STL por ângulo (Smart Fill) ou por pincel; aplicar texturas (couro, madeira, fibra de carbono, knurling/grip ou PNG customizado); ajustar Amplitude e Refine; exportar um STL Manifold otimizado que, segundo o vídeo, não trava o fatiador. Um segundo vídeo mostra texturas 3D complexas, incluindo o padrão crochê/amigurumi, aplicadas sobre STLs prontos sem esculpir nem abrir nós complexos no Blender, usando ferramentas automatizadas de deslocamento de malha. A fonte não nomeia essa segunda ferramenta, não traz valores recomendados de Amplitude/Refine e não comenta privacidade ou licença. Tudo é [relato]. Verificação: meshtexture.com existe e se descreve como aplicativo no navegador, com Smart Fill, Amplitude e Refine Selection; o site afirma processar tudo localmente, sem enviar arquivos a servidor (alegação do próprio site, não verificada de forma independente), e a página não menciona exportação Manifold.",
+    "src": [
+      "playbook:31-34"
+    ]
+  },
+  {
+    "id": "blender.texture.knit-woven-geometry",
+    "domain": "blender",
+    "title": "Tricô e trama (Knit & Woven): Displacement Map ou geometria trançada com Remesh + Decimate",
+    "tags": [
+      "tricô",
+      "knit",
+      "woven",
+      "celtic links",
+      "tissue",
+      "extra curve objects",
+      "remesh",
+      "decimate"
+    ],
+    "symptoms": [
+      "efeito de tricô em impressão 3d",
+      "knit woven 3d print blender",
+      "fios entrelaçados dão problema no fatiador",
+      "geometria trançada para impressão",
+      "celtic links blender",
+      "arquivo de trama muito pesado para o slicer",
+      "remesh e decimate depois de trançar"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Dois métodos dentro do Blender para peças com efeito de tricô/trama (Knit & Woven): 1) Displacement Map com textura de ponto de tricô em malha subdividida; 2) geometria real trançada (Celtic Links) com o add-on Extra Curve Objects / Tissue. No método 2, os fios entrelaçados precisam ser unificados e limpos para impressão: Remesh para fechar a malha, seguido de Decimate para deixar o arquivo leve para o slicer. A fonte não dá parâmetros de Remesh (voxel size) nem a razão do Decimate, nem diz como instalar/ativar os add-ons nas versões 4.2 LTS a 5.0+. Tudo é [relato]. Verificação: Extra Curve Objects (extensions.blender.org/add-ons/extra-curve-objectes/, a partir do Blender 4.2) existe e contém o operador Celtic Links; Tissue (extensions.blender.org/add-ons/tissue/) existe, mas a versão listada, 0.3.76, exige Blender 4.5+. Ambos são extensões que o usuário precisa instalar. No manual do Blender, Remesh é um modificador (modos Blocks, Smooth, Sharp e Voxel) e Decimate é um modificador (modos Collapse, Un-Subdivide e Planar).",
+    "src": [
+      "playbook:35-38"
+    ]
+  },
+  {
+    "id": "blender.texture.crochet-multipart",
+    "domain": "blender",
+    "title": "Peças estilo crochê em multipartes por cor e orientação de camada",
+    "tags": [
+      "crochê",
+      "multipartes",
+      "orientação de camada",
+      "flores",
+      "suporte",
+      "textura"
+    ],
+    "symptoms": [
+      "flores de crochê em 3d",
+      "crochê impresso sem suporte",
+      "linhas de camada imitando fio de crochê",
+      "como orientar peças de crochê para imprimir",
+      "crochet flowers multipart 3d print",
+      "dividir flor em folhas caule e vaso"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Peças decorativas estilo crochê (flores, folhas, caules e vasos) são projetadas e preparadas como multipartes, divididas por cor e por orientação de camada. A ideia descrita é que as linhas de camada da impressora FDM reforcem a estética dos fios do crochê, sem exigir suportes que estraguem a textura. A fonte não especifica como escolher a orientação de cada parte, nem dimensões, folgas de encaixe ou número de partes. Combine com a separação por cor de blender.multipart.no-ams-overview quando for imprimir sem AMS. Tudo é [relato].",
+    "src": [
+      "playbook:39-40"
+    ]
+  },
+  {
+    "id": "blender.molds.automation-addon-blender5",
+    "domain": "blender",
+    "title": "Add-on MAX Molde Pro (Blender 5.0+) para gerar caixas de molde e contra-moldes",
+    "tags": [
+      "molde",
+      "silicone",
+      "add-on",
+      "max molde pro",
+      "blender 5.0",
+      "automação",
+      "contra-molde"
+    ],
+    "symptoms": [
+      "gerar molde de silicone automaticamente no blender",
+      "max molde pro",
+      "add-on para criar molde",
+      "molde de silicone do zero ao primeiro molde",
+      "caixa de molde e contra-molde em segundos",
+      "silicone mold blender 5.0 addon"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=5.0"
+    },
+    "confidence": "relato",
+    "body": "Fluxo acelerado, descrito para o Blender 5.0+, que usa automação / o add-on de terceiros MAX Molde Pro para gerar caixas de molde e contra-moldes de silicone prontos para impressão 3D, em segundos, a partir da peça original. A fonte não descreve parâmetros, passos manuais nem a licença do add-on, e não diz se ele funciona no 4.2 LTS (o playbook declara compatibilidade 4.2 LTS a 5.0+ no geral). A alegação de tempo é do vídeo. Sem o add-on, use o método manual (blender.molds.golden-rules-draft-undercuts e blender.molds.flow-a-silicone-box). Tudo é [relato]. Verificação: não encontrei um add-on chamado MAX Molde Pro em extensions.blender.org nem na busca na web; trate-o como terceiro não verificado (pode ser distribuído fora da plataforma de extensões).",
+    "src": [
+      "playbook:55-56"
+    ]
+  },
+  {
+    "id": "blender.setup.mm-units",
+    "domain": "blender",
+    "title": "Blender em milimetros reais (Units) para exportar STL na escala certa",
+    "tags": [
+      "blender",
+      "escala",
+      "unidades",
+      "setup",
+      "stl"
+    ],
+    "symptoms": [
+      "meu STL chega minúsculo no Bambu Studio",
+      "meu STL chega gigante no fatiador",
+      "peça exportada do Blender com tamanho errado",
+      "como configurar o Blender para milímetros",
+      "exported STL is tiny in the slicer",
+      "Blender unit scale 0.001 for 3D printing",
+      "o Blender trabalha em metros, como mudar para mm",
+      "salvar configuração padrão do Blender para impressão 3D"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Por padrão o Blender trabalha em metros. Por isso objetos exportados em .STL chegam minúsculos ou gigantescos ao fatiador (Bambu Studio, OrcaSlicer, PrusaSlicer, Cura). O playbook manda executar o setup uma única vez e salvá-lo como arquivo padrão: File → Defaults → Save Startup File.\n\nPassos de escala milimétrica real:\n1. No painel Scene Properties (ícone do cone e esfera, à direita), abra a aba Units (no manual do Blender é o painel Properties ‣ Scene ‣ Units).\n2. Unit System = Metric.\n3. Unit Scale = 0.001.\n4. Length = Millimeters (mm).\n\nOs passos 5 e 6 (Overlays → Guides → Scale e Clip Start/End da vista 3D) estão no tópico blender.setup.viewport-guides-clip. Fonte: playbook de terceiros, sem tag de confiança (tratado como relato). A fonte não descreve nenhuma opção de escala do exportador STL, só diz que com o padrão em metros o tamanho chega errado.",
+    "src": [
+      "playbook:66-74"
+    ]
+  },
+  {
+    "id": "blender.setup.viewport-guides-clip",
+    "domain": "blender",
+    "title": "Guides Scale e Clip Start/End da vista 3D para trabalhar em mm",
+    "tags": [
+      "blender",
+      "viewport",
+      "clip",
+      "grid",
+      "setup"
+    ],
+    "symptoms": [
+      "a peça some quando dou zoom no Blender",
+      "objeto desaparece ao aproximar a câmera",
+      "grade do Blender não bate com milímetros",
+      "Clip Start e Clip End para impressão 3D",
+      "part disappears when zooming in Blender",
+      "Blender grid scale for millimeters",
+      "viewport clipping 3D printing"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Complemento do setup de milímetros (continuação dos passos de Units):\n5. No topo da 3D Viewport, clique em Overlays (ícone de dois círculos sobrepostos) e, em Guides, altere Scale para 0.001.\n6. Na barra lateral (N → aba View), ajuste:\n   * Clip Start: 0.1 mm\n   * Clip End: 10000 mm (evita que a peça suma ao dar zoom).\n\nTudo isto faz parte do setup que deve ser feito uma vez e salvo com File → Defaults → Save Startup File. Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:75-78"
+    ]
+  },
+  {
+    "id": "blender.setup.addons-required",
+    "domain": "blender",
+    "title": "Add-ons obrigatórios no Blender 4.2+ / 5.0+ (Bool Tool, 3D Print Toolbox, LoopTools)",
+    "tags": [
+      "blender",
+      "add-ons",
+      "extensions",
+      "bool-tool",
+      "looptools",
+      "setup"
+    ],
+    "symptoms": [
+      "quais add-ons ativar no Blender para impressão 3D",
+      "não acho o 3D Print Toolbox",
+      "como fazer corte booleano rápido no Blender",
+      "atalho Bool Tool Blender",
+      "como fazer círculo perfeito no Blender",
+      "which Blender add-ons for 3D printing",
+      "Get Extensions Blender 4.2 3D Print Toolbox",
+      "LoopTools circle bridge"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "Caminho: Edit → Preferences → Get Extensions (ou Add-ons) e ativar:\n\n| Add-on | Para que serve |\n|---|---|\n| Bool Tool | cortes booleanos rápidos com os atalhos Ctrl + Shift + B ou Ctrl + Numpad - |\n| 3D Print Toolbox | verifica se a malha é Manifold (estanque/sem furos), identifica faces invertidas, calcula volume em cm³ e mostra overhangs maiores que 45° |\n| LoopTools | essencial para criar círculos perfeitos em malhas (Right Click → LoopTools → Circle) e fechar pontes (Bridge) |\n| Extra Curve Objects / Tissue (opcional) | indispensáveis para padrões de crochê/tricô geométrico e tramas (Celtic Links) |\n\nO título da seção do playbook os chama de add-ons obrigatórios para Blender 4.2+ / 5.0+; o último item é marcado como opcional. O playbook só diz para ativar; a plataforma de extensões pode exigir instalar antes (ver doubts). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:80-85"
+    ]
+  },
+  {
+    "id": "blender.setup.3d-print-toolbox",
+    "domain": "blender",
+    "title": "3D Print Toolbox: o que ele checa (manifold, normais, volume, overhangs)",
+    "tags": [
+      "blender",
+      "3d-print-toolbox",
+      "manifold",
+      "overhang",
+      "volume"
+    ],
+    "symptoms": [
+      "como ver se a malha é manifold no Blender",
+      "como calcular o volume da peça no Blender",
+      "ver overhang maior que 45 graus no Blender",
+      "onde fica a aba 3D Print no Blender",
+      "how to check manifold mesh in Blender",
+      "3D Print Toolbox check all",
+      "faces invertidas no Blender como achar"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "O add-on 3D Print Toolbox (ativado em Edit → Preferences → Get Extensions) verifica automaticamente se a malha é Manifold (estanque, sem furos), identifica faces invertidas, calcula o volume em cm³ e mostra os overhangs maiores que 45°. Fica na barra lateral: N → aba 3D Print (o manual do Blender 4.1 escreve 3D-Print); o botão Check All roda as verificações e mostra o número de Non-Manifold Edges. Se esse número for maior que 0, o playbook indica o botão Make Manifold do próprio Toolbox ou fechar os buracos manualmente (ver blender.repair.non-manifold-check). Esta parte do playbook não explica o que fazer com os overhangs de 45° nem dá regras de suporte; isso fica para o fatiador. Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:83-99"
+    ]
+  },
+  {
+    "id": "blender.cleanup.mesh-sources-overview",
+    "domain": "blender",
+    "title": "STL baixado ou gerado por IA: problemas típicos e regra de nunca fazer Booleano antes de limpar",
+    "tags": [
+      "blender",
+      "stl",
+      "ia",
+      "meshy",
+      "tripo3d",
+      "hunyuan3d",
+      "boolean",
+      "limpeza",
+      "quads",
+      "retopologia",
+      "quadriflow",
+      "voxel remesh",
+      "tris to quads",
+      "vértices duplicados",
+      "limpeza de malha",
+      "decimate",
+      "remesh",
+      "sculpt",
+      "smooth",
+      "flatten",
+      "scrape",
+      "crease"
+    ],
+    "symptoms": [
+      "baixei um STL e ele está cheio de buracos",
+      "modelo do Meshy com malha bagunçada",
+      "STL gerado por IA tem milhões de triângulos",
+      "posso fazer booleano direto no STL baixado",
+      "malha non-manifold com partes internas soltas",
+      "AI generated mesh full of holes for 3D printing",
+      "Tripo3D Hunyuan3D mesh cleanup before printing",
+      "boolean falhou no Blender",
+      "stl baixado da internet com malha bagunçada",
+      "triângulos demais na malha",
+      "converter triângulos em quads",
+      "alt j tris to quads"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Arquivos .STL baixados da internet ou gerados por Inteligência Artificial (Meshy.ai, Tripo3D, Hunyuan3D) costumam vir com milhões de triângulos desordenados, buracos ocultos (non-manifold), malhas internas soltas ou superfícies esburacadas.\n\nRegra do playbook: nunca tente fazer um corte Booleano antes de limpar a malha.\n\nA limpeza está dividida em três fluxos, cada um com seu tópico:\n* Fluxo 1: check-up e reparo rápido de STL importado (blender.repair.stl-checkup-flow).\n* Fluxo 2: converter triângulos em quads para editar (blender.quads.tris-to-quads-hard-surface e blender.quads.quadriflow-organic).\n* Fluxo 3: limpar modelos gerados por IA (blender.ai-cleanup.voxel-remesh, blender.ai-cleanup.sculpt-smoothing, blender.ai-cleanup.decimate-collapse).\n\nO playbook não diz em que ordem combinar o Fluxo 1 com o Fluxo 3 num modelo de IA (ver doubts). Fonte: playbook sem tag (relato).\n\nResumo da Parte 1: para malhas trianguladas caóticas (típicas de STLs baixados) o fluxo combina Alt + J (Tris to Quads), QuadriFlow Remesh, Voxel Remesh e M → By Distance; para modelos gerados por IA, o método 1 reduz e regulariza a malha com Decimate e Remesh e o método 2 corrige artefatos, caroços e assimetrias com os pincéis Smooth, Flatten, Scrape e Crease do Sculpt Mode. Verificação (manual do Blender): Alt+J é Face ▸ Triangles to Quads; Merge by Distance fica em Mesh ▸ Clean up no 5.0 (Vertex no 4.2); Voxel Remesh e Quadriflow ficam em Properties ▸ Object Data ▸ Remesh. O manual do 5.0 indica o Voxel remesher para limpar malha para impressão 3D e diz que o Quadriflow não limpa geometria interseccionante e não o recomenda para essa limpeza (para só reduzir faces, o Decimate). No 5.0 os pincéis aparecem como Smooth, Flatten/Contrast, Scrape/Fill e Crease.",
+    "src": [
+      "playbook:89-91",
+      "playbook:43-44",
+      "playbook:47-50"
+    ]
+  },
+  {
+    "id": "blender.repair.stl-checkup-flow",
+    "domain": "blender",
+    "title": "Fluxo 1: check-up e reparo rápido de STL importado (4 passos)",
+    "tags": [
+      "blender",
+      "reparo",
+      "stl",
+      "fluxo",
+      "manifold",
+      "normais",
+      "buracos",
+      "fill",
+      "grid fill",
+      "bridge edge loops",
+      "edit mode",
+      "reparo de stl"
+    ],
+    "symptoms": [
+      "como reparar um STL no Blender",
+      "passo a passo para limpar STL importado",
+      "checklist antes de exportar para o Bambu Studio",
+      "STL importado com erro no fatiador",
+      "quick STL repair workflow in Blender",
+      "import STL check and fix Blender",
+      "malha com furos depois de importar",
+      "buraco na malha do STL",
+      "como fechar buracos no blender",
+      "normais invertidas",
+      "recalcular normais shift n",
+      "malha não manifold"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Ordem do Fluxo 1 do playbook para um STL importado:\n1. Selecione o objeto e aplique escala e rotação: Ctrl + A → Rotation & Scale (passo obrigatório).\n2. Edit Mode (Tab), selecione tudo (A) e M → By Distance, com distância de 0.0001 mm a 0.001 mm (solda vértices duplicados).\n3. Recalcule as normais para fora com Shift + N; confira com Overlays → Face Orientation; faces vermelhas: selecione e Alt + N → Flip.\n4. N → 3D Print → Check All. Se Non-Manifold Edges for maior que 0, use Make Manifold do 3D Print Toolbox ou, em Edit Mode, Select → Select All by Trait → Non Manifold e feche com F ou Ctrl + F → Grid Fill.\n\nDetalhes de cada passo: blender.repair.apply-scale-rotation, blender.repair.merge-by-distance, blender.repair.normals-face-orientation e blender.repair.non-manifold-check. Só depois deste fluxo vale fazer Booleanos. Fonte: playbook sem tag (relato).\n\nResumo da Parte 1 sobre editar STLs: remover partes indesejadas em Edit Mode, fechar buracos com Fill, Grid Fill ou Bridge Edge Loops, recalcular as normais com Shift + N e validar que a geometria é Manifold (sem dizer qual ferramenta de fechamento usar para cada tipo de buraco). Verificação (manual do Blender, Edit Mode): Fill é Face ▸ Fill (Alt+F); Grid Fill é Face ▸ Grid Fill; Bridge Edge Loops é Edge ▸ Bridge Edge Loops; Shift+N é Mesh ▸ Normals ▸ Recalculate Outside (Shift+Ctrl+N é Recalculate Inside).",
+    "src": [
+      "playbook:93-99",
+      "playbook:45-46"
+    ]
+  },
+  {
+    "id": "blender.repair.apply-scale-rotation",
+    "domain": "blender",
+    "title": "Aplicar escala e rotação (Ctrl + A) antes de qualquer operação",
+    "tags": [
+      "blender",
+      "escala",
+      "rotacao",
+      "modificadores",
+      "chanfro"
+    ],
+    "symptoms": [
+      "chanfro ficou distorcido no Blender",
+      "modificador se comporta estranho",
+      "Bevel desigual por causa da escala",
+      "o que é aplicar escala e rotação",
+      "Ctrl A rotation and scale Blender",
+      "unapplied scale breaks modifiers",
+      "objeto com escala diferente de 1"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Primeiro passo do Fluxo 1: selecione o objeto e pressione Ctrl + A → Rotation & Scale. O playbook marca como passo obrigatório porque escalas não aplicadas distorcem modificadores e chanfros. É o primeiro passo do Fluxo 1, antes de Merge by Distance, normais e Check All; a justificativa dada é a distorção de modificadores e chanfros. Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:94-94"
+    ]
+  },
+  {
+    "id": "blender.repair.merge-by-distance",
+    "domain": "blender",
+    "title": "Merge by Distance (M → By Distance) para soldar vértices duplicados",
+    "tags": [
+      "blender",
+      "vertices-duplicados",
+      "merge",
+      "by-distance",
+      "reparo"
+    ],
+    "symptoms": [
+      "vértices duplicados no STL",
+      "como soldar vértices no Blender",
+      "remove doubles Blender",
+      "malha com vértices sobrepostos",
+      "merge by distance value for 3D printing",
+      "STL com triângulos soltos sem conexão",
+      "qual distância usar no Merge by Distance"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Segundo passo do Fluxo 1: entre no Edit Mode (Tab), selecione tudo (A) e pressione M → By Distance. Configure a distância entre 0.0001 mm e 0.001 mm. Isso solda vértices duplicados. A distância é dada em mm, o que pressupõe a cena configurada como em blender.setup.mm-units. Faça depois de aplicar escala e rotação (Ctrl + A). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:95-95"
+    ]
+  },
+  {
+    "id": "blender.repair.normals-face-orientation",
+    "domain": "blender",
+    "title": "Normais para fora (Shift + N) e conferência com Face Orientation",
+    "tags": [
+      "blender",
+      "normais",
+      "face-orientation",
+      "flip",
+      "faces-invertidas"
+    ],
+    "symptoms": [
+      "faces vermelhas no Blender",
+      "normais invertidas",
+      "peça aparece vermelha no Face Orientation",
+      "como inverter normais Blender",
+      "flip normals Alt N",
+      "face orientation red blue Blender",
+      "recalculate normals outside Shift N"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Terceiro passo do Fluxo 1: recalcule as normais para fora com Shift + N (em Edit Mode, com a malha selecionada).\n\nDica visual do playbook: ative Overlays → Face Orientation. Toda a peça deve ficar azul; no Blender 4.3+, segundo o playbook, a peça fica sem cor e apenas as faces invertidas ficam vermelhas (as release notes oficiais atribuem essa mudança ao Blender 4.4; ver doubts). Se houver áreas vermelhas, selecione-as e pressione Alt + N → Flip. O 3D Print Toolbox também identifica faces invertidas (ver blender.setup.3d-print-toolbox). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:96-97"
+    ]
+  },
+  {
+    "id": "blender.repair.non-manifold-check",
+    "domain": "blender",
+    "title": "Check All e correção de Non-Manifold Edges (Make Manifold ou Grid Fill)",
+    "tags": [
+      "blender",
+      "non-manifold",
+      "manifold",
+      "buracos",
+      "grid-fill",
+      "3d-print"
+    ],
+    "symptoms": [
+      "non-manifold edges maior que zero",
+      "malha com buracos no Blender",
+      "como fechar buracos na malha",
+      "Make Manifold do 3D Print Toolbox",
+      "Grid Fill para fechar furo",
+      "select non manifold Blender",
+      "fix holes in STL before slicing",
+      "malha não estanque"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Quarto passo do Fluxo 1: abra a barra lateral (N → aba 3D Print) e clique em Check All.\n\nSe Non-Manifold Edges for maior que 0, o playbook oferece dois caminhos:\n* Clicar no botão Make Manifold do próprio 3D Print Toolbox; ou\n* Em Edit Mode, Select → Select All by Trait → Non Manifold para selecionar os buracos e fechá-los com F ou Ctrl + F → Grid Fill.\n\nNota (manual do Blender 5.0, fora do playbook): Select All by Trait → Non Manifold só está disponível nos modos de seleção Vertex e Edge. O playbook não diz quando preferir um caminho ao outro, nem o que fazer se o contador continuar acima de 0 após o reparo (ver doubts). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:98-99"
+    ]
+  },
+  {
+    "id": "blender.quads.tris-to-quads-hard-surface",
+    "domain": "blender",
+    "title": "Fluxo 2 (mecânicas): Tris to Quads com Alt + J e Decimate Planar",
+    "tags": [
+      "blender",
+      "quads",
+      "triangulos",
+      "hard-surface",
+      "tris-to-quads",
+      "decimate",
+      "planar"
+    ],
+    "symptoms": [
+      "como converter triângulos em quads",
+      "STL só tem triângulos e não consigo fazer chanfro",
+      "Loop Cut não funciona no STL",
+      "Alt J Tris to Quads Blender",
+      "limpar linhas inúteis em faces planas",
+      "convert triangles to quads STL Blender",
+      "decimate planar angle",
+      "peça mecânica hard surface STL edição"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Quando é preciso editar um STL mecanicamente (chanfros, extrusões, Loop Cuts), os triângulos atrapalham. Para peças mecânicas / Hard Surface:\n1. Entre no Edit Mode (Tab) e selecione tudo (A).\n2. Pressione Alt + J (Tris to Quads).\n3. No menu inferior esquerdo que abrir, marque Compare UVs / Sharp e ajuste o Max Angle entre 40° e 60°.\n4. Para limpar faces planas cheias de linhas inúteis, adicione o modificador Decimate no modo Planar com ângulo de 1° a 2°.\n\nA escolha entre o ângulo de 40° ou de 60° e o significado exato de cada opção não são detalhados pelo playbook (ver doubts). No manual do Blender o item de menu é Face ‣ Triangles to Quads e o campo do Decimate em modo Planar chama-se Angle Limit. Para esculturas e peças orgânicas use o QuadriFlow (blender.quads.quadriflow-organic). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:101-107"
+    ]
+  },
+  {
+    "id": "blender.quads.quadriflow-organic",
+    "domain": "blender",
+    "title": "Fluxo 2 (orgânicas): QuadriFlow Remesh para esculturas",
+    "tags": [
+      "blender",
+      "quads",
+      "quadriflow",
+      "remesh",
+      "organico",
+      "escultura"
+    ],
+    "symptoms": [
+      "como transformar escultura em quads",
+      "QuadriFlow Remesh no Blender",
+      "retopologia rápida de modelo orgânico",
+      "quantos quads usar no QuadriFlow",
+      "quad remesh for sculpture STL",
+      "organic model triangles to quads",
+      "contagem de faces do QuadriFlow"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Para peças orgânicas / esculturas:\n1. Vá em Object Data Properties (ícone do triângulo verde) → Remesh.\n2. Escolha Quad e clique em QuadriFlow Remesh, definindo a contagem desejada de faces. O playbook dá como exemplo 20000 a 50000 quads.\n\nSegundo o manual do Blender, o botão QuadriFlow Remesh abre um pop-up de parâmetros, onde Mode: Faces permite informar o número alvo de faces. Para peças mecânicas o playbook usa outro caminho (Alt + J, ver blender.quads.tris-to-quads-hard-surface). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:108-110"
+    ]
+  },
+  {
+    "id": "blender.ai-cleanup.voxel-remesh",
+    "domain": "blender",
+    "title": "Fluxo 3 passo 1: Remesh Voxel para eliminar cascas internas e deixar watertight",
+    "tags": [
+      "blender",
+      "ia",
+      "remesh",
+      "voxel",
+      "watertight",
+      "cascas-duplas",
+      "geometria-interna"
+    ],
+    "symptoms": [
+      "modelo de IA com cascas duplas",
+      "geometria interna fantasma no STL",
+      "bolhas na superfície do modelo do Meshy",
+      "como deixar a malha watertight",
+      "Voxel Size ideal no Remesh",
+      "AI model internal shells voxel remesh",
+      "remove internal geometry mesh Blender",
+      "malha com ocos estranhos por dentro"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Modelos de IA (Meshy / Tripo3D) frequentemente têm cascas duplas internas, bolhas na superfície e excesso de polígonos. O passo 1 do Fluxo 3 é a Unificação Volumétrica, que elimina geometria interna fantasma:\n* Adicione um modificador Remesh no modo Voxel.\n* Ajuste o Voxel Size para um valor bem pequeno, por exemplo 0.15 mm a 0.3 mm, dependendo do tamanho da peça, para preservar os detalhes.\n* Marque Smooth Shading e aplique o modificador (Ctrl + A sobre o modificador).\n\nSegundo o playbook, isso garante que o modelo seja 100% watertight (sólido e sem ocos bizarros por dentro). A fonte não dá fórmula para escolher o Voxel Size dentro da faixa e não discute perda de arestas vivas nem de cotas (ver doubts). O Smooth Shading existe no modo Voxel do modificador Remesh (manual do Blender). Seguem o alisamento (blender.ai-cleanup.sculpt-smoothing) e a redução de peso (blender.ai-cleanup.decimate-collapse). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:112-116"
+    ]
+  },
+  {
+    "id": "blender.ai-cleanup.sculpt-smoothing",
+    "domain": "blender",
+    "title": "Fluxo 3 passo 2: alisamento no Sculpt Mode (Smooth, Flatten/Scrape, Crease)",
+    "tags": [
+      "blender",
+      "ia",
+      "sculpt",
+      "smooth",
+      "flatten",
+      "scrape",
+      "crease"
+    ],
+    "symptoms": [
+      "superfície granulada no modelo de IA",
+      "rugosidade do Meshy na impressão",
+      "como alisar modelo de IA no Blender",
+      "base torta no modelo gerado por IA",
+      "perdi definição das dobras da roupa",
+      "smooth brush strength AI model",
+      "AI mesh grainy surface sculpt mode",
+      "flatten scrape brush base"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo 2 do Fluxo 3: alisamento cirúrgico no Sculpt Mode. Entre em Sculpt Mode e use:\n* Pincel Smooth (ou segure Shift) com força baixa, de 0.2 a 0.3, para remover a rugosidade granulada típica de IA.\n* Pincéis Flatten ou Scrape nas bases, armaduras e superfícies planas que a IA deixou tortas.\n* Pincel Crease para devolver definição às dobras de roupas, olhos e costuras.\n\nO playbook lista os pincéis nessa ordem (suavizar o granulado, achatar o que deve ser plano, realçar as dobras) e não afirma que a ordem seja obrigatória. Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:117-121"
+    ]
+  },
+  {
+    "id": "blender.ai-cleanup.decimate-collapse",
+    "domain": "blender",
+    "title": "Fluxo 3 passo 3: Decimate (Collapse) para reduzir o tamanho do STL",
+    "tags": [
+      "blender",
+      "ia",
+      "decimate",
+      "collapse",
+      "tamanho-arquivo",
+      "poligonos"
+    ],
+    "symptoms": [
+      "STL gigante com milhões de triângulos",
+      "arquivo STL de 200 MB",
+      "como reduzir polígonos sem perder qualidade",
+      "Decimate ratio para impressão 3D",
+      "STL pesado trava o fatiador",
+      "reduce STL file size Blender decimate",
+      "Decimate collapse ratio 0.2 0.5"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo 3 do Fluxo 3 (otimização final de peso): adicione o modificador Decimate no modo Collapse com Ratio entre 0.2 e 0.5. Segundo o playbook, isso reduz o STL de 200 MB para 20 MB sem perda visível na impressão. O exemplo de 200 MB para 20 MB é ilustrativo, sem medição apresentada. É o passo 3 (otimização final) do Fluxo 3, depois da unificação voxel e do alisamento (blender.ai-cleanup.voxel-remesh e blender.ai-cleanup.sculpt-smoothing). Fonte: playbook sem tag (relato).",
+    "src": [
+      "playbook:122-123"
+    ]
+  },
+  {
+    "id": "blender.cut.planar-boolean",
+    "domain": "blender",
+    "title": "Corte plano clássico com Boolean (Difference + Intersect por duplicação)",
+    "tags": [
+      "corte",
+      "boolean",
+      "pecas-grandes",
+      "blender",
+      "bool tool",
+      "multipartes",
+      "stl"
+    ],
+    "symptoms": [
+      "peça não cabe na mesa da impressora",
+      "como dividir uma peça grande em duas partes no Blender",
+      "how to cut a model in half in Blender for printing",
+      "cortar modelo ao meio mantendo as faces fechadas",
+      "split large model to fit the print bed",
+      "como usar Boolean Difference e Intersect para cortar",
+      "criar Cortador cubo wire no Blender",
+      "como cortar um STL no blender",
+      "cortar action figure em partes para imprimir",
+      "cut stl in blender for 3d printing",
+      "dividir modelo grande para caber na mesa",
+      "modificador boolean difference intersect"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Método de corte plano não-destrutivo (por duplicação), indicado para dividir peças grandes que não cabem na impressora. Passos da fonte:\n1. Partir de um modelo limpo, aqui chamado `Peca_A`.\n2. Shift+A → Mesh → Cube, maior que a área a cortar, posicionado cobrindo exatamente a metade da peça que será separada; renomear para `Cortador`.\n3. Object Properties (ícone do quadrado laranja) do Cortador → Viewport Display → Display As: trocar Textured por Wire, para enxergar através do cubo.\n4. Duplicar a peça no mesmo lugar (Shift+D e depois Esc ou clique direito) e renomear a cópia para `Peca_B`.\n5. Em Peca_A: modificador Boolean com Operation Difference, Object Cortador, Solver Exact (ver o tópico de solver para Manifold e Fast).\n6. Em Peca_B: modificador Boolean com Operation Intersect, Object Cortador, Solver Exact.\n7. Aplicar os modificadores Boolean nas duas peças e ocultar ou deletar o Cortador. Resultado segundo a fonte: duas metades alinhadas, com as faces do corte fechadas.\nA mesma lógica (Difference de um lado, Intersect do outro, com o mesmo cortador) vale para o corte orgânico. Pinos de encaixe entre as metades têm tópico próprio. A fonte não diz como orientar as metades na mesa.\nVerificação na documentação do Blender (4.2 a 5.0; não está na fonte): o modificador Boolean tem Operation (Intersect, Union, Difference), Operand Type e Object. Display As fica em Properties → Object Properties → Viewport Display e aceita Bounds, Wire, Solid e Textured. A fonte chama o método de não-destrutivo, mas o passo 7 aplica os modificadores e a fonte não manda guardar uma cópia antes do Apply (ver doubts).\n\nResumo da Parte 1 do playbook: o fluxo usa planos ou cubos como cortadores no modificador Boolean (Difference e Intersect), é descrito como 100% nativo e gratuito, e o corte booleano fecha as faces abertas do corte; as versões recentes do Blender usariam o Bool Tool 'nativo'. Verificação (manual do Blender): o Bool Tool é um add-on publicado como extensão (extensions.blender.org/add-ons/bool-tool/; a versão 2.1.0 listada exige Blender 4.5+), então a palavra 'nativo' deve ser conferida na instalação do usuário. Depois do corte, as partes recebem pinos (blender.keys.clearance-table) e a separação e exportação seguem em blender.cut.boolean-solver; para colecionáveis veja blender.cut.organic-seam.",
+    "src": [
+      "playbook:129-143",
+      "playbook:12-18"
+    ]
+  },
+  {
+    "id": "blender.cut.boolean-solver",
+    "domain": "blender",
+    "title": "Solver do Boolean nos cortes (Exact, Manifold, Fast/Float), partes soltas e exportação em lote",
+    "tags": [
+      "boolean",
+      "solver",
+      "corte",
+      "blender",
+      "boolean solver",
+      "exact",
+      "fast",
+      "manifold",
+      "loose parts",
+      "exportar stl",
+      "multipartes"
+    ],
+    "symptoms": [
+      "o Boolean fez minha peça sumir",
+      "peça desaparece depois do Boolean Difference",
+      "qual solver usar no Boolean Exact ou Manifold",
+      "Boolean result disappears in Blender",
+      "Self Intersection no Boolean",
+      "Boolean Manifold não aparece no menu",
+      "Boolean dá erro e some o objeto",
+      "solver Fast virou Float no Blender 5.0",
+      "Boolean Manifold no Blender 4.2",
+      "qual solver usar no boolean exact ou fast",
+      "separar partes soltas no blender",
+      "exportar vários STL de uma vez"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Escolha do Solver no modificador Boolean nos cortes (fonte: playbook). Padrão: Exact, usado tanto no Difference da Peca_A quanto no Intersect da Peca_B. A fonte diz que Manifold (\"Blender 4.3+\") só serve se a malha for 100% fechada, e que, se der o erro de a peça sumir, se deve ativar Self Intersection ou testar o modo Fast.\nVerificação na documentação oficial do Blender (não está na fonte):\n1. Versão do Manifold: os manuais 4.2, 4.3 e 4.4 listam só Fast e Exact. O Manifold aparece nas release notes e no manual do Blender 4.5. Portanto a afirmação \"4.3+\" da fonte não se confirma; no 4.2 LTS não existe Manifold, use Exact.\n2. Nome: no Blender 5.0 o solver Fast passou a se chamar Float.\n3. Self Intersection e Hole Tolerant são opções do solver Exact (Solver Options). Hole Tolerant otimiza a saída para geometria non-manifold e custa tempo.\n4. O manual diz que o Manifold não funciona em malhas non-manifold (exceção: Difference com um plano) e que o Fast não suporta geometria sobreposta.\nA fonte não detalha outras diferenças entre os solvers. Se o menu Solver não listar Manifold, use Exact.\n\nDepois de cortar, o playbook manda separar as malhas desconectadas com P → By Loose Parts e exportar em lote um STL por peça. Verificação (manual do Blender): P é Mesh ▸ Separate no Edit Mode (Selection, By Material, By Loose Parts); o exportador STL (File ▸ Import/Export ▸ Stl (.stl)) tem Batch (cada objeto num STL separado), Include: Selection Only, Scale, Scene Unit e Apply Modifiers. As verificações divergem sobre a versão em que o Fast virou Float (4.5 ou 5.0; ver conflito registrado). A fonte não diz quando usar cada solver: trate a alternância como teste.",
+    "src": [
+      "playbook:138-138",
+      "playbook:17-18"
+    ]
+  },
+  {
+    "id": "blender.cut.organic-seam",
+    "domain": "blender",
+    "title": "Cortes orgânicos invisíveis em bonecos e colecionáveis",
+    "tags": [
+      "corte-organico",
+      "figura",
+      "emenda",
+      "boolean",
+      "blender",
+      "corte orgânico",
+      "action figure",
+      "colecionável",
+      "plug",
+      "superfície de corte"
+    ],
+    "symptoms": [
+      "como esconder a linha de emenda do corte no boneco",
+      "cortar o braço do personagem sem aparecer a emenda",
+      "hide the seam when splitting a figurine",
+      "corte no bíceps deixa linha impossível de esconder",
+      "cortar boneco na manga da camisa ou no bracelete",
+      "organic cut for miniatures and collectibles",
+      "faca orgânica Boolean no Blender",
+      "fresta visível no corte do boneco",
+      "linha de corte aparente na miniatura",
+      "como esconder a emenda do corte",
+      "organic cut blender figure",
+      "corte seguindo dobras de roupa e cabelo"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Cortar o braço de um personagem com um plano reto no meio do bíceps deixa uma linha de emenda impossível de esconder sem massa putty e pintura. O segredo profissional é esconder o corte nas transições anatômicas: borda da manga da camisa, bracelete, gola, cinto.\n1. Modelando a faca orgânica: em visão ortográfica, adicionar um plano ou círculo ao redor da articulação ou roupa (ex.: contorno do ombro junto à manga). Ativar o Snap (ícone do ímã no topo) no modo Face Project. Ir extrudando (E) os vértices acompanhando exatamente o sulco da roupa ou do músculo ao redor de todo o membro. Fechar o centro dessa linha de contorno e fazer uma extrusão grande para envolver todo o braço que será destacado, formando um volume fechado (uma 'cápsula cortadora' com a base moldada na curva da roupa).\n   Alternativa rápida: um Plano subdividido + Proportional Editing (O) para curvar o plano acompanhando a dobra da roupa; depois Extrude (E) do plano para transformá-lo num bloco volumétrico de topo orgânico.\n2. Executando a subtração: usar esse bloco como o objeto `Cortador` do passo a passo do corte plano: Boolean Difference no tronco e Boolean Intersect no braço. Segundo a fonte, a linha de junção fica 100% camuflada dentro da dobra da escultura.\nVerificação na documentação do Blender (não está na fonte): O liga e desliga o Proportional Editing; Face Project aparece em Snapping → Snap Target for Individual Elements, ao lado de Face Nearest. A fonte não explica como fechar o fundo da cápsula depois da extrusão (ver doubts).\n\nResumo da Parte 1: cortes retos com plano deixam frestas visíveis em superfícies lisas de colecionáveis; a alternativa são superfícies de corte orgânicas que acompanham dobras de roupa, cintos, músculos e cabelo, com espessura mínima ou como booleana curva, seguidas de plugs (chaves) anatômicos para o encaixe. A Parte 1 não informa a espessura mínima da superfície cortadora nem a folga dos plugs (veja blender.keys.clearance-table).",
+    "src": [
+      "playbook:145-154",
+      "playbook:23-24"
+    ]
+  },
+  {
+    "id": "blender.keys.shape",
+    "domain": "blender",
+    "title": "Formato dos pinos de encaixe: nunca cilíndrico",
+    "tags": [
+      "pino",
+      "encaixe",
+      "keys-plugs",
+      "montagem",
+      "blender"
+    ],
+    "symptoms": [
+      "a peça gira em falso no pino",
+      "peça encaixada roda no pino cilíndrico",
+      "qual formato de pino de encaixe usar",
+      "pino quadrado ou trapezoidal para travar rotação",
+      "round peg lets the part spin",
+      "keys and plugs for split models",
+      "como garantir uma única posição de montagem"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Um pino cilíndrico permite que a peça gire em falso. Regra da fonte: sempre criar pinos quadrados, trapezoidais ou com um lado chanfrado, para travar a rotação e garantir uma única posição de montagem. O pino atravessa o plano de corte entre Peca_A e Peca_B (macho numa metade, furo fêmea na outra). Para facilitar a entrada, as pontas do pino podem ser levemente afuniladas (formato tronco-piramidal): ver o passo a passo do pino com folga. Sem folga entre pino e furo a montagem não entra: ver a tabela de tolerâncias.",
+    "src": [
+      "playbook:156-157"
+    ]
+  },
+  {
+    "id": "blender.keys.clearance-table",
+    "domain": "blender",
+    "title": "Tabela de ouro de tolerâncias (folga por lado) para pino e furo",
+    "tags": [
+      "folga",
+      "tolerancia",
+      "clearance",
+      "pino",
+      "tabela",
+      "blender",
+      "key",
+      "tolerância",
+      "encaixe",
+      "boolean"
+    ],
+    "symptoms": [
+      "o pino não entra no furo",
+      "qual folga usar entre pino e furo",
+      "tolerância de encaixe FDM",
+      "clearance for press fit and glue fit in FDM",
+      "pino 10 mm furo 10 mm não encaixa",
+      "folga para peças pequenas abaixo de 5 mm",
+      "tolerância para resina SLA MSLA",
+      "pin does not fit the hole 3D print",
+      "pino não entra no furo",
+      "pino muito apertado precisei lixar",
+      "peças cortadas não encaixam",
+      "pin too tight in the hole"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Pino de 10.0 mm de largura num furo de 10.0 mm não entra, segundo a fonte, por causa da expansão térmica do plástico e das linhas de camada. A folga total é 2c, com c = folga por lado. Tabela de ouro da fonte:\n\n| Caso de uso | Folga por lado (c) | Diferença total (2c) | Exemplo |\n|---|---|---|---|\n| FDM bem calibrada (encaixe justo) | 0.15 mm | 0.30 mm | furo 10.00 mm → pino 9.70 mm |\n| FDM padrão (encaixe com cola) | 0.20 a 0.25 mm | 0.40 a 0.50 mm | furo 10.00 mm → pino 9.50 mm |\n| Resina SLA/MSLA | 0.10 a 0.15 mm | 0.20 a 0.30 mm | furo 8.00 mm → pino 7.75 mm |\n| Peças pequenas / pinos finos (< 5 mm) | 0.12 mm | 0.24 mm | furo 4.00 mm → pino 3.76 mm |\n\nA folga é aplicada no cortador do furo (Pino_Furo), inflando-o com Displace. Os valores não têm tag no playbook (contam como relato); a fonte não diz qual valor escolher dentro de cada faixa.\n\nRegra geral da Parte 1 do playbook: o pino jamais pode ter a mesma dimensão nominal do furo; é obrigatório aplicar desconto (folga no pino) ou expansão no furo para não precisar lixar demais. Os formatos citados são tronco-piramidais ou quadrados, e o mesmo cuidado vale para os encaixes macho-fêmea das peças separadas por cor (blender.multipart.no-ams-overview). O Studio tem a própria ferramenta Cut com conectores e um campo Tolerance (bambu.cut.connector-tolerances); as faixas não são equivalentes (ver conflito registrado).",
+    "src": [
+      "playbook:159-167",
+      "playbook:12-16"
+    ]
+  },
+  {
+    "id": "blender.keys.pin-and-socket-procedure",
+    "domain": "blender",
+    "title": "Passo a passo do pino macho e do furo fêmea com folga (Displace)",
+    "tags": [
+      "pino",
+      "furo",
+      "displace",
+      "boolean",
+      "folga",
+      "blender"
+    ],
+    "symptoms": [
+      "como fazer pino e furo com folga no Blender",
+      "criar furo fêmea com folga exata na peça B",
+      "Pino_Furo Displace Strength 0.20",
+      "how to make a peg and socket with clearance in Blender",
+      "pino bate no fundo do furo antes de encostar",
+      "unir pino macho na peça A com Boolean Union",
+      "folga automática sem escalar com S"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo a passo da fonte para pino com folga automática (nomes: Peca_A, Peca_B, Pino, Pino_Macho, Pino_Furo):\n1. Shift+A → Cube, escalar ao tamanho desejado (ex.: 8 × 8 × 12 mm) e aplicar a escala (Ctrl+A → Scale).\n2. Edit Mode (Tab): selecionar a face do topo e a da base e aplicar um Scale levemente menor (S → 0.85) ou Bevel (Ctrl+B) nas bordas das pontas, criando um formato levemente tronco-piramidal que guia o encaixe.\n3. Posicionar o Pino atravessando o plano de corte entre Peca_A e Peca_B.\n4. Macho na Peca_A: duplicar o pino (Pino_Macho e Pino_Furo); na Peca_A adicionar Boolean → Union apontando para o Pino_Macho.\n5. Furo fêmea com folga na Peca_B: no Pino_Furo adicionar Displace (sem textura!) ou Solidify. Dica mestre com Displace: Midlevel 0.000 e Strength +0.20 mm (ou +0.25 mm); isso infla o Pino_Furo uniformemente em todas as direções normais, muito mais preciso, segundo a fonte, do que escalar com S. Em Edit Mode, puxar as tampas superior e inferior do Pino_Furo 0.5 mm a mais em comprimento, para a ponta do pino nunca bater no fundo do buraco antes das superfícies encostarem. Na Peca_B adicionar Boolean → Difference apontando para o Pino_Furo.\n6. Aplicar os modificadores.\nVerificação no manual do Blender (não está na fonte): sem textura o Displace usa o valor 1.0 e o deslocamento é (valor da textura − Midlevel) × Strength; com Midlevel 0.000 o deslocamento é igual ao Strength. Com Direction em Normal o deslocamento segue a normal do vértice, então em quinas vivas a face anda menos que o Strength: confira medindo o furo (ver doubts). A fonte cita Solidify como alternativa ao Displace sem dar parâmetros.",
+    "src": [
+      "playbook:169-181"
+    ]
+  },
+  {
+    "id": "blender.hollow.procedure",
+    "domain": "blender",
+    "title": "Deixar o modelo oco (Hollow Out) com Displace, Remesh e Boolean",
+    "tags": [
+      "oco",
+      "hollow",
+      "displace",
+      "remesh",
+      "boolean",
+      "blender",
+      "solidify",
+      "voxel remesh",
+      "drenagem",
+      "economia de material"
+    ],
+    "symptoms": [
+      "como deixar a peça oca no Blender",
+      "hollow out a model in Blender",
+      "oco para colocar peso areia ou gesso dentro",
+      "espessura de parede 2.5 mm ao esvaziar",
+      "Displace negativo e Remesh Voxel para oco",
+      "esvaziar miniatura grande para economizar material",
+      "Nucleo_Oco Boolean Difference",
+      "como esvaziar uma miniatura maciça",
+      "hollow out stl blender",
+      "economizar resina em peça grande",
+      "economizar filamento esvaziando o modelo",
+      "furo de drenagem no modelo oco"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Deixar o modelo oco rapidamente. Segundo a fonte é essencial para peças grandes em FDM (para colocar peso, areia ou gesso dentro) ou impressões em resina.\n1. Duplicar a peça original (Shift+D → Esc) e chamar a cópia de `Nucleo_Oco`.\n2. No Nucleo_Oco: modificador Displace sem textura, Midlevel = 0.0 e Strength = -2.5 mm (para uma parede de 2.5 mm de espessura).\n3. Logo abaixo do Displace na pilha do Nucleo_Oco: modificador Remesh (Voxel) com Voxel Size de 0.3 mm a 0.5 mm. Isso elimina as auto-interseções que o recuo da malha causou por dentro.\n4. Na peça original: Boolean → Difference subtraindo o Nucleo_Oco.\n5. Fazer o furo de drenagem/respiro (tópico próprio).\nA espessura da parede corresponde ao valor absoluto do Strength do Displace. A fonte não diz como a casca de 2.5 mm interage com paredes e preenchimento do fatiador.\nVerificação na documentação do Blender (não está na fonte): o modo Voxel do Remesh gera uma malha manifold nova preservando o volume, e o Voxel Size é dado no espaço do objeto (padrão 0.1), então a escala do objeto importa. A fonte manda aplicar a escala (Ctrl+A → Scale) só no cubo do pino, não no Nucleo_Oco.\n\nResumo da Parte 1: o vídeo de referência alega esvaziar qualquer STL maciço em menos de 3 minutos para economizar resina ou filamento, duplicando a malha ou usando o modificador Solidify com Voxel Remesh para criar uma parede interna contínua e sem auto-interseções, e terminando com corte reto ou furo de drenagem por Boolean. A versão detalhada acima (Displace negativo + Remesh Voxel) vem da Parte 4; a Parte 1 cita Solidify no lugar do Displace sem dar espessura, voxel size nem ordem (ver conflito registrado). Verificação (manual do Blender 5.0): o Voxel Remesh gera malha sem geometria interna autointerseccionante e o manual cita 'limpar uma malha para impressão 3D' entre seus usos; o Solidify é um modificador que dá espessura à superfície.",
+    "src": [
+      "playbook:183-188",
+      "playbook:21-22"
+    ]
+  },
+  {
+    "id": "blender.hollow.drain-hole",
+    "domain": "blender",
+    "title": "Furo de drenagem/respiro em peça oca",
+    "tags": [
+      "oco",
+      "drenagem",
+      "respiro",
+      "furo",
+      "resina",
+      "blender"
+    ],
+    "symptoms": [
+      "furo de drenagem na peça oca",
+      "resina presa dentro da peça oca",
+      "drain hole for hollow print",
+      "preciso de furo de respiro no modelo oco",
+      "como colocar o preenchimento dentro da peça oca",
+      "vent hole hollow miniature",
+      "cavidade fechada depois do Boolean oco"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Depois de deixar a peça oca, não esquecer o furo de drenagem/respiro: criar um cilindro na base da peça (ex.: diâmetro de 4 mm a 10 mm) e subtraí-lo com Boolean (Difference) para criar o furo de saída de resina não curada ou a entrada do preenchimento. Sem esse furo a cavidade fica fechada por dentro. A faixa de 4 mm a 10 mm aparece na fonte como exemplo, não como mínimo oficial; a fonte não fala de quantidade de furos nem de posição além de 'na base da peça'.",
+    "src": [
+      "playbook:189-189"
+    ]
+  },
+  {
+    "id": "blender.modeling.displace-offset",
+    "domain": "blender",
+    "title": "Displace sem textura como offset uniforme (folga e casca)",
+    "tags": [
+      "displace",
+      "offset",
+      "folga",
+      "oco",
+      "blender"
+    ],
+    "symptoms": [
+      "como engrossar um objeto de forma uniforme no Blender",
+      "Displace sem textura Midlevel 0 Strength",
+      "offset uniforme da malha em mm",
+      "uniform offset of a mesh in Blender with Displace",
+      "criar folga sem usar escala S",
+      "inflar o cortador 0.2 mm em todas as direções",
+      "encolher a malha para fazer parede oca"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Técnica recorrente do playbook: modificador Displace sem textura, com Midlevel 0.0, usado para engrossar ou afinar um volume de forma uniforme ao longo das normais; a fonte o considera mais preciso do que escalar com S. Usos e valores da fonte:\n\n| Uso | Strength | Observação |\n|---|---|---|\n| Pino_Furo (cortador fêmea) | +0.20 mm (ou +0.25 mm) | depois Boolean Difference na Peca_B |\n| Nucleo_Oco (oco) | -2.5 mm (parede de 2.5 mm) | seguido de Remesh (Voxel) 0.3 a 0.5 mm |\n| Peça colorida vs. corpo (sub-malhas) | +0.15 mm | Boolean Difference no corpo principal |\n| Peça colorida vs. corpo (malha única) | 0.15 a 0.20 mm | Boolean Difference no corpo principal |\n\nOs valores estão em mm como na fonte; isso pressupõe a cena configurada em mm (ver o setup de unidades do Blender). Aplicar os modificadores depois de conferir o resultado.\nVerificação no manual do Blender (não está na fonte): Direction Normal desloca ao longo da normal do vértice; sem textura vale 1.0, logo deslocamento = (1.0 − Midlevel) × Strength. Uniforme em todas as faces só vale para superfícies suaves; em quinas vivas veja os doubts.",
+    "src": [
+      "playbook:178-203"
+    ]
+  },
+  {
+    "id": "blender.multipart.no-ams-overview",
+    "domain": "blender",
+    "title": "Corte multipartes para multicolorido sem AMS",
+    "tags": [
+      "multicolor",
+      "sem-ams",
+      "multipartes",
+      "cola",
+      "blender",
+      "sem ams",
+      "1 extrusora",
+      "purga",
+      "poop",
+      "encaixe macho-fêmea",
+      "bandeja"
+    ],
+    "symptoms": [
+      "imprimir boneco colorido sem AMS",
+      "impressora de 1 bico várias cores",
+      "evitar desperdício de filamento na troca de cor",
+      "multicolor print without AMS by splitting parts",
+      "olhos e sapatos em cores diferentes montados com cola",
+      "reduzir purga e horas de troca no AMS",
+      "separar peça por cor e colar com super bonder",
+      "imprimir multicolorido sem AMS",
+      "multicolor com uma extrusora só",
+      "evitar desperdício de purga e poop",
+      "como dividir o modelo por cor no blender",
+      "multicolor print without AMS blender split"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "A Parte 5 do playbook propõe cortar o modelo em várias peças, uma por cor, para imprimir personagens coloridos (olhos, sapatos, logos, detalhes de roupa) numa impressora de 1 bico, ou para evitar o desperdício de centenas de gramas de filamento e as horas de troca no AMS. Cada cor é impressa separadamente e as peças são montadas com uma gota de cianoacrilato (Super Bonder). Resultado segundo a fonte: zero linhas de transição borradas e zero desperdício de filamento. Dois caminhos conforme o modelo: já possui sub-malhas (separar com L e P) ou é uma malha única contínua (Boolean Intersect + Difference). A folga do berço usa Displace de 0.15 a 0.20 mm.\n\nResumo da Parte 1: numa impressora FDM de 1 extrusora e sem AMS, separar o modelo por blocos de cor no Blender e imprimir cada cor numa bandeja (plate) separada elimina, segundo o vídeo, 100% do desperdício (poop / torre de purga): alegação do vídeo. As peças se unem por encaixes macho-fêmea com compensação de folga (mesma regra dos pinos, blender.keys.clearance-table). A fonte não explica a montagem final (colagem ou só encaixe). Para peças em estilo crochê veja blender.texture.crochet-multipart.",
+    "src": [
+      "playbook:193-204",
+      "playbook:25-26"
+    ]
+  },
+  {
+    "id": "blender.multipart.existing-submeshes",
+    "domain": "blender",
+    "title": "Multipartes: modelo que já tem sub-malhas (L, P e Displace)",
+    "tags": [
+      "multipartes",
+      "separar",
+      "sub-malha",
+      "displace",
+      "boolean",
+      "blender"
+    ],
+    "symptoms": [
+      "separar olho ou sapato do modelo para outra cor",
+      "separate by selection P Blender",
+      "peça separada com P ficou aberta atrás",
+      "Select Linked L e Separate Selection",
+      "how to separate a colored part from a mesh with sub-meshes",
+      "criar cavidade onde a peça colorida encaixa",
+      "sub-peça aberta na parte de trás"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Quando o modelo já possui sub-malhas: em Edit Mode (Tab), passar o mouse sobre a parte da cor desejada (ex.: olho ou sapato) e pressionar L (Select Linked). Pressionar P → Selection para separar em um novo objeto. Atenção: objetos separados com P muitas vezes ficam abertos na parte de trás. Fechar a parte traseira de cada sub-peça e usar a técnica de Displace +0.15 mm + Boolean Difference contra o corpo principal para abrir a cavidade onde a peça colorida vai encaixar.\nNo manual do Blender, L sobre a parte é Pick Linked (Select Linked Pick) e Ctrl+L é Select Linked a partir da seleção; P abre Separate com Selection, By Material e By Loose Parts.",
+    "src": [
+      "playbook:197-200"
+    ]
+  },
+  {
+    "id": "blender.multipart.single-mesh",
+    "domain": "blender",
+    "title": "Multipartes: malha única contínua (Solidify, Intersect e Difference)",
+    "tags": [
+      "multipartes",
+      "malha-unica",
+      "solidify",
+      "boolean",
+      "displace",
+      "blender"
+    ],
+    "symptoms": [
+      "extrair a cor de uma malha única de escultura",
+      "olho com pino traseiro integrado",
+      "Boolean Intersect para extrair peça colorida",
+      "split colored region from a sculpted single mesh",
+      "escavar o berço no corpo principal com folga",
+      "duplicar faces da cor com Shift D e P",
+      "Solidify 3 mm para dentro da peça"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Quando o modelo é uma malha única contínua (Sculpt): modelar um volume simples, ou duplicar a região de faces da cor com Shift+D → P e adicionar Solidify para dentro da peça com 3 mm de profundidade. Usar Boolean Intersect para extrair a peça colorida (ex.: a mancha ou o olho com um pino traseiro integrado) e Boolean Difference, com 0.15 mm a 0.20 mm de folga via Displace, para escavar o berço no corpo principal. Imprimir cada cor separadamente e montar com uma gota de cianoacrilato (Super Bonder).\nVerificação no manual do Blender (não está na fonte): no Solidify, Thickness é calculado em coordenadas locais (escala não uniforme muda a espessura) e Offset (−1 a 1) escolhe dentro ou fora conforme as normais. A fonte não informa Offset nem direção.",
+    "src": [
+      "playbook:201-204"
+    ]
+  },
+  {
+    "id": "blender.texture.choose-method",
+    "domain": "blender",
+    "title": "Qual método de textura usar: MeshTexture, Displace ou crochê",
+    "tags": [
+      "textura",
+      "meshtexture",
+      "displace",
+      "crochê",
+      "escolha-de-método"
+    ],
+    "symptoms": [
+      "qual método de textura devo usar",
+      "textura sem abrir UV no Blender",
+      "texturizar só parte da peça",
+      "quero fazer boneco de crochê para imprimir",
+      "which texture method should I use",
+      "texture a lid or handle quickly",
+      "textura com encaixe liso",
+      "amigurumi 3D print"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Resumo da Parte 6 do playbook:\n\n| Método | Indicado para | Trabalho no Blender |\n|---|---|---|\n| 1. MeshTexture (meshtexture.com) | peças mecânicas, cabos, vasos ou tampas; textura rápida | nenhum, sem abrir UV |\n| 2. Displace + Vertex Groups | controle total: textura só nas faces escolhidas, áreas de encaixe e base ficam 100% lisas | UV, Subdivision Surface (Simple), Displace |\n| 3. Crochê/Amigurumi (Tissue) | bonecos, vasos ou flores com aparência real de fios de crochê entrelaçados | malha base de Quads, elo de ponto, Tissue Tessellate, Solidify, Remesh (Voxel), Decimate |\n\nLeitura prática (condensação deste resumo, não frase literal da fonte): se precisa de rapidez e a peça é mecânica, cabo, vaso ou tampa, use o Método 1; se precisa preservar zonas lisas com precisão, use o Método 2; se quer fios de crochê tridimensionais de verdade, use o Método 3.",
+    "src": [
+      "playbook:212-241"
+    ]
+  },
+  {
+    "id": "blender.texture.meshtexture-select-area",
+    "domain": "blender",
+    "title": "MeshTexture: importar o STL e selecionar a área (Smart Fill e Brush)",
+    "tags": [
+      "meshtexture",
+      "textura",
+      "selecao",
+      "smart-fill",
+      "brush"
+    ],
+    "symptoms": [
+      "como selecionar a área no meshtexture",
+      "pintar textura só em uma parte",
+      "smart fill meshtexture",
+      "apagar seleção no meshtexture",
+      "meshtexture brush E R",
+      "select area to texture STL",
+      "usar meshtexture.com",
+      "textura rápida sem Blender"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Método 1, o atalho sem Blender, serve para aplicar texturas rápidas em peças mecânicas, cabos, vasos ou tampas sem abrir UV no Blender.\n\n1. Acesse meshtexture.com (a fonte diz que roda 100% localmente no navegador, via GPU/WebWorkers).\n2. Importe o arquivo .STL.\n3. Selecione a área que receberá a textura:\n   - clique simples = Smart Fill: seleciona toda a superfície contínua por limite de ângulo;\n   - segure E + clique esquerdo para pintar com o pincel (Brush) apenas onde deseja textura;\n   - R + clique esquerdo apaga a seleção.\n\nOs passos seguintes estão nos tópicos blender.texture.meshtexture-texture-choice, blender.texture.meshtexture-parameters e blender.texture.meshtexture-bake-export. A fonte só cita .STL como formato de entrada.",
+    "src": [
+      "playbook:212-217"
+    ]
+  },
+  {
+    "id": "blender.texture.meshtexture-texture-choice",
+    "domain": "blender",
+    "title": "MeshTexture: biblioteca de texturas ou PNG preto e branco",
+    "tags": [
+      "meshtexture",
+      "textura",
+      "png",
+      "decal",
+      "biblioteca"
+    ],
+    "symptoms": [
+      "quais texturas o meshtexture tem",
+      "usar meu logotipo como textura",
+      "png preto e branco para textura",
+      "mapa de pontos de crochê no meshtexture",
+      "decal single image",
+      "custom texture upload meshtexture",
+      "textura de couro ou fibra de carbono",
+      "knurling grip texture"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo 4 do MeshTexture: escolha uma textura da biblioteca ou faça upload de um PNG em preto e branco.\n\n- Biblioteca citada: Leather, Carbon Fiber, Wood, Grip/Knurling, Hexagon.\n- Upload: PNG em preto e branco, por exemplo um mapa de pontos de crochê ou o seu logotipo no modo Decal / Single Image.\n\nA fonte pede preto e branco, mas não explica qual tom vira relevo nem a resolução recomendada do PNG.",
+    "src": [
+      "playbook:218-218"
+    ]
+  },
+  {
+    "id": "blender.texture.meshtexture-spherical-pole-smooth",
+    "domain": "blender",
+    "title": "MeshTexture em superfícies curvas ou esféricas: Spherical Mode e Pole Smooth",
+    "tags": [
+      "meshtexture",
+      "textura",
+      "esfera",
+      "projecao",
+      "distorcao"
+    ],
+    "symptoms": [
+      "textura distorcida na esfera",
+      "textura esticada nos polos",
+      "textura em superfície curva meshtexture",
+      "spherical mode meshtexture",
+      "pole smooth",
+      "distortion at the poles texture",
+      "textura em tampa abaulada",
+      "vaso redondo com textura"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Dica da fonte para superfícies curvas/esféricas no MeshTexture: mude o modo de projeção para Spherical Mode e ative Pole Smooth para evitar distorções nos polos.\n\nA fonte não diz qual é o modo de projeção padrão nem como a distorção se apresenta; aplica-se quando a área selecionada é curva ou esférica.",
+    "src": [
+      "playbook:219-219"
+    ]
+  },
+  {
+    "id": "blender.texture.meshtexture-parameters",
+    "domain": "blender",
+    "title": "MeshTexture: Refine Selection, Amplitude, Scale & Rotation",
+    "tags": [
+      "meshtexture",
+      "textura",
+      "amplitude",
+      "refine-selection",
+      "parametros"
+    ],
+    "symptoms": [
+      "qual amplitude usar no meshtexture",
+      "textura sem nitidez",
+      "refine selection para que serve",
+      "profundidade do relevo da textura",
+      "tamanho do padrão da textura",
+      "scale and rotation meshtexture",
+      "texture amplitude in mm",
+      "texture looks blurry meshtexture"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo 5 do MeshTexture, ajuste de parâmetros:\n\n| Parâmetro | O que faz | Valor citado |\n|---|---|---|\n| Refine Selection | aumenta a densidade de triângulos apenas na área selecionada, para a textura ficar nítida | sem valor |\n| Amplitude | altura/profundidade física do relevo | exemplo 0.3 mm a 0.8 mm |\n| Scale & Rotation | ajusta o tamanho do padrão | sem valor |\n\nA fonte não diz se Refine Selection é um interruptor ou um controle numérico, nem que valor usar; diz só que ele aumenta a densidade de triângulos na área selecionada para a textura ficar nítida.",
+    "src": [
+      "playbook:220-223"
+    ]
+  },
+  {
+    "id": "blender.texture.meshtexture-bake-export",
+    "domain": "blender",
+    "title": "MeshTexture: Bake / Apply & Export e malha resultante",
+    "tags": [
+      "meshtexture",
+      "exportar",
+      "manifold",
+      "decimate",
+      "stl"
+    ],
+    "symptoms": [
+      "como exportar do meshtexture",
+      "bake apply and export",
+      "o stl do meshtexture é manifold",
+      "arquivo travou o fatiador depois da textura",
+      "meshtexture simplifica áreas planas",
+      "export textured STL",
+      "malha pesada depois de texturizar",
+      "manifold stl export"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo 6 do MeshTexture: clique em Bake / Apply & Export. A ferramenta gera um STL 100% Manifold e já simplifica (Decimate) as áreas planas não afetadas, para não travar o fatiador.\n\nPelo que a fonte descreve, a densidade de triângulos fica concentrada na região selecionada e refinada (Refine Selection), e as áreas planas não afetadas são simplificadas. A fonte não informa limite de triângulos nem tamanho esperado do arquivo.",
+    "src": [
+      "playbook:224-224"
+    ]
+  },
+  {
+    "id": "blender.texture.displace-vertex-group-and-uv",
+    "domain": "blender",
+    "title": "Displace no Blender: Vertex Group das faces e mapeamento UV (passos 1 a 4)",
+    "tags": [
+      "displace",
+      "vertex-group",
+      "uv",
+      "smart-uv-project",
+      "textura"
+    ],
+    "symptoms": [
+      "como criar vertex group para textura",
+      "assign vertex group blender",
+      "smart uv project para displace",
+      "texturizar só algumas faces no Blender",
+      "UV para cilindro ou esfera",
+      "create vertex group for displacement",
+      "textura só em parte da peça blender",
+      "mapear UV das faces"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Método 2, textura por Displacement com controle total via Vertex Groups, passos iniciais:\n\n1. Selecione a peça e entre no Edit Mode (Tab).\n2. Selecione todas as faces que devem receber a textura.\n3. Em Object Data Properties (triângulo verde), vá em Vertex Groups, clique em + para criar um grupo e clique em Assign.\n4. Faça o mapeamento UV dessas faces: pressione U e escolha Smart UV Project (ou Cylinder/Sphere Projection, conforme o formato).\n\nO grupo criado no passo 3 será usado no modificador Displace para manter lisas as áreas de encaixe e a base.\n\nConferido no manual do Blender 5.0 (fora da fonte): o botão + do painel Vertex Groups cria um grupo vazio e o Assign adiciona ao grupo ativo os vértices selecionados (é aditivo); Smart UV Project, Cylinder Projection e Sphere Projection existem no mapeamento UV.",
+    "src": [
+      "playbook:226-230"
+    ]
+  },
+  {
+    "id": "blender.texture.displace-simple-subdivision",
+    "domain": "blender",
+    "title": "Displace no Blender: Subdivision Surface em modo Simple (passo 5)",
+    "tags": [
+      "displace",
+      "subdivision-surface",
+      "simple",
+      "catmull-clark",
+      "densidade"
+    ],
+    "symptoms": [
+      "bordas deformaram ao subdividir",
+      "subdivision surface simple ou catmull-clark",
+      "quantos níveis de subdivisão para textura",
+      "malha com poucos vértices para displace",
+      "displace sem detalhe",
+      "300k a 1M vértices",
+      "subdivide without deforming edges",
+      "textura sem resolução suficiente"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo 5 do Método 2: adicione um modificador Subdivision Surface.\n\n- Mude de Catmull-Clark para Simple: isso subdivide sem deformar as bordas do objeto.\n- Use 4 a 6 níveis, de modo que a malha tenha pelo menos 300k a 1M de vértices na região texturizada.\n\nA fonte não diz se os níveis se referem a Viewport ou Render, nem qual a contagem inicial de vértices que leva a esses números; a meta é a contagem de vértices na região, não o número de níveis.\n\nConferido no manual do Blender (fora da fonte): o modo Simple 'só subdivide', sem suavizar, e o manual cita seu uso para aumentar a resolução da malha base ao usar displacement maps; Catmull-Clark subdivide e suaviza. Níveis altos aumentam o consumo de memória e podem travar ou derrubar o Blender.",
+    "src": [
+      "playbook:231-232"
+    ]
+  },
+  {
+    "id": "blender.texture.displace-modifier-settings",
+    "domain": "blender",
+    "title": "Displace no Blender: textura Height Map, Coordinates UV, Vertex Group e Strength (passo 6)",
+    "tags": [
+      "displace",
+      "height-map",
+      "strength",
+      "vertex-group",
+      "coordinates"
+    ],
+    "symptoms": [
+      "como configurar o modificador displace",
+      "strength do displace em mm",
+      "height map png ou exr",
+      "textura de tricô no displace",
+      "encaixe ficou texturizado",
+      "displace vertex group",
+      "new texture displace modifier",
+      "textura de crochê como height map"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passo 6 do Método 2: adicione o modificador Displace.\n\n1. Clique em New Texture, vá na aba de Texturas (ícone de tabuleiro de xadrez) e carregue sua imagem Height Map: PNG/EXR em tons de cinza (ex.: textura de tricô/crochê).\n2. Volte ao modificador Displace e ajuste:\n\n| Campo | Valor |\n|---|---|\n| Coordinates | UV |\n| Vertex Group | o grupo criado no passo 3 (assim as áreas de encaixe e a base da peça permanecem 100% lisas) |\n| Strength | 0.4 mm a 1.2 mm |\n\nA fonte não cita Midlevel, Direction nem o tipo da textura. Conferido no manual do Blender (fora da fonte): com o Vertex Group vazio o modificador afeta todos os vértices por igual; com Coordinates UV, se o objeto não tem UV, o modificador cai para Local; o tipo de textura que aceita imagem chama-se Image or Movie.",
+    "src": [
+      "playbook:233-238"
+    ]
+  },
+  {
+    "id": "blender.texture.values-cheatsheet",
+    "domain": "blender",
+    "title": "Colinha de valores numéricos das texturas físicas (Parte 6)",
+    "tags": [
+      "textura",
+      "valores",
+      "colinha",
+      "amplitude",
+      "strength",
+      "voxel"
+    ],
+    "symptoms": [
+      "quais valores usar para textura",
+      "resumo de números textura e crochê",
+      "voxel size e decimate ratio do crochê",
+      "amplitude e strength recomendados",
+      "texture values cheat sheet",
+      "faixas de valores displace",
+      "qual ratio do decimate",
+      "limites recomendados da textura"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Todos os números da Parte 6. Esta parte não repete a configuração de unidades; a Parte 2 do playbook ajusta Unit System Metric, Unit Scale 0.001 e Length Millimeters, e os valores em mm daqui só fazem sentido nessa configuração (inferência):\n\n| Onde | Parâmetro | Valor citado |\n|---|---|---|\n| MeshTexture | Amplitude | 0.3 mm a 0.8 mm (exemplo) |\n| Blender, Subdivision Surface | tipo / níveis | Simple, 4 a 6 níveis |\n| Blender, Subdivision Surface | vértices na região | pelo menos 300k a 1M |\n| Blender, Displace | Coordinates | UV |\n| Blender, Displace | Strength | 0.4 mm a 1.2 mm |\n| Blender, Displace | Height Map | PNG/EXR em tons de cinza |\n| Blender, Remesh (Voxel) | Voxel Size | 0.15 mm a 0.25 mm (ex.) |\n| Blender, Decimate (Collapse) | Ratio | 0.15 a 0.30 |",
+    "src": [
+      "playbook:220-250"
+    ]
+  },
+  {
+    "id": "blender.knit.crochet-tissue-tessellate",
+    "domain": "blender",
+    "title": "Crochê/amigurumi real: malha base de Quads + elo de ponto + Tissue Tessellate",
+    "tags": [
+      "crochê",
+      "tricô",
+      "amigurumi",
+      "tissue",
+      "tessellate",
+      "quads"
+    ],
+    "symptoms": [
+      "como fazer crochê no Blender",
+      "efeito de tricô em boneco para imprimir",
+      "tissue tessellate crochê",
+      "elo de ponto de crochê",
+      "amigurumi 3d print blender",
+      "celtic links tissue",
+      "knit and woven effect blender",
+      "vaso ou flor com aparência de crochê"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "Método 3, para bonecos, vasos ou flores com aparência real de fios de crochê entrelaçados. Abordagem por malha base + Tissue / Celtic Links:\n\n1. Modele o objeto em Low Poly composto exclusivamente por Quads uniformes; mantenha a densidade dos quadrados proporcional ao tamanho do ponto de crochê desejado.\n2. Modele um único elo de ponto de crochê: um formato em V gordinho, feito com curvas com Bevel Depth convertidas para Mesh.\n3. Com o add-on Tissue (a fonte o chama de 'nativo'), operação Tessellate: selecione o elo de crochê, segure Shift e selecione a peça base, e clique em Tessellate. O Blender substitui cada Quad da peça base por um ponto de crochê tridimensional conectado.\n\nA fonte cita Celtic Links no título, mas só descreve o Tessellate.\n\nConferido fora da fonte: no Blender 4.2 LTS ou mais novo o Tissue não vem embutido; é uma extensão de extensions.blender.org (versões 0.3.70 e 0.3.71 para Blender 4.2 LTS+, 0.3.76 para 4.5 LTS+), instalada em Edit > Preferences > Get Extensions ou por Install from Disk. A fonte não diz onde fica o botão Tessellate. Pelo manual do Blender, o Bevel Depth fica em Curve properties > Geometry > Bevel e a conversão de curva em malha é Object > Convert > Mesh.",
+    "src": [
+      "playbook:240-245"
+    ]
+  },
+  {
+    "id": "blender.knit.crochet-printable-mesh",
+    "domain": "blender",
+    "title": "Tornar a malha de crochê imprimível: Solidify, Remesh (Voxel) e Decimate",
+    "tags": [
+      "crochê",
+      "remesh",
+      "voxel",
+      "decimate",
+      "solidify",
+      "manifold"
+    ],
+    "symptoms": [
+      "malha de crochê não fatia",
+      "interseções internas na malha de crochê",
+      "como tornar o crochê imprimível",
+      "fatiador confuso com fios entrelaçados",
+      "remesh voxel size crochê",
+      "decimate ratio crochê",
+      "crochet mesh not printable",
+      "buracos vazados atrás dos pontos de crochê"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Uma malha gerada por curvas entrelaçadas possui milhares de interseções internas que confundem o fatiador (a fonte chama isto de \"o segredo do Kevandram\"). Passos para torná-la imprimível:\n\n1. Solidify: adicione na parede interna (se for um vaso) ou mantenha um núcleo sólido por trás dos pontos, para não ficarem buracos vazados que exijam suportes internos.\n2. Remesh (Voxel) com Voxel Size bem fino (ex.: 0.15 mm a 0.25 mm): funde todos os fios de crochê e o núcleo em uma única casca sólida Manifold.\n3. Decimate (Collapse) com Ratio entre 0.15 e 0.30: reduz o arquivo para um tamanho amigável ao Bambu Studio / OrcaSlicer.\n\nA ordem é Solidify, Remesh, Decimate. A fonte não dá espessura para o Solidify.\n\nConferido no manual do Blender (fora da fonte): o modo Voxel do Remesh 'usa OpenVDB para gerar uma nova malha manifold a partir da geometria atual, tentando preservar o volume'; para o Voxel Remesh, valor baixo de Voxel Size dá detalhe mas malha densa. No Decimate Collapse, Ratio é a razão de faces mantidas (0.5 mantém metade), então 0.15 a 0.30 mantém cerca de 15% a 30%.",
+    "src": [
+      "playbook:246-250"
+    ]
+  },
+  {
+    "id": "blender.molds.golden-rules-draft-undercuts",
+    "domain": "blender",
+    "title": "Regras de ouro do molde: ângulo de saída e retenções (rígido x silicone)",
+    "tags": [
+      "molde",
+      "draft angle",
+      "undercut",
+      "retenção",
+      "silicone",
+      "molde rígido",
+      "gesso",
+      "cimento",
+      "cera",
+      "parting line",
+      "pino guia",
+      "boolean"
+    ],
+    "symptoms": [
+      "a peça não sai do molde",
+      "peça trava no molde impresso",
+      "preciso de ângulo de saída no molde?",
+      "quantos graus de draft angle para molde de gesso",
+      "can I have undercuts in a silicone mold",
+      "undercut no molde rígido de PLA",
+      "molde de cimento impresso em 3D não desmolda",
+      "posso ter retenções se vou usar silicone",
+      "como fazer molde bipartido no blender",
+      "linha de partição do molde",
+      "ângulo de saída draft angle",
+      "peça fica presa no molde retenção"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Antes de modelar qualquer molde, a fonte separa dois casos. (1) Molde rígido: se você vai imprimir um molde em PLA, PETG ou ABS para jogar gesso, cimento ou cera direto dentro dele, a peça não pode ter retenções (undercuts: partes que entram para dentro e travam a saída). Idealmente as paredes devem ter pelo menos 2° a 3° de inclinação (draft angle, ângulo de saída) para facilitar o desmolde. (2) Molde de borracha de silicone: se você vai imprimir a caixa do molde em 3D para despejar silicone líquido dentro dela (criando um molde flexível para depois usar com resina, vela ou polymer clay), pequenos undercuts são permitidos porque o silicone estica na hora de desmoldar. Resumo: material rígido despejado direto no molde impresso pede peça sem retenções e, idealmente, paredes com pelo menos 2° a 3° de inclinação; silicone tolera pequenos undercuts. A fonte não define o que conta como 'pequeno', não dá limite de draft para o caso do silicone e não diz o que fazer quando a peça tem retenções e o molde precisa ser rígido. Tudo aqui é sem tag na fonte, ou seja, conta como [relato].\n\nResumo da Parte 1 sobre moldes bipartidos para produção: (1) definir a linha de partição (parting line); (2) verificar ângulos de saída (draft angles) e retenções (undercuts); (3) fazer a subtração booleana do modelo mestre; (4) adicionar pinos-guia de fechamento. A Parte 1 não dá ângulo mínimo de saída, folga dos pinos-guia nem espessura de parede, não diz de qual objeto o modelo mestre é subtraído nem como detectar retenções no Blender; o fluxo B detalha a linha de partição e as chaves de registro (blender.molds.flow-b-parting-keys).",
+    "src": [
+      "playbook:256-258",
+      "playbook:53-54"
+    ]
+  },
+  {
+    "id": "blender.molds.flow-a-silicone-box",
+    "domain": "blender",
+    "title": "Fluxo A: caixa de molde de 1 parte para silicone (Silicone Mold Box)",
+    "tags": [
+      "molde",
+      "silicone",
+      "caixa de molde",
+      "fluxo A",
+      "boolean union",
+      "chaveiro",
+      "polymer clay",
+      "sabonete",
+      "caixa de fundição",
+      "margem de segurança",
+      "espessura de parede",
+      "resina",
+      "joias"
+    ],
+    "symptoms": [
+      "como fazer caixa de molde para silicone no blender",
+      "molde de silicone para chaveiro",
+      "molde de uma parte para joia ou sabonete",
+      "silicone vazou por baixo da peça",
+      "silicone mold box blender",
+      "quanto de folga entre a peça e a parede da caixa",
+      "espessura da caixa impressa para silicone",
+      "altura da caixa de molde silicone",
+      "caixa para fazer molde de silicone de uma peça",
+      "silicone mold housing blender",
+      "margem de silicone ao redor da peça",
+      "altura da base do molde"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Indicado para chaveiros, peças de fundo reto, joias, sabonetes e polymer clay. Passos da fonte: 1) Posicione a peça positiva com o fundo plano perfeitamente alinhado no eixo Z = 0. 2) Crie um contorno ao redor da peça com folga lateral de 6 mm a 10 mm; essa folga será a espessura da parede de silicone ao redor da peça. 3) A altura da caixa deve ser a altura da peça mais 6 mm a 8 mm; isso formará o fundo do molde de silicone depois de virado. 4) Espessura da caixa impressa em 3D: base de 2.0 mm a 3.0 mm; paredes externas de 2.0 mm a 2.4 mm (suficiente para ser rígida e não vazar silicone, mas fácil de remover). 5) Una a peça positiva à base da caixa com Boolean → Union, mergulhando a peça 0.2 mm dentro da base para garantir que o silicone não entre por baixo dela. Como o molde é de silicone, pequenos undercuts são aceitos (ver regras de ouro). A fonte não diz se a altura da caixa já inclui a base de 2.0 mm a 3.0 mm.\n\nResumo da Parte 1: o vídeo de referência (Silicone Mold Housing) transforma qualquer formato 3D numa caixa de fundição para borracha de silicone, indicada para resina, polymer clay e joias, calculando a margem de segurança ao redor da peça, a altura da base e a espessura das paredes externas; a Parte 1 não traz valores, que estão neste fluxo.",
+    "src": [
+      "playbook:260-268",
+      "playbook:61-62"
+    ]
+  },
+  {
+    "id": "blender.molds.flow-b-spout-wick-cavity",
+    "domain": "blender",
+    "title": "Fluxo B (parte 1): canal de vazamento, canal de pavio, bloco e cavidade",
+    "tags": [
+      "molde bipartido",
+      "vela",
+      "pavio",
+      "pour spout",
+      "funil de vazamento",
+      "boolean difference",
+      "bloco do molde",
+      "cavidade",
+      "molde",
+      "sabonete",
+      "gesso",
+      "resina",
+      "parede à prova de vazamento",
+      "interior liso"
+    ],
+    "symptoms": [
+      "como fazer molde de vela no blender",
+      "diâmetro do canal do pavio",
+      "funil de vazamento do molde",
+      "pour spout no molde bipartido",
+      "margem do bloco do molde",
+      "molde de gesso ou resina em duas metades",
+      "como subtrair a peça do bloco do molde",
+      "candle mold wick channel diameter",
+      "molde de vela impresso em 3d",
+      "furo para o pavio no molde",
+      "molde vaza resina",
+      "espessura de parede do molde à prova de vazamento"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Fluxo B serve para esculturas 3D completas, vasos e velas decorativas (velas, resina ou gesso, em 2 metades com chaves). Passos 1 a 4: 1) Posicione o objeto positivo no centro do mundo (Shift + S → Cursor to World Origin). 2) Canal de preenchimento (pour spout) e canal de pavio: no topo da peça (ou na base, porque moldes de vela geralmente são preenchidos de cabeça para baixo) adicione um cilindro largo, que é o funil de vazamento da cera ou resina; na outra extremidade, um cilindro fino de 2.0 mm a 2.5 mm de diâmetro atravessando a parede do molde para passar o pavio. Una os cilindros ao positivo com Boolean → Union. 3) Bloco do molde: crie um Cubo ao redor do positivo, com pelo menos 8 mm a 12 mm de margem em todas as direções. 4) Cavidade: no bloco adicione Boolean → Difference apontando para o positivo (com funil e canal de pavio), aplique o modificador e oculte o positivo; o resultado é um bloco maciço com a cavidade exata lá dentro. A fonte não dá o diâmetro do funil largo. Nota do manual do Blender (fora da fonte): em Snap, 'Cursor to World Origin' move o 3D Cursor para (0, 0, 0) e não move o objeto; 'Selection to Cursor' move a seleção até o cursor (https://docs.blender.org/manual/en/latest/scene_layout/object/editing/snap.html).\n\nResumo da Parte 1: para velas artesanais, sabonetes, gesso e resina (moldes rígidos ou flexíveis impressos em 3D), o vídeo de referência aborda espessura de parede à prova de vazamentos, o furo de passagem para o pavio e dicas de fatiamento para um interior ultra-liso; a Parte 1 não traz valores nem lista essas dicas (a configuração de slicer está em bambu.molds.slicer-settings-leakproof).",
+    "src": [
+      "playbook:270-279",
+      "playbook:59-60"
+    ]
+  },
+  {
+    "id": "blender.molds.flow-b-parting-keys",
+    "domain": "blender",
+    "title": "Fluxo B (parte 2): linha de partição, chaves de registro e chanfro para abrir",
+    "tags": [
+      "molde bipartido",
+      "parting line",
+      "linha de partição",
+      "chaves de registro",
+      "displace",
+      "folga",
+      "chanfro",
+      "Metade_A",
+      "Metade_B"
+    ],
+    "symptoms": [
+      "como dividir o molde em duas metades",
+      "linha de partição do molde no blender",
+      "chaves de registro esfera cone molde",
+      "as duas metades do molde não encaixam",
+      "como abrir o molde depois da cura",
+      "folga das chaves do molde",
+      "parting line exatamente no centro da peça",
+      "registration keys mold halves blender"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Passos 5 e 6 do Fluxo B. 5) Linha de partição (parting line): use a técnica de corte da Parte 4 do Playbook, passando exatamente pelo centro da peça, para dividir o bloco em Molde_Metade_A e Molde_Metade_B. 6) Chaves de registro e rasgos de abertura: nos 4 cantos da face interna do molde, adicione esferas ou cones truncados de 6 mm de diâmetro; faça Union na Metade_A e Difference na Metade_B, com Displace de +0.15 mm de folga. Dica de ouro da fonte: subtraia um pequeno chanfro nas bordas externas da junção das duas metades, para inserir uma espátula ou chave de fenda e abrir o molde depois da cura. Ou seja: a Metade_A ganha as chaves em relevo, a Metade_B ganha os encaixes com folga de 0.15 mm. A fonte não explica o que fazer se a peça tiver retenções ou não for simétrica em relação ao centro. Nota do manual do Blender (fora da fonte): no Displace sem textura o valor é 1.0 e o deslocamento é (1.0 - Midlevel) x Strength; para obter +0.15 use Midlevel 0 e Strength 0.15 (https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/displace.html).",
+    "src": [
+      "playbook:280-284"
+    ]
+  },
+  {
+    "id": "blender.molds.flow-c-matrix-offsets",
+    "domain": "blender",
+    "title": "Fluxo C: Matrix Mold, ideia e offsets (luva de silicone de 5 mm + casca de 4 mm)",
+    "tags": [
+      "matrix mold",
+      "molde matriz",
+      "luva de silicone",
+      "casca rígida",
+      "offset",
+      "displace",
+      "voxel remesh",
+      "economia de silicone",
+      "molde",
+      "silicone",
+      "casca",
+      "flange",
+      "parafuso",
+      "chave de registro",
+      "pour spout",
+      "bocal de vazamento"
+    ],
+    "symptoms": [
+      "o que é matrix mold",
+      "molde grande gasta muito silicone",
+      "como fazer casca externa para molde de silicone",
+      "offset de 5 mm e 9 mm no blender",
+      "matrix mold silicone economizar borracha",
+      "volume_silicone casca_externa",
+      "peça grande ou muito detalhada molde de silicone",
+      "displace voxel remesh offset do modelo",
+      "como fazer matrix mold no blender",
+      "casca externa do molde de silicone",
+      "flanges com furos para parafusos no molde",
+      "chave de registro do molde"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Para peças grandes ou muito detalhadas, um bloco maciço de silicone gastaria 1 kg de borracha cara. O Matrix Mold usa só uma camada fina (5 mm) de silicone abraçada por uma casca rígida bipartida impressa em 3D com flanges. Passo 1: duplique o modelo original e crie dois offsets, usando Displace + Voxel Remesh.\n\n| Objeto | Offset ao redor do modelo | Função |\n|---|---|---|\n| Volume_Silicone | +5 mm | espessura da luva de silicone |\n| Casca_Externa | +9 mm | casca rígida impressa com 4 mm de parede (9 mm menos 5 mm) |\n\nA fonte não informa o Voxel Size a usar nesse offset nem como a peça original fica presa à base. Nota do manual do Blender (fora da fonte): sem textura o Displace usa valor 1.0 e desloca (1.0 - Midlevel) x Strength, então os offsets de +5 mm e +9 mm dependem do par Midlevel/Strength, que a fonte não informa (https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/displace.html).\n\nResumo da Parte 1: o Matrix Mold é uma luva interna flexível de silicone contida por uma casca rígida bipartida impressa em 3D; os passos descritos são criar a casca externa, dividi-la ao meio, modelar flanges laterais com furos para parafusos, criar chaves de registro e criar o bocal de vazamento (pour spout). A Parte 1 não traz espessuras nem dimensões; as medidas do fluxo C estão neste tópico e em blender.molds.flow-c-matrix-flanges-assembly.",
+    "src": [
+      "playbook:286-290",
+      "playbook:57-58"
+    ]
+  },
+  {
+    "id": "blender.molds.flow-c-matrix-flanges-assembly",
+    "domain": "blender",
+    "title": "Fluxo C: flanges com parafusos, divisão da casca e bocal superior",
+    "tags": [
+      "matrix mold",
+      "flange",
+      "solidify",
+      "parafuso M4",
+      "parafuso M5",
+      "boolean union",
+      "boolean difference",
+      "bocal de vazamento"
+    ],
+    "symptoms": [
+      "flanges do matrix mold",
+      "furos de parafuso na casca do molde",
+      "qual diâmetro do furo para parafuso M4 ou M5",
+      "como dividir a casca do matrix mold ao meio",
+      "bocal para despejar silicone no matrix mold",
+      "solidify 8 mm no plano central",
+      "como montar a casca rígida parafusada",
+      "matrix mold flanges screw holes"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Continuação do Matrix Mold. Passo 2: crie um plano central no meio da peça e aplique o modificador Solidify com 8 mm de espessura para criar as flanges (abas laterais) onde vão os furos de parafuso M4 ou M5, com diâmetro de 4.5 mm a 5.5 mm. Passo 3: una as flanges à Casca_Externa (Boolean Union), subtraia o Volume_Silicone de dentro dela (Boolean Difference) e divida a casca em duas metades ao meio da flange. Passo 4: adicione um bocal superior para despejar o silicone entre a peça original (presa na base) e a casca externa parafusada. A fonte não dá a largura das flanges, a quantidade e posição dos parafusos, o diâmetro do bocal, respiros ou chaves de registro para o Matrix Mold, nem diz como cortar a luva de silicone depois de curada. Nota do manual do Blender (fora da fonte): no Solidify, Thickness é a profundidade e Offset 0.0 centra o resultado na malha original; a fonte não informa o Offset (https://docs.blender.org/manual/en/latest/modeling/modifiers/generate/solidify.html).",
+    "src": [
+      "playbook:291-293"
+    ]
+  },
+  {
+    "id": "blender.molds.choosing-flow",
+    "domain": "blender",
+    "title": "Qual fluxo de molde escolher: A (1 parte), B (bipartido) ou C (Matrix Mold)",
+    "tags": [
+      "molde",
+      "escolha do fluxo",
+      "silicone",
+      "vela",
+      "resina",
+      "gesso",
+      "matrix mold",
+      "molde bipartido"
+    ],
+    "symptoms": [
+      "qual tipo de molde eu devo fazer",
+      "molde de uma parte ou duas partes",
+      "quando usar matrix mold",
+      "molde para vela decorativa ou vaso",
+      "molde para peça de fundo reto",
+      "which mold workflow should I use",
+      "meu objeto é uma escultura 3D completa, que molde uso"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "A Parte 7 descreve três fluxos de molde.\n\n| Fluxo | Indicado para | Resultado |\n|---|---|---|\n| A: caixa de 1 parte para silicone | chaveiros, peças de fundo reto, joias, sabonetes, polymer clay | caixa impressa onde se despeja silicone líquido (molde flexível) |\n| B: molde bipartido com chaves | esculturas 3D completas, vasos, velas decorativas (também resina e gesso) | 2 metades (Molde_Metade_A e Molde_Metade_B) com funil, canal de pavio e chaves |\n| C: Matrix Mold | peças grandes ou muito detalhadas, onde um bloco maciço gastaria 1 kg de silicone | luva de silicone de 5 mm dentro de casca rígida bipartida com flanges parafusadas |\n\nAntes de modelar, a fonte pede considerar o material: material rígido despejado direto no molde impresso (gesso, cimento, cera) pede peça sem retenções e, idealmente, paredes com pelo menos 2° a 3° de inclinação; silicone aceita pequenos undercuts. A fonte não dá um critério numérico para grande ou muito detalhada.",
+    "src": [
+      "playbook:254-293"
+    ]
+  },
+  {
+    "id": "blender.molds.dimension-cheatsheet",
+    "domain": "blender",
+    "title": "Tabela rápida de medidas da Parte 7 (moldes, silicone, velas, Matrix Mold)",
+    "tags": [
+      "molde",
+      "medidas",
+      "tabela",
+      "espessura",
+      "folga",
+      "draft angle",
+      "silicone",
+      "matrix mold",
+      "vela"
+    ],
+    "symptoms": [
+      "quais as medidas para molde de silicone",
+      "tabela de espessuras do molde",
+      "quanto de margem no bloco do molde",
+      "diâmetro do pavio e das chaves do molde",
+      "resumo dos números da parte 7 de moldes",
+      "mold dimensions cheat sheet",
+      "espessura da base e das paredes da caixa de molde"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Números que a fonte dá para moldes (todos sem tag, ou seja, [relato]).\n\n| Fluxo | Parâmetro | Valor |\n|---|---|---|\n| Molde rígido | ângulo de saída (draft) | pelo menos 2° a 3° |\n| A | folga lateral peça → parede da caixa (= parede de silicone) | 6 mm a 10 mm |\n| A | altura da caixa | altura da peça + 6 mm a 8 mm |\n| A | base impressa | 2.0 mm a 3.0 mm |\n| A | paredes externas impressas | 2.0 mm a 2.4 mm |\n| A | peça mergulhada na base (Union) | 0.2 mm |\n| B | canal de pavio (diâmetro) | 2.0 mm a 2.5 mm |\n| B | margem do bloco em todas as direções | pelo menos 8 mm a 12 mm |\n| B | chaves de registro | 4 cantos, esferas/cones truncados de 6 mm |\n| B | folga da chave na Metade_B (Displace) | +0.15 mm |\n| C | Volume_Silicone (offset) | +5 mm |\n| C | Casca_Externa (offset) | +9 mm (casca de 4 mm) |\n| C | flange (Solidify) | 8 mm |\n| C | furos de parafuso M4 ou M5 | 4.5 mm a 5.5 mm de diâmetro |",
+    "src": [
+      "playbook:256-293"
+    ]
+  },
+  {
+    "id": "blender.molds.source-gaps",
+    "domain": "blender",
+    "title": "O que a Parte 7 (moldes) não especifica",
+    "tags": [
+      "molde",
+      "lacunas",
+      "limites da fonte",
+      "pour spout",
+      "respiro",
+      "matrix mold",
+      "configuração do fatiador"
+    ],
+    "symptoms": [
+      "qual o diâmetro do funil de vazamento",
+      "como imprimir o molde no Bambu Studio",
+      "o molde precisa de respiros?",
+      "qual a largura das flanges do matrix mold",
+      "quantos parafusos usar no molde",
+      "o PLA aguenta cera quente",
+      "quantos perímetros e preenchimento para imprimir o molde"
+    ],
+    "printers": [],
+    "applies_to": null,
+    "confidence": "relato",
+    "body": "Nas linhas 254 a 296 do Playbook (Parte 7) não há: diâmetro do funil de vazamento (só 'cilindro largo'); respiros de ar; largura das flanges e quantidade ou posição dos parafusos do Matrix Mold; chaves de registro para o Matrix Mold (a visão geral da linha 58 diz que o vídeo de referência as cobre, mas a Parte 7 não dá medidas); Voxel Size do offset (Displace + Voxel Remesh); valores de Midlevel e Strength do Displace; como a peça original fica presa à base no Matrix Mold; definição numérica de 'pequenos undercuts' em silicone; limite de ângulo de saída para silicone; temperatura suportada por PLA, PETG ou ABS com cera quente ou cura de resina; e configuração do Bambu Studio para imprimir o molde. As espessuras de 2.0 mm a 2.4 mm e 2.0 mm a 3.0 mm são medidas de modelagem no Blender e esta parte não as converte em número de perímetros. A configuração de fatiamento para moldes aparece em outra parte do mesmo Playbook (Parte 8, 'Configuração de Slicer para Moldes', linhas 313 a 315, fora desta fatia; a linha 315 é o Ironing nas superfícies superiores planas do molde, em bambu.molds.ironing-top-surfaces): consulte os tópicos extraídos dali. Se o usuário perguntar algo da lista acima, responda que a Parte 7 não cobre e não invente valor.",
+    "src": [
+      "playbook:254-296"
+    ]
+  },
+  {
+    "id": "blender.export.pre-slicer-checklist",
+    "domain": "blender",
+    "title": "Checklist antes de exportar o STL/3MF do Blender para o fatiador",
+    "tags": [
+      "checklist",
+      "exportacao",
+      "stl",
+      "3mf",
+      "pre-fatiador"
+    ],
+    "symptoms": [
+      "o que conferir antes de exportar o stl do blender",
+      "checklist antes de mandar a peça pro fatiador",
+      "como exportar stl do blender para o bambu studio",
+      "pre-export checklist blender stl",
+      "before exporting to the slicer what should I check",
+      "stl chegou errado no bambu studio",
+      "revisão final antes de fatiar"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "Antes de exportar o `.STL` ou `.3MF` (`File` → `Export` → `Stl (.stl)`), o playbook (Parte 8) manda conferir sempre quatro itens, na ordem em que aparecem aqui.\n\n| Item | O que conferir |\n|---|---|\n| Selection Only | Caixa `Selection Only` **sempre** marcada na janela de exportação do STL; sem ela o Blender exporta os cubos cortadores ocultos junto com a peça |\n| Scale = 1.0 | Com `Unit Scale = 0.001` (Parte 2) o Scale de exportação fica em 1.0; se modelou no padrão antigo (metros), Scale de exportação = 1000 |\n| Modificadores | Se a pilha não foi aplicada, `Apply Modifiers` marcado na exportação e nível de *Subdivision Viewport* igual ao desejado no STL final |\n| Zero non-manifold | `Check All` do *3D Print Toolbox* uma última vez, depois de aplicar os *Booleans* |\n\nTodos os itens são [relato]: o playbook é um levantamento de 20 vídeos (Parte 1) e este trecho não traz tags de confiança. Cada item tem um tópico próprio com a regra detectável. O texto cita `.STL` ou `.3MF`, mas as caixas descritas (Selection Only, Scale, Apply Modifiers) são as da janela de exportação do STL. Nomes conferidos no manual do Blender 4.2 LTS e 5.0 (fora do playbook): `Selection Only`, `Scale` e `Apply Modifiers` existem na exportação STL; no menu do programa a entrada aparece como `STL (.stl)` (o manual escreve `Stl (.stl)`).",
+    "src": [
+      "playbook:297-304"
+    ]
+  },
+  {
+    "id": "blender.export.selection-only-hidden-cutters",
+    "domain": "blender",
+    "title": "Selection Only na exportação: não levar os cubos cortadores junto",
+    "tags": [
+      "exportacao",
+      "stl",
+      "selection-only",
+      "cutters",
+      "boolean"
+    ],
+    "symptoms": [
+      "o stl saiu com os cubos de corte junto com a peça",
+      "apareceram objetos extras no bambu studio depois de exportar do blender",
+      "o cubo cortador foi exportado junto",
+      "exported the cutter cubes with the part",
+      "hidden cutter objects in my stl",
+      "o que é Selection Only na exportação do stl",
+      "export stl selection only blender",
+      "peça veio com geometria sobrando no fatiador"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "Na janela de exportação do STL do Blender, marque **sempre** a caixa `Selection Only`. Segundo o playbook, sem ela o Blender exportará os cubos cortadores ocultos (os objetos usados nos *Booleans* de corte) junto com a peça, e o STL chega ao fatiador com geometria que você não queria imprimir.\n\nProcedimento:\n1. Selecione somente a peça (ou as peças) que vai imprimir, deixando os cortadores de fora da seleção.\n2. `File` → `Export` → `Stl (.stl)`.\n3. Marque `Selection Only` antes de confirmar a exportação.\n\nConferência fora do playbook: o manual do Blender 4.2 e 5.0 diz que, com `Selection Only` marcada, só os objetos selecionados são exportados. Pela leitura do código do exportador STL (4.2 e 5.0, não testado), ele percorre apenas objetos visíveis; logo, um cortador realmente oculto na viewport provavelmente não entra no STL, e o que entra sem a caixa são objetos de malha visíveis e não selecionados, por exemplo um cortador deixado visível depois do Boolean. Nos dois casos, selecionar só a peça e marcar a caixa é seguro. O playbook não diz se o mesmo vale para `.3MF`. [relato]",
+    "src": [
+      "playbook:301-301"
+    ]
+  },
+  {
+    "id": "blender.export.scale-and-unit-scale",
+    "domain": "blender",
+    "title": "Scale de exportação: 1.0 com Unit Scale 0.001, 1000 se modelou em metros",
+    "tags": [
+      "exportacao",
+      "escala",
+      "unit-scale",
+      "stl",
+      "milimetros"
+    ],
+    "symptoms": [
+      "qual scale usar na exportação do stl do blender",
+      "peça veio 1000 vezes maior no bambu studio",
+      "peça veio minúscula no fatiador",
+      "stl exportado com tamanho errado",
+      "export scale 1000 blender",
+      "unit scale 0.001 export scale 1.0",
+      "modelei em metros e o stl saiu pequeno",
+      "tamanho da peça errado depois de exportar"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "O campo Scale da exportação precisa casar com a unidade em que a cena foi modelada:\n\n| Como a cena foi configurada | Scale na exportação |\n|---|---|\n| `Unit Scale = 0.001` (configuração da Parte 2) | **1.0** |\n| Padrão antigo do Blender, modelado em metros | **1000** |\n\nSe você seguiu a Parte 2 (Metric, `Unit Scale` 0.001, milímetros), não mexa no Scale de exportação: deixe em 1.0. Só mude para 1000 se a peça foi modelada no padrão antigo em metros.\n\nNa Parte 2 o playbook diz que, no padrão em metros, os STL chegam minúsculos ou gigantescos ao fatiador; ele não descreve o sintoma de errar só o Scale de exportação. Pela diferença de fator 1000 entre os dois casos, o esperado é a peça chegar 1000 vezes maior ou menor que o pretendido (dedução, não afirmação da fonte). Para conferir, compare a maior dimensão da peça no fatiador com o tamanho que você planejou.\n\nConferência fora do playbook (manual e código do Blender 4.2/5.0): a janela de exportação do STL também tem a caixa `Scene Unit` ('Apply current scene's unit (as defined by unit scale) to exported data'), desmarcada por padrão no código. Marcada, o Blender multiplica a escala exportada pelo Unit Scale da cena (0.001 neste caso), e o Scale 1.0 deixa de ser o valor certo. O playbook não menciona `Scene Unit`; ao seguir a regra do Scale 1.0, confira que ela está desmarcada. [relato]",
+    "src": [
+      "playbook:302-302"
+    ]
+  },
+  {
+    "id": "blender.export.apply-modifiers-subdivision-level",
+    "domain": "blender",
+    "title": "Modificadores não aplicados: Apply Modifiers e nível de Subdivision Viewport",
+    "tags": [
+      "exportacao",
+      "modificadores",
+      "subdivision",
+      "viewport",
+      "render"
+    ],
+    "symptoms": [
+      "preciso aplicar os modificadores antes de exportar",
+      "o stl saiu sem o boolean aplicado",
+      "o stl saiu sem o chanfro do bevel",
+      "apply modifiers na exportação do stl",
+      "subdivision viewport diferente do render",
+      "malha exportada com densidade diferente da que eu vejo",
+      "modifiers not applied in exported stl",
+      "stl com menos subdivisão do que o esperado"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "Se você não aplicou os modificadores na pilha, o resultado do STL depende de dois pontos na exportação:\n\n1. `Apply Modifiers` precisa estar **marcado** na janela de exportação.\n2. O nível de *Subdivision Viewport* precisa ser **igual ao que você deseja no STL final**.\n\nO título do item é 'Modificadores de Visualização vs. Render', mas o texto só cobra essas duas verificações; o nível *Render* não é explicado. Pelo item, quem deve estar certo é o nível de Viewport, e o playbook não diz por quê.\n\nSe todos os modificadores já foram aplicados na pilha, estes dois pontos deixam de ser relevantes, pois a pergunta do item é 'se você não aplicou'.\n\nConferência fora do playbook (manual e código do Blender 4.2/5.0): `Apply Modifiers` exporta 'the evaluated mesh, meaning the resulting mesh after all Modifiers have been calculated' e vem marcada por padrão no exportador. O modificador Subdivision Surface tem os campos `Levels Viewport` e `Render`. Pela leitura do código (não testado), a exportação usa a avaliação atual da cena, isto é, o nível de Viewport; o avaliador de Render só aparece quando se exporta uma coleção pelo parâmetro `collection`, que não está na janela. Isso é coerente com o item do playbook. [relato]",
+    "src": [
+      "playbook:303-303"
+    ]
+  },
+  {
+    "id": "blender.export.zero-non-manifold-gate",
+    "domain": "blender",
+    "title": "Zero bordas non-manifold: Check All final depois dos Booleans",
+    "tags": [
+      "exportacao",
+      "non-manifold",
+      "3d-print-toolbox",
+      "boolean",
+      "check-all"
+    ],
+    "symptoms": [
+      "devo checar a malha de novo depois do boolean",
+      "non-manifold depois de cortar a peça",
+      "check all do 3d print toolbox antes de exportar",
+      "bordas non-manifold após aplicar boolean",
+      "stl com buracos depois do corte",
+      "last check before export blender",
+      "malha não estanque depois de aplicar o boolean"
+    ],
+    "printers": [],
+    "applies_to": {
+      "blender": ">=4.2"
+    },
+    "confidence": "relato",
+    "body": "Último item do checklist: rode o `Check All` do *3D Print Toolbox* **uma última vez** depois de aplicar os *Booleans* e só exporte com **zero** bordas non-manifold (Non-Manifold Edges = 0).\n\nO ponto do item é a ordem: a checagem feita antes dos Booleans não vale como checagem final, porque o corte e a união geram geometria nova. Se o resultado for maior que 0, volte ao reparo descrito no tópico `blender.repair.non-manifold-check` e repita o `Check All` até zerar.\n\nConferência fora do playbook (código da extensão 3D Print Toolbox, ramo main; a extensão é compatível com Blender 4.2 LTS ou mais novo): ela traz a aba lateral `3D Print`, o painel `Analyze` e o botão `Check All`, que roda Solid, Intersections, Shells, Degenerate, Non-Planar, Thickness, Sharp e Overhang. A linha 'Non-manifold Edges' (com esta grafia) vem da checagem Solid, que lê a malha-base do objeto sem avaliar os modificadores: por isso os Booleans precisam estar realmente aplicados antes da checagem final. O `Check All` avalia só o objeto ativo (com vários selecionados ele avisa).\n\nO playbook só cobra o zero de bordas non-manifold; não diz o que fazer com os outros resultados do `Check All` nem qual é o efeito concreto no fatiador de ter bordas abertas. [relato]",
+    "src": [
+      "playbook:304-304"
+    ]
+  }
+]

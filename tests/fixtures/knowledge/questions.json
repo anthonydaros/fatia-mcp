@@ -1,0 +1,241 @@
+{
+  "free": [
+    {
+      "q": "o bico arrasta na peça e derruba",
+      "expect_topics": [
+        "bambu.travel.unprotected-travel-bug",
+        "bambu.symptom.travel-scrape",
+        "bambu.travel.zhop-types",
+        "bambu.travel.three-mechanisms"
+      ]
+    },
+    {
+      "q": "z hop",
+      "expect_topics": [
+        "bambu.travel.zhop-types",
+        "bambu.travel.three-mechanisms",
+        "bambu.travel.factory-values"
+      ]
+    },
+    {
+      "q": "minha peça está empenando no canto",
+      "expect_topics": [
+        "bambu.materials.pla",
+        "bambu.materials.abs-asa",
+        "bambu.travel.zhop-types",
+        "bambu.travel.three-mechanisms",
+        "bambu.symptom.weak-first-layer",
+        "bambu.a1.first-layer-plate",
+        "bambu.a1.tall-narrow-parts"
+      ]
+    },
+    {
+      "q": "estou com fiapos na impressão",
+      "expect_topics": [
+        "bambu.travel.zhop-types",
+        "bambu.support.mixed-material-risks",
+        "bambu.materials.tpu-moisture",
+        "bambu.a1.timelapse",
+        "bambu.x2d.dual-nozzle-two-machines",
+        "bambu.multicolor.face-down-method",
+        "blender.cut.organic-seam"
+      ]
+    },
+    {
+      "q": "o suporte ficou grudado e não sai da peça",
+      "expect_topics": [
+        "bambu.symptom.support-face-fused",
+        "bambu.support.top-z-distance"
+      ]
+    },
+    {
+      "q": "dá para imprimir ABS na X2D?",
+      "expect_topics": [
+        "bambu.materials.abs-asa"
+      ]
+    },
+    {
+      "q": "quanto filamento a troca de cor joga fora",
+      "expect_topics": [
+        "bambu.waste.consumption-anatomy",
+        "bambu.waste.waste-magnitudes",
+        "bambu.waste.reduce-tool-changes"
+      ]
+    },
+    {
+      "q": "como deixo o STL do Blender no tamanho certo",
+      "expect_topics": [
+        "blender.setup.mm-units",
+        "blender.export.scale-and-unit-scale"
+      ]
+    },
+    {
+      "q": "baixei um STL cheio de buracos na malha",
+      "expect_topics": [
+        "blender.repair.non-manifold-check",
+        "blender.cleanup.mesh-sources-overview",
+        "blender.repair.stl-checkup-flow"
+      ]
+    },
+    {
+      "q": "como faço um pino para encaixar duas metades",
+      "expect_topics": [
+        "blender.keys.shape",
+        "blender.keys.pin-and-socket-procedure",
+        "bambu.cut.planar-dowel-procedure",
+        "blender.keys.clearance-table"
+      ]
+    },
+    {
+      "q": "a primeira camada não está colando na mesa",
+      "expect_topics": [
+        "bambu.symptom.weak-first-layer",
+        "bambu.a1.first-layer-plate",
+        "bambu.preflight.bed-material"
+      ]
+    },
+    {
+      "q": "as letras pequenas somem na peça",
+      "expect_topics": [
+        "bambu.symptom.missing-text-teeth",
+        "bambu.quality.vanishing-details",
+        "bambu.x2d.first-layer-and-small-text"
+      ]
+    },
+    {
+      "q": "o que é o efeito pé de elefante",
+      "expect_topics": [
+        "bambu.dimensional.elephant-foot",
+        "both.elephant-foot.cut-faces-and-pins"
+      ]
+    },
+    {
+      "q": "posso usar TPU no AMS",
+      "expect_topics": [
+        "bambu.materials.tpu-moisture",
+        "bambu.a1.ams-lite"
+      ]
+    },
+    {
+      "q": "como esvaziar o modelo por dentro no Blender",
+      "expect_topics": [
+        "blender.hollow.procedure",
+        "blender.hollow.drain-hole"
+      ]
+    },
+    {
+      "q": "a torre de limpeza caiu no meio da impressão",
+      "expect_topics": [
+        "bambu.symptom.x2d-tower",
+        "bambu.tower.prime-tower-basics",
+        "bambu.tower.no-sparse-layers"
+      ]
+    },
+    {
+      "q": "o tempo estimado pelo fatiador está errado",
+      "expect_topics": [
+        "bambu.versions.estimates-and-cloud-sync",
+        "bambu.x2d.time-estimates",
+        "bambu.preflight.details-drift-estimate"
+      ]
+    },
+    {
+      "q": "quero fazer uma textura de tricô na peça",
+      "expect_topics": [
+        "blender.texture.knit-woven-geometry",
+        "blender.texture.choose-method",
+        "blender.knit.crochet-tissue-tessellate"
+      ]
+    },
+    {
+      "q": "para que serve o Arachne",
+      "expect_topics": [
+        "bambu.quality.wall-generator-min-feature"
+      ]
+    },
+    {
+      "q": "dá para esconder a emenda da parede externa",
+      "expect_topics": [
+        "bambu.quality.seam-position",
+        "bambu.tools.seam-and-support-painting"
+      ]
+    },
+    {
+      "q": "como diminuir os triângulos de um modelo gerado por IA",
+      "expect_topics": [
+        "blender.ai-cleanup.decimate-collapse",
+        "blender.ai-cleanup.voxel-remesh",
+        "blender.cleanup.mesh-sources-overview"
+      ]
+    },
+    {
+      "q": "o topo da peça ficou com vãos",
+      "expect_topics": [
+        "bambu.symptom.top-gaps",
+        "bambu.quality.bad-top-despite-five-layers",
+        "bambu.quality.top-shell-arithmetic"
+      ]
+    },
+    {
+      "q": "PETG gruda demais na placa lisa",
+      "expect_topics": [
+        "bambu.materials.petg",
+        "bambu.bed.plate-types-and-temperatures",
+        "bambu.preflight.bed-material"
+      ]
+    },
+    {
+      "q": "qual a velocidade máxima do segundo bico da X2D",
+      "expect_topics": [
+        "bambu.x2d.dual-nozzle-two-machines"
+      ]
+    },
+    {
+      "q": "as faces ficaram viradas para dentro depois de importar",
+      "expect_topics": [
+        "blender.repair.normals-face-orientation",
+        "blender.setup.3d-print-toolbox"
+      ]
+    },
+    {
+      "q": "qual versão do Studio eu preciso para a X2D",
+      "expect_topics": [
+        "bambu.versions.x2d-minimum-studio"
+      ]
+    },
+    {
+      "q": "quero fazer um molde de silicone para velas",
+      "expect_topics": [
+        "blender.molds.choosing-flow",
+        "blender.molds.flow-a-silicone-box",
+        "blender.molds.dimension-cheatsheet",
+        "blender.molds.golden-rules-draft-undercuts"
+      ]
+    },
+    {
+      "q": "como deixar o topo da peça liso",
+      "expect_topics": [
+        "bambu.ironing.what-it-does-and-fails",
+        "bambu.ironing.parameters",
+        "bambu.ironing.top-surface-and-wall-settings"
+      ]
+    }
+  ],
+  "negative": [
+    "qual a previsão do tempo para amanhã em Curitiba",
+    "receita de bolo de cenoura com cobertura",
+    "como declarar imposto de renda de aluguel",
+    "quem ganhou a copa do mundo de 2014",
+    "what is the capital of Australia",
+    "how do I reset my iPhone password",
+    "escreva um poema sobre o mar",
+    "qual a melhor linguagem de programação para iniciantes",
+    "preço do dólar hoje",
+    "como instalar o Windows 11 em um notebook antigo",
+    "translate hello world to french",
+    "qual o horário do voo para Lisboa",
+    "como faço pão de queijo",
+    "asdkjh qwlkj zxcmnb",
+    "me recomende um filme de ficção científica"
+  ]
+}

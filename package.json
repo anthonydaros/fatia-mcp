@@ -17,7 +17,9 @@
     "package:mcpb": "npm run build && node scripts/package-mcpb.mjs",
     "version": "node scripts/sync-manifest-version.mjs",
     "postinstall": "node scripts/install-patches.mjs",
-    "build:native": "sh scripts/build-bambu-native.sh"
+    "build:native": "sh scripts/build-bambu-native.sh",
+    "kb:check": "node scripts/validate-knowledge.mjs",
+    "kb:build": "node scripts/build-knowledge.mjs"
   },
   "bin": {
     "bambu-printer-mcp": "dist/index.js",
@@ -26,6 +28,7 @@
   "files": [
     "dist",
     "src",
+    "knowledge",
     "patches",
     "scripts/install-patches.mjs",
     "README.md",

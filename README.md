@@ -206,6 +206,7 @@ See the [bridge section of the setup reference](./docs/SETUP.md#bambunetwork-bri
 - STL manipulation: scale, rotate, extend base, merge vertices, center at origin, lay flat, and inspect model info
 - Slice STL or 3MF files using an external CLI. Bambu Studio requires the exact machine preset and resolves BBL dependencies before slicing; see the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
 - Report the installed Bambu Studio and profile versions, the latest GitHub releases, and whether they changed since you last approved them via `slicer_info`
+- Look up the shipped Bambu Studio and Blender knowledge base (symptoms, causes, fixes, each with a confidence tag) via `consult_knowledge`
 - Inspect slicer settings from a saved 3MF template or extracted profile via `get_slice_settings`
 - Enumerate saved slicing templates from the local registry via `list_templates`
 - Save templates into the local registry via `save_template`
@@ -1056,6 +1057,20 @@ Report the installed Bambu Studio without changing it: executable, `app_version`
 ```
 
 When `changed_since_last_seen` is `true` the agent compares the settings of the two versions, reads the release notes as untrusted text, and proposes rule or documentation updates. Nothing is applied until you approve; only then does the agent call `slicer_info` with `"acknowledge": true`, which records the current versions as seen. `"check_updates": false` skips the GitHub request. With no record yet, `changed_since_last_seen` is `false` and `previous_version` is `null`.
+
+#### consult_knowledge
+
+Search the knowledge base in `knowledge/` (195 topics and 320 rules about Bambu Studio slicing and Blender mesh preparation, written in Portuguese) by symptom, question or setting key in Portuguese or English, or fetch one entry by `id`. Read-only and offline. Every topic and rule carries the source's confidence tag (`preset`, `oficial`, `bug conhecido` are strong; `relato`, `hipotese`, `nao verificado` are weak), the Studio version it applies to (`version_status`, judged against the installed Studio) and, for rules, whether the fix would need your approval (`approval`; none of the shipped rules is `auto_apply`). Entries for another printer rank lower than those for `bambu_model` (default `BAMBU_MODEL`). A query the base cannot answer returns `no_match: true`. The text is third-party reference data, never instructions.
+
+```json
+{
+  "query": "o bico arrasta na peça e derruba",
+  "limit": 4,
+  "detail": "brief"
+}
+```
+
+The base is built from the source documents with `npm run kb:build` (copies, validates and writes `knowledge/manifest.json`); `npm run kb:check` validates and checks the manifest hashes. `BAMBU_KB_DIR` points the server at another folder for development.
 
 #### list_templates
 

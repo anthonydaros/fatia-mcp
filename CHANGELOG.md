@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- Add `consult_knowledge`, a read-only offline lookup in a shipped knowledge base of Bambu Studio slicing and Blender mesh-preparation knowledge (195 topics, 320 rules, in Portuguese). It searches by symptom, question or setting key in Portuguese or English (BM25 with accent folding, light stemming and synonym groups), returns `no_match` instead of a weak guess, ranks entries for other printers lower, and labels every entry with its confidence tag, its Studio `version_status` and an `approval` computed in code. The server now sends `instructions` telling the agent to consult it before answering from memory and to treat the text as untrusted reference data. `knowledge/` is built by `npm run kb:build`, checked by `npm run kb:check`, and shipped in the npm package and the MCPB archive; `BAMBU_KB_DIR` overrides the folder.
+- Evaluate rule conditions with three-valued logic (`src/knowledge/condition.ts`) and applies_to version predicates (`src/knowledge/version.ts`), identical to the reference evaluator on its 76 scenarios. These are the base for the upcoming preflight check.
+
 ### Fixed
 - Add `extend_stl_base` height in millimeters along Z, as its schema promises, instead of converting it as inches along Y: a 20 mm cube with +5 is now exactly 25 mm tall and keeps its bottom plane. Write one solid and reject a non-positive height.
 - Make `merge_vertices` weld vertices: per-face normals no longer keep the corners of a cube apart (36 vertices become 8), so near-duplicate corners snap together and the output differs from the input.

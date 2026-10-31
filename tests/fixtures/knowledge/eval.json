@@ -1,0 +1,3683 @@
+{
+  "questions": [
+    {
+      "q": "Posso imprimir ABS na minha A1?",
+      "expect_topics": [
+        "bambu.materials.abs-asa"
+      ],
+      "expect_rules": [
+        "bambu.material.abs-asa-on-open-a1"
+      ]
+    },
+    {
+      "q": "Qual é a velocidade máxima do bico auxiliar da X2D?",
+      "expect_topics": [
+        "bambu.x2d.dual-nozzle-two-machines"
+      ],
+      "expect_rules": [
+        "bambu.x2d.aux-nozzle-speed-over-limit"
+      ]
+    },
+    {
+      "q": "Por que a X2D também desperdiça filamento em multicor, se ela tem dois bicos?",
+      "expect_topics": [
+        "bambu.waste.consumption-anatomy",
+        "bambu.printers.a1-vs-x2d"
+      ],
+      "expect_rules": [
+        "bambu.x2d.more-than-two-colors-purge"
+      ]
+    },
+    {
+      "q": "A torre de purga é obrigatória na X2D quando uso os dois bicos?",
+      "expect_topics": [
+        "bambu.waste.consumption-anatomy"
+      ],
+      "expect_rules": [
+        "bambu.x2d.dual-nozzle-without-prime-tower"
+      ]
+    },
+    {
+      "q": "Baixei um 3MF do MakerWorld. O que eu confiro antes de imprimir?",
+      "expect_topics": [
+        "bambu.3mf.third-party-checklist"
+      ],
+      "expect_rules": [
+        "bambu.3mf.third-party-checklist",
+        "bambu.3mf.per-object-overrides-present"
+      ]
+    },
+    {
+      "q": "Meu PETG não gruda, estou usando a Cool Plate. O que está errado?",
+      "expect_topics": [
+        "bambu.bed.plate-types-and-temperatures"
+      ],
+      "expect_rules": [
+        "bambu.bed.petg-on-cool-plate"
+      ]
+    },
+    {
+      "q": "Troquei a placa na impressora e a primeira camada ficou alta demais. Por quê?",
+      "expect_topics": [
+        "bambu.bed.textured-pei-offset"
+      ],
+      "expect_rules": [
+        "bambu.bed.plate-type-vs-physical-plate"
+      ]
+    },
+    {
+      "q": "Minha peça tem 240 mm de largura. Cabe se eu imprimir com o bico auxiliar da X2D?",
+      "expect_topics": [
+        "bambu.x2d.volume-and-exclusion-zone"
+      ],
+      "expect_rules": [
+        "bambu.x2d.aux-volume-exceeded"
+      ]
+    },
+    {
+      "q": "Troquei a impressora do projeto de A1 para X2D e os parâmetros mudaram sozinhos. É normal?",
+      "expect_topics": [
+        "bambu.3mf.printer-switch-discards-params"
+      ],
+      "expect_rules": [
+        "bambu.3mf.printer-switched-params-discarded"
+      ]
+    },
+    {
+      "q": "O tempo estimado dobrou depois de sincronizar o projeto. O que faço?",
+      "expect_topics": [
+        "bambu.versions.estimates-and-cloud-sync"
+      ],
+      "expect_rules": [
+        "bambu.versions.estimate-or-speeds-changed-after-sync"
+      ]
+    },
+    {
+      "q": "O bico está raspando e derrubando meus suportes durante a impressão, o que pode ser?",
+      "expect_topics": [
+        "bambu.travel.unprotected-travel-bug",
+        "bambu.travel.reduce-infill-retraction",
+        "bambu.travel.infill-pattern-collision"
+      ],
+      "expect_rules": [
+        "bambu.travel.unprotected-travel",
+        "bambu.travel.unprotected-support-island-travel",
+        "bambu.travel.infill-retraction-skip",
+        "bambu.travel.zhop-disabled",
+        "bambu.travel.hotend-screws-scrape"
+      ]
+    },
+    {
+      "q": "O Z-hop não está funcionando, o bico não sobe quando viaja. Por quê?",
+      "expect_topics": [
+        "bambu.travel.three-mechanisms",
+        "bambu.travel.zhop-types",
+        "bambu.travel.factory-values"
+      ],
+      "expect_rules": [
+        "bambu.travel.zhop-type-filament-override",
+        "bambu.travel.zhop-disabled",
+        "bambu.travel.min-travel-fine-details"
+      ]
+    },
+    {
+      "q": "Por que o Studio previu 16 g de purga e saíram 44 g?",
+      "expect_topics": [
+        "bambu.waste.consumption-anatomy"
+      ],
+      "expect_rules": [
+        "bambu.waste.estimate-is-floor"
+      ]
+    },
+    {
+      "q": "Qual flush multiplier eu uso para ir de preto para branco sem manchar?",
+      "expect_topics": [
+        "bambu.waste.flush-multiplier-ranges"
+      ],
+      "expect_rules": [
+        "bambu.waste.flush-multiplier-too-low",
+        "bambu.waste.flush-multiplier-default-multicolor"
+      ]
+    },
+    {
+      "q": "Liguei flush into infill mas a purga não mudou nada, o que houve?",
+      "expect_topics": [
+        "bambu.waste.flush-into-and-matrix"
+      ],
+      "expect_rules": [
+        "bambu.waste.flush-without-tower",
+        "bambu.waste.flush-into-infill-color-bleed"
+      ]
+    },
+    {
+      "q": "Posso imprimir por objeto e usar timelapse Smooth ao mesmo tempo?",
+      "expect_topics": [
+        "bambu.waste.print-sequence-by-object"
+      ],
+      "expect_rules": [
+        "bambu.sequence.by-object-smooth-timelapse"
+      ]
+    },
+    {
+      "q": "A torre de purga gasta demais, dá para construir só nas camadas com troca de cor?",
+      "expect_topics": [
+        "bambu.tower.no-sparse-layers",
+        "bambu.tower.prime-tower-basics"
+      ],
+      "expect_rules": [
+        "bambu.tower.no-sparse-layers-ooze",
+        "bambu.tower.no-sparse-layers-with-smooth-timelapse"
+      ]
+    },
+    {
+      "q": "Tenho objetos com altura de camada diferente na mesma placa multicolor e a torre de purga dá erro, como resolvo?",
+      "expect_topics": [
+        "bambu.tower.prime-tower-basics"
+      ],
+      "expect_rules": [
+        "bambu.tower.layer-height-mismatch"
+      ]
+    },
+    {
+      "q": "Meu suporte de PLA a 0,20 mm soldou na peça e não sai. O que eu mudo?",
+      "expect_topics": [
+        "bambu.support.top-z-distance",
+        "bambu.support.interface-xy-parameters"
+      ],
+      "expect_rules": [
+        "bambu.support.welded-to-part",
+        "bambu.support.top-z-below-creator-range"
+      ]
+    },
+    {
+      "q": "Troquei para camada de 0,12 mm e o topo ficou fino. Quantas camadas de topo devo usar?",
+      "expect_topics": [
+        "bambu.quality.top-shell-arithmetic"
+      ],
+      "expect_rules": [
+        "bambu.quality.top-shell-thinner-after-layer-reduction"
+      ]
+    },
+    {
+      "q": "Qual estilo de suporte em árvore uso numa peça alta e estreita na A1, e qual é o estilo padrão?",
+      "expect_topics": [
+        "bambu.support.tree-style-by-goal",
+        "bambu.support.tree-styles"
+      ],
+      "expect_rules": [
+        "bambu.support.tall-part-tree-style"
+      ]
+    },
+    {
+      "q": "O texto fino da minha peça aparece no Prepare mas some no Preview. É bug?",
+      "expect_topics": [
+        "bambu.quality.vanishing-details",
+        "bambu.quality.wall-generator-min-feature"
+      ],
+      "expect_rules": [
+        "bambu.quality.feature-below-min-feature-size",
+        "bambu.quality.feature-widened-to-min-wall-width",
+        "bambu.ironing.arachne-fine-details-defaults"
+      ]
+    },
+    {
+      "q": "Posso usar interface de suporte em PETG com a peça em PLA na X2D? Quais os riscos?",
+      "expect_topics": [
+        "bambu.support.mixed-material-interface",
+        "bambu.support.mixed-material-risks",
+        "bambu.support.mixed-material-experiment"
+      ],
+      "expect_rules": [
+        "bambu.x2d.petg-interface-temp-bug",
+        "bambu.support.dedicated-interface-distances"
+      ]
+    },
+    {
+      "q": "Por que o preset Draft de 0,28 mm não imprime proporcionalmente mais rápido?",
+      "expect_topics": [
+        "bambu.quality.volumetric-flow",
+        "bambu.quality.a1-04-presets-table"
+      ],
+      "expect_rules": [
+        "bambu.quality.volumetric-flow-limit"
+      ]
+    },
+    {
+      "q": "Como deixo a parede externa do PETG brilhante e sem VFA?",
+      "expect_topics": [
+        "bambu.quality.outer-wall-speed"
+      ],
+      "expect_rules": [
+        "bambu.quality.outer-wall-gloss",
+        "bambu.quality.x2d-belt-pattern-120"
+      ]
+    },
+    {
+      "q": "Existe a opção Slow down for curled perimeters no Bambu Studio?",
+      "expect_topics": [
+        "bambu.quality.overhang-speed"
+      ],
+      "expect_rules": [
+        "bambu.quality.nonexistent-curled-perimeters"
+      ]
+    },
+    {
+      "q": "Quantas paredes e quanto infill devo usar numa peça funcional?",
+      "expect_topics": [
+        "bambu.strength.starting-points",
+        "bambu.strength.decision-order"
+      ],
+      "expect_rules": [
+        "bambu.strength.functional-starting-points"
+      ]
+    },
+    {
+      "q": "Meu gancho em L está quebrando entre as camadas, como devo orientar na mesa?",
+      "expect_topics": [
+        "bambu.strength.orientation"
+      ],
+      "expect_rules": [
+        "bambu.strength.orientation-along-fiber"
+      ]
+    },
+    {
+      "q": "Os furos estão saindo menores do que no CAD, o que eu ajusto?",
+      "expect_topics": [
+        "bambu.dimensional.xy-compensation"
+      ],
+      "expect_rules": [
+        "bambu.dimensional.hole-compensation-zero",
+        "bambu.dimensional.pins-caps-contour"
+      ]
+    },
+    {
+      "q": "Preciso mexer no Shrinkage para imprimir ABS?",
+      "expect_topics": [
+        "bambu.dimensional.shrinkage",
+        "bambu.materials.abs-asa"
+      ],
+      "expect_rules": [
+        "bambu.dimensional.shrinkage-abs-asa",
+        "bambu.dimensional.shrinkage-painted-no-effect"
+      ]
+    },
+    {
+      "q": "Dá para imprimir ABS na minha A1?",
+      "expect_topics": [
+        "bambu.materials.abs-asa"
+      ],
+      "expect_rules": [
+        "bambu.material.abs-asa-on-open-a1",
+        "bambu.materials.abs-a1-enclosure-risk"
+      ]
+    },
+    {
+      "q": "Meu PETG está fazendo grumo queimado no bico, o que mudo?",
+      "expect_topics": [
+        "bambu.materials.petg"
+      ],
+      "expect_rules": [
+        "bambu.travel.spiral-lift-petg-pins",
+        "bambu.travel.generic-filament-stickiness-none",
+        "bambu.materials.petg-generic-profile"
+      ]
+    },
+    {
+      "q": "Minha peça de 150 mm de altura balança na A1, o que posso fazer?",
+      "expect_topics": [
+        "bambu.a1.tall-narrow-parts"
+      ],
+      "expect_rules": [
+        "bambu.a1.tall-narrow-part"
+      ]
+    },
+    {
+      "q": "Minha primeira camada não gruda na A1, o que eu verifico primeiro?",
+      "expect_topics": [
+        "bambu.a1.first-layer-plate"
+      ],
+      "expect_rules": [
+        "bambu.a1.first-layer-adhesion-checklist",
+        "bambu.a1.first-layer-g29-offset"
+      ]
+    },
+    {
+      "q": "Qual a velocidade máxima do bico auxiliar da X2D?",
+      "expect_topics": [
+        "bambu.x2d.dual-nozzle-two-machines"
+      ],
+      "expect_rules": [
+        "bambu.x2d.aux-nozzle-speed-over-limit"
+      ]
+    },
+    {
+      "q": "Minha peça tem 245 mm e a X2D diz que não cabe, mas só uso um bico. O que faço?",
+      "expect_topics": [
+        "bambu.x2d.volume-and-exclusion-zone"
+      ],
+      "expect_rules": [
+        "bambu.x2d.arrange-reserves-aux-strip"
+      ]
+    },
+    {
+      "q": "Qual modo de agrupamento devo usar na X2D, Filament-Saving ou Convenience?",
+      "expect_topics": [
+        "bambu.x2d.grouping-modes"
+      ],
+      "expect_rules": [
+        "bambu.x2d.verify-grouping-after-slice"
+      ]
+    },
+    {
+      "q": "Meu G-code está com Fnan e a impressora parou na torre. O que é isso?",
+      "expect_topics": [
+        "bambu.x2d.open-bugs-2-8-x"
+      ],
+      "expect_rules": [
+        "bambu.x2d.fnan-flow-bug"
+      ]
+    },
+    {
+      "q": "Camada de 0,08 mm ou infill alto estragam a impressora?",
+      "expect_topics": [
+        "bambu.safety.machine-damage-real-vs-myth"
+      ],
+      "expect_rules": []
+    },
+    {
+      "q": "Meu filamento personalizado aparece como Unsupported no Bambu Studio. Como resolvo?",
+      "expect_topics": [
+        "bambu.studio.custom-filament-unsupported-ams"
+      ],
+      "expect_rules": [
+        "bambu.studio.custom-filament-unsupported"
+      ]
+    },
+    {
+      "q": "Tem vãos entre o preenchimento e as paredes na minha X2D. Tem solução?",
+      "expect_topics": [
+        "bambu.studio.infill-wall-gaps"
+      ],
+      "expect_rules": [
+        "bambu.studio.infill-wall-gaps"
+      ]
+    },
+    {
+      "q": "O que eu preciso guardar para reportar um bug do Studio?",
+      "expect_topics": [
+        "bambu.studio.minimal-bug-report"
+      ],
+      "expect_rules": []
+    },
+    {
+      "q": "Meu chaveiro com letras em relevo ficou com a base riscada depois do ironing, por quê?",
+      "expect_topics": [
+        "bambu.ironing.what-it-does-and-fails"
+      ],
+      "expect_rules": [
+        "bambu.ironing.topmost-leaves-base-scratched"
+      ]
+    },
+    {
+      "q": "Quais valores de ironing devo usar para chaveiro e placa PIX em PLA, e como acho o fluxo certo para o meu filamento?",
+      "expect_topics": [
+        "bambu.ironing.parameters",
+        "bambu.ironing.top-surface-and-wall-settings",
+        "bambu.ironing.flow-calibration-test"
+      ],
+      "expect_rules": [
+        "bambu.ironing.default-flow-heat-creep",
+        "bambu.ironing.low-speed-yellows-pla"
+      ]
+    },
+    {
+      "q": "Como imprimir 30 chaveiros com letras de outra cor trocando de filamento uma única vez?",
+      "expect_topics": [
+        "bambu.ironing.high-relief-procedure"
+      ],
+      "expect_rules": [
+        "bambu.ironing.color-change-layer",
+        "bambu.ironing.painted-keychain-many-changes"
+      ]
+    },
+    {
+      "q": "Quero uma placa lisa com texto embutido na face que fica na mesa, no AMS. Em que ordem imprimo as cores e que ajustes faço na primeira camada?",
+      "expect_topics": [
+        "bambu.multicolor.face-down-method"
+      ],
+      "expect_rules": [
+        "bambu.facedown.first-layer-sequence",
+        "bambu.facedown.engrave-depth",
+        "bambu.facedown.needs-ams"
+      ]
+    },
+    {
+      "q": "O pino do Cut trava no meio do caminho. Qual tolerância devo usar?",
+      "expect_topics": [
+        "bambu.cut.connector-tolerances"
+      ],
+      "expect_rules": [
+        "bambu.cut.zero-tolerance"
+      ]
+    },
+    {
+      "q": "Que cola devo usar para unir as metades de uma peça cortada em PETG?",
+      "expect_topics": [
+        "bambu.cut.assembly-gluing"
+      ],
+      "expect_rules": [
+        "bambu.cut.assembly-dry-fit-and-glue"
+      ]
+    },
+    {
+      "q": "Posso inverter as cores do QR Code PIX ou usar PLA Silk, e que tamanho ele deve ter?",
+      "expect_topics": [
+        "bambu.ironing.qr-code-pix"
+      ],
+      "expect_rules": [
+        "bambu.ironing.qr-inverted-or-silk",
+        "bambu.ironing.qr-size-and-validation"
+      ]
+    },
+    {
+      "q": "Minha estátua não cabe na mesa. Como corto no Bambu Studio sem precisar de suporte e escondendo a emenda?",
+      "expect_topics": [
+        "bambu.cut.planning",
+        "bambu.cut.planar-dowel-procedure"
+      ],
+      "expect_rules": [
+        "bambu.cut.exceeds-build-volume",
+        "bambu.cut.seam-on-flat-surface",
+        "bambu.cut.supports-eliminated-by-cut"
+      ]
+    },
+    {
+      "q": "O bico está raspando na peça quando se desloca, o que eu verifico primeiro?",
+      "expect_topics": [
+        "bambu.symptom.travel-scrape",
+        "bambu.preflight.travel-config"
+      ],
+      "expect_rules": [
+        "bambu.travel.unprotected-travel",
+        "bambu.travel.infill-retraction-reduced"
+      ]
+    },
+    {
+      "q": "Meu topo ficou com furinhos mesmo com 5 camadas de topo, por quê?",
+      "expect_topics": [
+        "bambu.symptom.top-gaps"
+      ],
+      "expect_rules": [
+        "bambu.quality.top-shell-thinner-after-layer-reduction",
+        "bambu.top.top-layers-in-gcode"
+      ]
+    },
+    {
+      "q": "A primeira camada não gruda na placa, o que eu confiro antes de mexer no perfil?",
+      "expect_topics": [
+        "bambu.symptom.weak-first-layer",
+        "bambu.preflight.bed-material"
+      ],
+      "expect_rules": [
+        "bambu.bed.plate-unsupported-for-filament",
+        "bambu.first-layer.weak-adhesion-params",
+        "bambu.hardware.loose-screws-bed-cable"
+      ]
+    },
+    {
+      "q": "A torre de purga da X2D ficou enorme e caiu, o que eu olho?",
+      "expect_topics": [
+        "bambu.symptom.x2d-tower"
+      ],
+      "expect_rules": [
+        "bambu.tower.tower-vs-part-weight",
+        "bambu.waste.high-waste-ratio"
+      ]
+    },
+    {
+      "q": "O bico auxiliar da X2D falha depois da troca de ferramenta, o que conferir?",
+      "expect_topics": [
+        "bambu.symptom.x2d-aux-fails"
+      ],
+      "expect_rules": [
+        "bambu.x2d.aux-profile-review",
+        "bambu.x2d.petg-interface-temp-bug",
+        "bambu.x2d.aux-nozzle-speed-over-limit"
+      ]
+    },
+    {
+      "q": "Como comparo dois presets e descubro qual parâmetro melhorou a peça?",
+      "expect_topics": [
+        "bambu.protocol.compact-sample",
+        "bambu.protocol.defect-flow",
+        "bambu.protocol.test-log"
+      ],
+      "expect_rules": []
+    },
+    {
+      "q": "O que o fatiador não consegue me avisar antes de imprimir?",
+      "expect_topics": [
+        "bambu.preflight.not-detectable",
+        "bambu.preflight.overview"
+      ],
+      "expect_rules": [
+        "bambu.a1.ams-lite-maintenance",
+        "bambu.hardware.loose-screws-bed-cable"
+      ]
+    },
+    {
+      "q": "Posso confiar na estimativa de tempo e filamento do Studio?",
+      "expect_topics": [
+        "bambu.preflight.overview",
+        "bambu.evidence.limits"
+      ],
+      "expect_rules": [
+        "bambu.estimate.prediction-vs-m73",
+        "bambu.waste.high-waste-ratio"
+      ]
+    },
+    {
+      "q": "Que folga eu devo deixar entre o pino e o furo quando corto o modelo no Blender?",
+      "expect_topics": [
+        "blender.keys.clearance-table"
+      ],
+      "expect_rules": [
+        "blender.keys.clearance-too-small"
+      ]
+    },
+    {
+      "q": "Meu STL exportado do Blender chega com o tamanho errado no fatiador, como acerto a escala para milímetros?",
+      "expect_topics": [
+        "blender.fdm.units-bevel-solidify"
+      ],
+      "expect_rules": [
+        "blender.setup.units-not-mm"
+      ]
+    },
+    {
+      "q": "Depois de cortar com Boolean como separo as partes e exporto um STL para cada uma?",
+      "expect_topics": [
+        "blender.cut.boolean-solver",
+        "blender.cut.planar-boolean"
+      ],
+      "expect_rules": [
+        "blender.cut.loose-parts-not-separated"
+      ]
+    },
+    {
+      "q": "Como esvazio uma miniatura maciça para economizar resina e o que preciso fazer depois de esvaziar?",
+      "expect_topics": [
+        "blender.hollow.procedure"
+      ],
+      "expect_rules": [
+        "blender.hollow.no-drain-hole",
+        "blender.hollow.inner-wall-self-intersection"
+      ]
+    },
+    {
+      "q": "Não tenho AMS e quero imprimir um boneco em várias cores sem desperdício de purga, como divido o modelo?",
+      "expect_topics": [
+        "blender.multipart.no-ams-overview"
+      ],
+      "expect_rules": [
+        "blender.multipart.suggest-split-for-colours"
+      ]
+    },
+    {
+      "q": "Quero aplicar uma textura em relevo num STL, qual o caminho mais rápido e qual o caminho pelo Blender?",
+      "expect_topics": [
+        "blender.texture.displace-workflow",
+        "blender.texture.meshtexture-web-tool"
+      ],
+      "expect_rules": [
+        "blender.texture.displace-too-few-vertices",
+        "blender.texture.mechanical-part-quick-meshtexture"
+      ]
+    },
+    {
+      "q": "O modelo que gerei por IA veio pesado e com caroços, como limpo antes de imprimir?",
+      "expect_topics": [
+        "blender.cleanup.mesh-sources-overview"
+      ],
+      "expect_rules": [
+        "blender.ai.mesh-too-heavy",
+        "blender.ai.grainy-surface"
+      ]
+    },
+    {
+      "q": "No Boolean do Blender, qual solver eu uso, Exact ou Fast/Manifold? O corte saiu com falhas.",
+      "expect_topics": [
+        "blender.cut.boolean-solver"
+      ],
+      "expect_rules": [
+        "blender.cut.boolean-solver-try-alternate"
+      ]
+    },
+    {
+      "q": "Exportei um STL do Blender e ele chegou minúsculo no Bambu Studio. O que eu ajusto?",
+      "expect_topics": [
+        "blender.setup.mm-units"
+      ],
+      "expect_rules": [
+        "blender.setup.units-not-mm",
+        "blender.setup.stl-size-wrong-in-slicer"
+      ]
+    },
+    {
+      "q": "Como eu sei se a minha malha é manifold antes de mandar para o fatiador?",
+      "expect_topics": [
+        "blender.setup.3d-print-toolbox",
+        "blender.repair.non-manifold-check"
+      ],
+      "expect_rules": [
+        "blender.repair.non-manifold-edges"
+      ]
+    },
+    {
+      "q": "No Face Orientation tem partes vermelhas na minha peça. O que eu faço?",
+      "expect_topics": [
+        "blender.repair.normals-face-orientation"
+      ],
+      "expect_rules": [
+        "blender.repair.flipped-normals"
+      ]
+    },
+    {
+      "q": "Baixei um modelo do Meshy com cascas internas e milhões de triângulos. Como limpo para imprimir?",
+      "expect_topics": [
+        "blender.ai-cleanup.voxel-remesh",
+        "blender.ai-cleanup.decimate-collapse",
+        "blender.cleanup.mesh-sources-overview"
+      ],
+      "expect_rules": [
+        "blender.ai.internal-shells-or-bubbles",
+        "blender.ai.mesh-too-heavy",
+        "blender.repair.downloaded-or-ai-mesh-unchecked"
+      ]
+    },
+    {
+      "q": "Como converto os triângulos de um STL mecânico em quads para fazer chanfro?",
+      "expect_topics": [
+        "blender.quads.tris-to-quads-hard-surface"
+      ],
+      "expect_rules": [
+        "blender.quads.hard-surface-tris-to-quads"
+      ]
+    },
+    {
+      "q": "Posso fazer um corte booleano direto num STL que baixei da internet?",
+      "expect_topics": [
+        "blender.cleanup.mesh-sources-overview",
+        "blender.repair.stl-checkup-flow"
+      ],
+      "expect_rules": [
+        "blender.repair.boolean-before-cleanup",
+        "blender.repair.downloaded-or-ai-mesh-unchecked"
+      ]
+    },
+    {
+      "q": "Quais add-ons eu preciso ativar no Blender 4.2 para trabalhar com impressão 3D?",
+      "expect_topics": [
+        "blender.setup.addons-required"
+      ],
+      "expect_rules": [
+        "blender.setup.addon-3d-print-toolbox-missing",
+        "blender.setup.addon-bool-tool-missing",
+        "blender.setup.addon-looptools-missing"
+      ]
+    },
+    {
+      "q": "Que distância uso no Merge by Distance, e preciso aplicar a escala antes de modificar a peça?",
+      "expect_topics": [
+        "blender.repair.merge-by-distance",
+        "blender.repair.apply-scale-rotation"
+      ],
+      "expect_rules": [
+        "blender.repair.duplicate-vertices",
+        "blender.repair.unapplied-scale-rotation"
+      ]
+    },
+    {
+      "q": "Minha peça é maior que a mesa da A1, como corto no Blender sem estragar as faces do corte?",
+      "expect_topics": [
+        "blender.cut.planar-boolean"
+      ],
+      "expect_rules": [
+        "blender.cut.part-exceeds-bed"
+      ]
+    },
+    {
+      "q": "O Boolean Difference fez minha peça sumir e no Blender 4.2 não vejo o solver Manifold, o que eu mudo?",
+      "expect_topics": [
+        "blender.cut.boolean-solver"
+      ],
+      "expect_rules": [
+        "blender.cut.part-vanishes-after-boolean"
+      ]
+    },
+    {
+      "q": "Qual folga devo deixar entre o pino e o furo em FDM para encaixar com cola, e para um pino fino de 4 mm?",
+      "expect_topics": [
+        "blender.keys.clearance-table"
+      ],
+      "expect_rules": [
+        "blender.keys.small-pin-clearance"
+      ]
+    },
+    {
+      "q": "Como escondo a emenda do corte no braço de um boneco para não precisar de massa e pintura?",
+      "expect_topics": [
+        "blender.cut.organic-seam"
+      ],
+      "expect_rules": [
+        "blender.cut.straight-plane-on-figure"
+      ]
+    },
+    {
+      "q": "Meu pino é redondo e a peça fica girando, qual formato uso para travar?",
+      "expect_topics": [
+        "blender.keys.shape"
+      ],
+      "expect_rules": [
+        "blender.keys.round-pin-spins"
+      ]
+    },
+    {
+      "q": "Como deixo a peça oca no Blender com parede de 2.5 mm e o que faço com o furo de drenagem?",
+      "expect_topics": [
+        "blender.hollow.procedure",
+        "blender.hollow.drain-hole"
+      ],
+      "expect_rules": [
+        "blender.hollow.no-drain-hole"
+      ]
+    },
+    {
+      "q": "Quero imprimir o boneco colorido sem AMS, como separo os olhos e os sapatos para colar depois?",
+      "expect_topics": [
+        "blender.multipart.no-ams-overview",
+        "blender.multipart.existing-submeshes",
+        "blender.multipart.single-mesh"
+      ],
+      "expect_rules": [
+        "blender.multipart.suggest-split-for-colours",
+        "blender.multipart.separated-part-open-back"
+      ]
+    },
+    {
+      "q": "Como crio a folga do furo fêmea sem escalar o pino com S?",
+      "expect_topics": [
+        "blender.modeling.displace-offset",
+        "blender.keys.pin-and-socket-procedure"
+      ],
+      "expect_rules": [
+        "blender.keys.socket-made-by-scaling"
+      ]
+    },
+    {
+      "q": "Como coloco textura de couro numa tampa sem abrir UV no Blender?",
+      "expect_topics": [
+        "blender.texture.meshtexture-select-area",
+        "blender.texture.meshtexture-texture-choice",
+        "blender.texture.choose-method"
+      ],
+      "expect_rules": [
+        "blender.texture.mechanical-part-quick-meshtexture"
+      ]
+    },
+    {
+      "q": "Que amplitude devo usar no MeshTexture e para que serve o Refine Selection?",
+      "expect_topics": [
+        "blender.texture.meshtexture-parameters"
+      ],
+      "expect_rules": [
+        "blender.texture.meshtexture-amplitude-range",
+        "blender.texture.meshtexture-refine-selection"
+      ]
+    },
+    {
+      "q": "A textura está distorcendo nos polos da minha esfera, o que faço?",
+      "expect_topics": [
+        "blender.texture.meshtexture-spherical-pole-smooth"
+      ],
+      "expect_rules": [
+        "blender.texture.meshtexture-curved-surface-spherical-mode"
+      ]
+    },
+    {
+      "q": "Quero texturizar só uma parte da peça e deixar o encaixe liso no Blender, como faço?",
+      "expect_topics": [
+        "blender.texture.displace-vertex-group-and-uv",
+        "blender.texture.displace-modifier-settings"
+      ],
+      "expect_rules": [
+        "blender.texture.displace-no-vertex-group",
+        "blender.texture.displace-empty-vertex-group",
+        "blender.texture.displace-missing-uv",
+        "blender.texture.displace-height-map-grayscale"
+      ]
+    },
+    {
+      "q": "As bordas deformaram quando subdividi para usar o Displace, e quantos níveis preciso?",
+      "expect_topics": [
+        "blender.texture.displace-simple-subdivision"
+      ],
+      "expect_rules": [
+        "blender.texture.displace-subsurf-catmull-clark",
+        "blender.texture.displace-too-few-vertices"
+      ]
+    },
+    {
+      "q": "Como faço um boneco com aparência de crochê no Blender a partir de uma malha base, e o Tissue não aparece no meu Blender 4.2?",
+      "expect_topics": [
+        "blender.knit.crochet-tissue-tessellate",
+        "blender.texture.choose-method"
+      ],
+      "expect_rules": [
+        "blender.knit.tessellate-base-not-quads",
+        "blender.knit.stitch-link-still-curve",
+        "blender.knit.tissue-addon-not-enabled"
+      ]
+    },
+    {
+      "q": "Minha malha de crochê não fatia direito, como deixar imprimível e quais valores de Voxel Size e Decimate?",
+      "expect_topics": [
+        "blender.knit.crochet-printable-mesh",
+        "blender.texture.values-cheatsheet"
+      ],
+      "expect_rules": [
+        "blender.knit.interlaced-curves-internal-intersections",
+        "blender.knit.remesh-voxel-missing",
+        "blender.knit.decimate-missing-heavy-mesh"
+      ]
+    },
+    {
+      "q": "Como escondo as linhas de camada sem usar Fuzzy Skin?",
+      "expect_topics": [
+        "both.texture.physical-vs-fuzzy-skin",
+        "blender.texture.choose-method"
+      ],
+      "expect_rules": [
+        "blender.texture.hide-layer-lines-use-physical-texture"
+      ]
+    },
+    {
+      "q": "Qual espessura devo usar na base e nas paredes da caixa que imprimo para despejar silicone?",
+      "expect_topics": [
+        "blender.molds.flow-a-silicone-box",
+        "blender.molds.dimension-cheatsheet"
+      ],
+      "expect_rules": [
+        "blender.moldbox.base-thickness-out-of-range",
+        "blender.moldbox.wall-thickness-out-of-range"
+      ]
+    },
+    {
+      "q": "Vou despejar gesso direto num molde impresso em PLA. Posso ter undercut na peça e quantos graus de saída preciso?",
+      "expect_topics": [
+        "blender.molds.golden-rules-draft-undercuts"
+      ],
+      "expect_rules": [
+        "blender.moldrules.rigid-mold-undercuts",
+        "blender.moldrules.rigid-mold-draft-angle"
+      ]
+    },
+    {
+      "q": "Qual o diâmetro do canal do pavio no molde de vela e onde coloco o funil de vazamento?",
+      "expect_topics": [
+        "blender.molds.flow-b-spout-wick-cavity"
+      ],
+      "expect_rules": [
+        "blender.moldsplit.wick-channel-diameter-out-of-range",
+        "blender.moldsplit.pour-spout-missing"
+      ]
+    },
+    {
+      "q": "Como faço as chaves de registro do molde bipartido e que folga eu dou?",
+      "expect_topics": [
+        "blender.molds.flow-b-parting-keys"
+      ],
+      "expect_rules": [
+        "blender.moldsplit.registration-keys-missing",
+        "blender.moldsplit.key-clearance-missing"
+      ]
+    },
+    {
+      "q": "Por que tenho que afundar a peça 0.2 mm na base da caixa de silicone?",
+      "expect_topics": [
+        "blender.molds.flow-a-silicone-box"
+      ],
+      "expect_rules": [
+        "blender.moldbox.part-not-sunk-into-base"
+      ]
+    },
+    {
+      "q": "Quando vale a pena fazer um matrix mold em vez de um bloco maciço de silicone?",
+      "expect_topics": [
+        "blender.molds.flow-c-matrix-offsets",
+        "blender.molds.choosing-flow"
+      ],
+      "expect_rules": [
+        "blender.moldmatrix.large-part-solid-silicone-waste"
+      ]
+    },
+    {
+      "q": "Qual furo de parafuso e que espessura nas flanges do matrix mold?",
+      "expect_topics": [
+        "blender.molds.flow-c-matrix-flanges-assembly"
+      ],
+      "expect_rules": [
+        "blender.moldmatrix.screw-hole-diameter-out-of-range",
+        "blender.moldmatrix.flange-too-thin"
+      ]
+    },
+    {
+      "q": "Qual o tamanho do funil de vazamento e quantos parafusos uso nas flanges do matrix mold?",
+      "expect_topics": [
+        "blender.molds.source-gaps"
+      ],
+      "expect_rules": []
+    },
+    {
+      "q": "Antes de exportar o STL do Blender para o Bambu Studio, o que eu preciso conferir?",
+      "expect_topics": [
+        "blender.export.pre-slicer-checklist"
+      ],
+      "expect_rules": [
+        "blender.export.selection-only-hidden-cutters",
+        "blender.export.scale-not-1-with-mm-unit-scale",
+        "blender.export.scale-1000-for-meter-models",
+        "blender.export.apply-modifiers-unchecked",
+        "blender.export.subdivision-viewport-level-mismatch",
+        "blender.export.non-manifold-after-booleans"
+      ]
+    },
+    {
+      "q": "Meu STL saiu com os cubos que usei para cortar junto com a peça. O que eu fiz errado?",
+      "expect_topics": [
+        "blender.export.selection-only-hidden-cutters"
+      ],
+      "expect_rules": [
+        "blender.export.selection-only-hidden-cutters"
+      ]
+    },
+    {
+      "q": "Exportei do Blender com Unit Scale 0.001 e a peça veio 1000 vezes menor no Bambu Studio. Qual Scale eu uso na exportação?",
+      "expect_topics": [
+        "blender.export.scale-and-unit-scale"
+      ],
+      "expect_rules": [
+        "blender.export.scale-not-1-with-mm-unit-scale",
+        "blender.export.scale-1000-for-meter-models"
+      ]
+    },
+    {
+      "q": "Preciso aplicar os modificadores antes de exportar? E o nível de subdivisão?",
+      "expect_topics": [
+        "blender.export.apply-modifiers-subdivision-level"
+      ],
+      "expect_rules": [
+        "blender.export.apply-modifiers-unchecked",
+        "blender.export.subdivision-viewport-level-mismatch"
+      ]
+    },
+    {
+      "q": "Depois de aplicar o Boolean eu devo rodar o Check All de novo?",
+      "expect_topics": [
+        "blender.export.zero-non-manifold-gate"
+      ],
+      "expect_rules": [
+        "blender.export.non-manifold-after-booleans"
+      ]
+    },
+    {
+      "q": "A peça cortada ficou com uma borda saliente na emenda, como evito esse pé de elefante?",
+      "expect_topics": [
+        "both.elephant-foot.cut-faces-and-pins"
+      ],
+      "expect_rules": [
+        "blender.cut.bevel-cut-edge-and-pin-base",
+        "bambu.cut.elephant-foot-seam-step"
+      ]
+    },
+    {
+      "q": "Qual ordem das paredes devo usar para pinos e furos de encaixe ficarem precisos?",
+      "expect_topics": [
+        "bambu.quality.wall-order"
+      ],
+      "expect_rules": [
+        "bambu.walls.order-for-fit-parts"
+      ]
+    },
+    {
+      "q": "Quantas paredes e camadas de topo e base para um molde de silicone não vazar?",
+      "expect_topics": [
+        "bambu.molds.slicer-settings-leakproof"
+      ],
+      "expect_rules": [
+        "bambu.mold.wall-loops-minimum",
+        "bambu.mold.shell-layers-minimum"
+      ]
+    },
+    {
+      "q": "Como deixo a superfície de cima do molde bem lisa sem precisar lixar depois?",
+      "expect_topics": [
+        "bambu.molds.ironing-top-surfaces"
+      ],
+      "expect_rules": [
+        "bambu.mold.ironing-top-surfaces"
+      ]
+    },
+    {
+      "q": "O Celtic Links não aparece no meu Blender, preciso ativar algum add-on?",
+      "expect_topics": [
+        "blender.texture.knit-woven-geometry"
+      ],
+      "expect_rules": [
+        "blender.knit.extra-curve-objects-not-enabled"
+      ]
+    },
+    {
+      "q": "Onde eu coloco o pino de encaixe em relação ao corte entre as duas metades?",
+      "expect_topics": [
+        "blender.keys.pin-and-socket-procedure",
+        "blender.keys.shape"
+      ],
+      "expect_rules": [
+        "blender.keys.pin-not-crossing-cut-plane"
+      ]
+    },
+    {
+      "q": "Configurei Z-hop de 0,4 mm mas zerei a retração. O bico vai levantar nas viagens?",
+      "expect_topics": [
+        "bambu.travel.three-mechanisms"
+      ],
+      "expect_rules": [
+        "bambu.travel.zhop-without-retraction"
+      ]
+    },
+    {
+      "q": "O Normal Lift deixa uma espinha na minha peça de PLA, o que eu testo?",
+      "expect_topics": [
+        "bambu.travel.zhop-types"
+      ],
+      "expect_rules": [
+        "bambu.travel.normal-lift-nub"
+      ]
+    },
+    {
+      "q": "Reduzi a purga e o preto ainda aparece no branco. Aumento o multiplicador de flush?",
+      "expect_topics": [
+        "bambu.waste.flush-multiplier-ranges"
+      ],
+      "expect_rules": [
+        "bambu.waste.dark-color-bleed-diagnosis"
+      ]
+    },
+    {
+      "q": "A matriz automática de flush entre PLA e PETG mudou na versão 2.8 do Studio?",
+      "expect_topics": [
+        "bambu.waste.flush-into-and-matrix"
+      ],
+      "expect_rules": [
+        "bambu.waste.flush-matrix-pla-petg-before-2-8-0"
+      ]
+    },
+    {
+      "q": "Qual modo de agrupamento da X2D economiza mais filamento e o que eu perco?",
+      "expect_topics": [
+        "bambu.x2d.grouping-modes"
+      ],
+      "expect_rules": [
+        "bambu.x2d.grouping-mode-filament-saving",
+        "bambu.x2d.verify-grouping-after-slice"
+      ]
+    },
+    {
+      "q": "Vou usar o agrupamento Custom na X2D. O que eu preciso validar?",
+      "expect_topics": [
+        "bambu.x2d.grouping-modes"
+      ],
+      "expect_rules": [
+        "bambu.x2d.grouping-mode-custom"
+      ]
+    },
+    {
+      "q": "Posso usar PLA no bico principal e interface de PETG no auxiliar da X2D?",
+      "expect_topics": [
+        "bambu.support.mixed-material-risks"
+      ],
+      "expect_rules": [
+        "bambu.support.x2d-pla-main-petg-aux-interface"
+      ]
+    },
+    {
+      "q": "Como corto uma viseira fina com rabo de andorinha e que ângulo uso?",
+      "expect_topics": [
+        "bambu.cut.dovetail"
+      ],
+      "expect_rules": [
+        "bambu.cut.thin-part-needs-dovetail"
+      ]
+    },
+    {
+      "q": "O timelapse Smooth precisa de torre e deixa fios na parede?",
+      "expect_topics": [
+        "bambu.a1.timelapse"
+      ],
+      "expect_rules": [
+        "bambu.a1.timelapse-smooth-tower",
+        "bambu.a1.timelapse-surface"
+      ]
+    },
+    {
+      "q": "Minha X2D levanta o canto esquerdo de caixas grandes em PLA. É a ventoinha auxiliar?",
+      "expect_topics": [
+        "bambu.materials.pla"
+      ],
+      "expect_rules": [
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ]
+    },
+    {
+      "q": "PLA Silk estala e entope. Que vazão máxima eu uso?",
+      "expect_topics": [
+        "bambu.materials.pla-silk"
+      ],
+      "expect_rules": [
+        "bambu.materials.pla-silk-volumetric-limit"
+      ]
+    },
+    {
+      "q": "O AMS Lite falha na troca de cor e o hub entope. O que eu verifico?",
+      "expect_topics": [
+        "bambu.a1.ams-lite"
+      ],
+      "expect_rules": [
+        "bambu.a1.ams-lite-maintenance"
+      ]
+    },
+    {
+      "q": "A estimativa de tempo da X2D bate com o tempo real?",
+      "expect_topics": [
+        "bambu.x2d.time-estimates"
+      ],
+      "expect_rules": [
+        "bambu.x2d.estimate-misses-nozzle-change-time"
+      ]
+    },
+    {
+      "q": "Posso usar um bico de 0,2 e outro de 0,6 na X2D?",
+      "expect_topics": [
+        "bambu.x2d.mixed-nozzle-diameters"
+      ],
+      "expect_rules": [
+        "bambu.x2d.mixed-nozzle-diameters"
+      ]
+    },
+    {
+      "q": "Para que serve Alternate extra wall e posso usar com spiral vase?",
+      "expect_topics": [
+        "bambu.strength.alternate-extra-wall"
+      ],
+      "expect_rules": [
+        "bambu.strength.alternate-extra-wall-check",
+        "bambu.strength.alternate-extra-wall-with-spiral-vase"
+      ]
+    },
+    {
+      "q": "Que compensação de pé de elefante eu uso?",
+      "expect_topics": [
+        "bambu.dimensional.elephant-foot"
+      ],
+      "expect_rules": [
+        "bambu.dimensional.elephant-foot-off-preset"
+      ]
+    },
+    {
+      "q": "Vale usar camada de 0,08 mm em tudo, inclusive em peça multicor?",
+      "expect_topics": [
+        "bambu.quality.fine-layers-cost"
+      ],
+      "expect_rules": [
+        "bambu.quality.fine-layer-multicolor"
+      ]
+    },
+    {
+      "q": "Quero um acabamento industrial fino com Fuzzy skin. Quais valores?",
+      "expect_topics": [
+        "bambu.texture.fuzzy-skin"
+      ],
+      "expect_rules": [
+        "bambu.tools.fuzzy-skin-fine-finish"
+      ]
+    },
+    {
+      "q": "A pré-visualização do Studio está lenta ou travando. Tem contorno?",
+      "expect_topics": [
+        "bambu.studio.preview-performance"
+      ],
+      "expect_rules": [
+        "bambu.studio.preview-slow-or-frozen"
+      ]
+    },
+    {
+      "q": "Qual espessura de base e altura de relevo uso num chaveiro com letras?",
+      "expect_topics": [
+        "bambu.ironing.keychain-pix-geometry"
+      ],
+      "expect_rules": [
+        "bambu.ironing.relief-base-too-thin",
+        "bambu.ironing.relief-height-out-of-range"
+      ]
+    },
+    {
+      "q": "Como fatio os pinos Dowel depois do Cut e como reforço as partes cortadas?",
+      "expect_topics": [
+        "bambu.cut.slicing-cut-parts"
+      ],
+      "expect_rules": [
+        "bambu.cut.dowel-pins-upright",
+        "bambu.cut.reinforce-cut-parts"
+      ]
+    },
+    {
+      "q": "O suporte em árvore ficou fraco ou sem interface depois de atualizar o Studio. É bug?",
+      "expect_topics": [
+        "bambu.support.series-2x-regression"
+      ],
+      "expect_rules": [
+        "bambu.support.missing-interface-in-gcode",
+        "bambu.support.studio-before-2-8-2"
+      ]
+    },
+    {
+      "q": "Como escondo a costura na frente da peça?",
+      "expect_topics": [
+        "bambu.quality.seam-position",
+        "bambu.tools.seam-and-support-painting"
+      ],
+      "expect_rules": [
+        "bambu.tools.seam-painting-hide-seam"
+      ]
+    },
+    {
+      "q": "Os furos de encaixe saíram menores que no CAD. O que eu ajusto?",
+      "expect_topics": [
+        "bambu.symptom.hole-pin-size",
+        "bambu.dimensional.xy-compensation"
+      ],
+      "expect_rules": [
+        "bambu.dimensional.hole-compensation-zero"
+      ]
+    },
+    {
+      "q": "Letras pequenas descolam na X2D com bico de 0,2 mm e camada de 0,08. O que faço?",
+      "expect_topics": [
+        "bambu.x2d.first-layer-and-small-text"
+      ],
+      "expect_rules": [
+        "bambu.x2d.small-letters-02-nozzle"
+      ]
+    },
+    {
+      "q": "Uma peça de 0,5 g virou 5 g com suporte só no bico auxiliar e torre de purga. Como reduzo?",
+      "expect_topics": [
+        "bambu.x2d.prime-tower-and-support-cost"
+      ],
+      "expect_rules": [
+        "bambu.x2d.support-only-aux-tower-waste"
+      ]
+    },
+    {
+      "q": "Devo ligar o Avoid crossing wall em impressora de dois bicos?",
+      "expect_topics": [
+        "bambu.travel.avoid-crossing-wall"
+      ],
+      "expect_rules": [
+        "bambu.travel.avoid-crossing-wall-dual-nozzle",
+        "bambu.travel.avoid-crossing-wall-suggestion"
+      ]
+    },
+    {
+      "q": "Qual a maneira mais eficaz de reduzir trocas de cor e purga num projeto multicor?",
+      "expect_topics": [
+        "bambu.waste.reduce-tool-changes"
+      ],
+      "expect_rules": [
+        "bambu.waste.multicolor-levers"
+      ]
+    },
+    {
+      "q": "A purga e a torre pesam muito mais que a peça. É normal?",
+      "expect_topics": [
+        "bambu.waste.waste-magnitudes"
+      ],
+      "expect_rules": [
+        "bambu.waste.high-waste-ratio"
+      ]
+    },
+    {
+      "q": "A A1 com AMS Lite purga no início de toda impressão, mesmo com o mesmo filamento. Dá para evitar?",
+      "expect_topics": [
+        "bambu.a1.amslite-purge-every-start"
+      ],
+      "expect_rules": [
+        "bambu.a1.amslite-purge-at-start"
+      ]
+    },
+    {
+      "q": "De onde vem o filamento do segundo bico da X2D Combo?",
+      "expect_topics": [
+        "bambu.x2d.ams2pro-single-output"
+      ],
+      "expect_rules": [
+        "bambu.x2d.second-nozzle-feed-source"
+      ]
+    },
+    {
+      "q": "Abri um 3MF da X2D e o Studio é antigo. Funciona?",
+      "expect_topics": [
+        "bambu.versions.x2d-minimum-studio"
+      ],
+      "expect_rules": [
+        "bambu.versions.x2d-studio-too-old"
+      ]
+    },
+    {
+      "q": "O valor da retração no painel da impressora não é o que sai no G-code. Por quê?",
+      "expect_topics": [
+        "bambu.settings.inheritance-chain"
+      ],
+      "expect_rules": [
+        "bambu.settings.filament-overrides-active"
+      ]
+    },
+    {
+      "q": "Imprimi TPU 90A pelo AMS Lite da A1 e o filamento travou. O que eu faço?",
+      "expect_topics": [
+        "bambu.materials.tpu-moisture"
+      ],
+      "expect_rules": [
+        "bambu.materials.tpu-ams-lite"
+      ]
+    },
+    {
+      "q": "Posso imprimir PLA na Engineering Plate da A1?",
+      "expect_topics": [
+        "bambu.bed.plate-types-and-temperatures"
+      ],
+      "expect_rules": [
+        "bambu.bed.pla-on-engineering-plate-a1",
+        "bambu.bed.plate-unsupported-for-filament"
+      ]
+    },
+    {
+      "q": "Vou imprimir cinco peças de 40 mm por objeto na A1. O cabeçote pode bater nas outras?",
+      "expect_topics": [
+        "bambu.waste.print-sequence-by-object"
+      ],
+      "expect_rules": [
+        "bambu.sequence.by-object-head-clearance-a1"
+      ]
+    },
+    {
+      "q": "Quero imprimir policarbonato (PC) na A1. Preciso de algum cuidado antes de fatiar?",
+      "expect_topics": [
+        "bambu.preflight.bed-material"
+      ],
+      "expect_rules": [
+        "bambu.bed.a1-open-materials"
+      ]
+    },
+    {
+      "q": "A A1 teve recall do cabo da mesa aquecida? Como sei se a minha já foi reparada?",
+      "expect_topics": [
+        "bambu.safety.machine-damage-real-vs-myth"
+      ],
+      "expect_rules": [
+        "bambu.safety.a1-heatbed-cable-recall"
+      ]
+    },
+    {
+      "q": "Posso deixar a A1 imprimindo a noite toda contando com a troca automática de carretel do AMS Lite?",
+      "expect_topics": [
+        "bambu.a1.ams-lite"
+      ],
+      "expect_rules": [
+        "bambu.a1.ams-lite-auto-swap"
+      ]
+    },
+    {
+      "q": "Minha peça minúscula de 8 mm descola na primeira camada da A1. O que eu mudo?",
+      "expect_topics": [
+        "bambu.a1.first-layer-plate"
+      ],
+      "expect_rules": [
+        "bambu.a1.first-layer-tiny-part"
+      ]
+    },
+    {
+      "q": "Como confirmo no Preview que a base da peça está flutuando sobre o suporte na primeira camada?",
+      "expect_topics": [
+        "bambu.a1.first-layer-plate"
+      ],
+      "expect_rules": [
+        "bambu.a1.first-layer-floating-base"
+      ]
+    },
+    {
+      "q": "Misturei PLA e PETG no suporte da A1, que tem um bico só. É seguro?",
+      "expect_topics": [
+        "bambu.support.mixed-material-risks"
+      ],
+      "expect_rules": [
+        "bambu.support.pla-petg-same-nozzle"
+      ]
+    },
+    {
+      "q": "Coloquei PVA no projeto. O que eu confirmo antes de fatiar?",
+      "expect_topics": [
+        "bambu.preflight.bed-material"
+      ],
+      "expect_rules": [
+        "bambu.material.pva-ams-assignment"
+      ]
+    },
+    {
+      "q": "Vou imprimir TPU na X2D. Em qual bico eu coloco?",
+      "expect_topics": [
+        "bambu.materials.tpu-moisture"
+      ],
+      "expect_rules": [
+        "bambu.materials.tpu-x2d-main-nozzle"
+      ]
+    },
+    {
+      "q": "Na X2D tenho uma peça de 255 mm de altura e Z-hop de 2 mm. Vai bater no limite do alcance?",
+      "expect_topics": [
+        "bambu.preflight.purge-tower-x2d"
+      ],
+      "expect_rules": [
+        "bambu.x2d.reach-z-hop-height"
+      ]
+    },
+    {
+      "q": "Posso deixar a câmara da X2D a 60 °C para imprimir PLA?",
+      "expect_topics": [
+        "bambu.materials.pla"
+      ],
+      "expect_rules": [
+        "bambu.materials.chamber-above-45"
+      ]
+    },
+    {
+      "q": "Abri um projeto da A1 na X2D e mantive os valores dos presets. Tem problema?",
+      "expect_topics": [
+        "bambu.quality.a1-preset-common-values"
+      ],
+      "expect_rules": [
+        "bambu.quality.a1-values-on-x2d"
+      ]
+    },
+    {
+      "q": "O Studio mostra AMS Lite na minha X2D, que tem AMS 2 Pro. É erro?",
+      "expect_topics": [
+        "bambu.versions.estimates-and-cloud-sync"
+      ],
+      "expect_rules": [
+        "bambu.versions.ams2pro-labeled-ams-lite"
+      ]
+    },
+    {
+      "q": "Quero usar PETG-CF no bico auxiliar da X2D. Pode?",
+      "expect_topics": [
+        "bambu.x2d.dual-nozzle-two-machines"
+      ],
+      "expect_rules": [
+        "bambu.x2d.aux-nozzle-cautious-filaments"
+      ]
+    },
+    {
+      "q": "Qual a diferença de volume de impressão entre a A1 e a X2D?",
+      "expect_topics": [
+        "bambu.printers.a1-vs-x2d"
+      ],
+      "expect_rules": [
+        "bambu.a1.volume-exceeded",
+        "bambu.x2d.main-volume-exceeded"
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "third-party-h2d-3mf-sliced-for-x2d",
+      "description": "3MF de terceiros criado para a H2D e fatiado na X2D (Studio novo, uma cor, PLA). Dispara o checklist de 3MF de terceiros e o aviso de parâmetros descartados na troca de impressora. A regra de valores da A1 na X2D NÃO dispara porque a origem é H2D, não A1.",
+      "facts": {
+        "project.is_third_party": true,
+        "project.source_printer": "H2D",
+        "project.target_printer": "X2D",
+        "project.printer_changed": true,
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "printer.nozzle_diameters_differ": false,
+        "studio.version": "02.08.04.57",
+        "studio.meets_x2d_minimum": true,
+        "studio.is_prerelease": false,
+        "project.has_per_object_overrides": false,
+        "project.filament_count": 1,
+        "project.nozzle2_used": false,
+        "project.custom_filament_profile": false,
+        "project.filament_override_count": 0,
+        "project.settings_diff_count": 0,
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.curr_bed_type": "Textured PEI Plate"
+      },
+      "expect_rules": [
+        "bambu.3mf.third-party-checklist",
+        "bambu.3mf.printer-switched-params-discarded",
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ],
+      "expect_not": [
+        "bambu.quality.a1-values-on-x2d",
+        "bambu.x2d.aux-profile-review",
+        "bambu.x2d.mixed-nozzle-diameters",
+        "bambu.versions.x2d-studio-too-old",
+        "bambu.versions.beta-3mf-makerworld",
+        "bambu.3mf.per-object-overrides-present",
+        "bambu.settings.filament-overrides-active",
+        "bambu.x2d.custom-profile-variant-vector",
+        "bambu.x2d.more-than-two-colors-purge"
+      ],
+      "expect_unchecked": [
+        "bambu.dimensional.elephant-foot-off-preset",
+        "bambu.drift.sequence-or-timelapse-changed"
+      ]
+    },
+    {
+      "name": "a1-3mf-sliced-for-x2d",
+      "description": "Projeto nativo da A1 trocado para a X2D mantendo a compensação de pé de elefante da A1 (0.075). Dispara o aviso de valores da A1 na X2D, os parâmetros descartados e o pé de elefante fora do preset da X2D (0.15). Não é terceiros.",
+      "facts": {
+        "project.is_third_party": false,
+        "project.source_printer": "A1",
+        "project.target_printer": "X2D",
+        "project.printer_changed": true,
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "project.filament_count": 1,
+        "studio.version": "02.08.04.57",
+        "studio.meets_x2d_minimum": true,
+        "settings.elefant_foot_compensation": "0.075"
+      },
+      "expect_rules": [
+        "bambu.3mf.printer-switched-params-discarded",
+        "bambu.quality.a1-values-on-x2d",
+        "bambu.dimensional.elephant-foot-off-preset"
+      ],
+      "expect_not": [
+        "bambu.3mf.third-party-checklist",
+        "bambu.versions.x2d-studio-too-old",
+        "bambu.x2d.aux-profile-review"
+      ]
+    },
+    {
+      "name": "x2d-3mf-sliced-for-a1",
+      "description": "Sentido inverso: projeto da X2D aberto na A1. Só o aviso de troca de impressora dispara; a regra 'valores da A1 na X2D' exige origem A1 e destino X2D, e o pé de elefante 0.075 é o preset da A1.",
+      "facts": {
+        "project.is_third_party": false,
+        "project.source_printer": "X2D",
+        "project.target_printer": "A1",
+        "project.printer_changed": true,
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "settings.elefant_foot_compensation": "0.075"
+      },
+      "expect_rules": [
+        "bambu.3mf.printer-switched-params-discarded"
+      ],
+      "expect_not": [
+        "bambu.quality.a1-values-on-x2d",
+        "bambu.dimensional.elephant-foot-off-preset",
+        "bambu.3mf.third-party-checklist"
+      ]
+    },
+    {
+      "name": "unprotected-travel-config-a1",
+      "description": "A1 com Z-hop zerado, retração reduzida no infill (Auto + filamento de aderência Low), infill Grid e G-code já fatiado com 37 travels desprotegidos (12 dentro de ilhas de suporte). Cenário clássico do bico raspando e derrubando suporte.",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "printer.nozzle_diameter": [
+          "0.4"
+        ],
+        "settings.z_hop": [
+          "0"
+        ],
+        "settings.retraction_length": [
+          "0.8"
+        ],
+        "settings.z_hop_types": [
+          "Normal Lift"
+        ],
+        "settings.reduce_infill_retraction_mode": "Auto",
+        "settings.filament_metal_stickiness": [
+          "Low"
+        ],
+        "filament.low_stickiness_on_sticky_type_count": 0,
+        "settings.sparse_infill_pattern": "grid",
+        "settings.reduce_crossing_wall": "0",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "gcode.unprotected_travel_count": 37,
+        "gcode.unprotected_travels_in_support": 12
+      },
+      "expect_rules": [
+        "bambu.travel.zhop-disabled",
+        "bambu.travel.infill-retraction-skip",
+        "bambu.travel.infill-retraction-reduced",
+        "bambu.travel.infill-pattern-crossing-lines",
+        "bambu.travel.unprotected-travel",
+        "bambu.travel.unprotected-support-island-travel"
+      ],
+      "expect_not": [
+        "bambu.travel.generic-filament-stickiness-none",
+        "bambu.travel.zhop-without-retraction",
+        "bambu.travel.normal-lift-nub",
+        "bambu.travel.avoid-crossing-wall-dual-nozzle",
+        "bambu.travel.zhop-type-auto",
+        "bambu.travel.slope-lift-warped-edge"
+      ]
+    },
+    {
+      "name": "travel-protected-slope-lift",
+      "description": "Travel bem protegido: Z-hop 0.4 com retração 0.8, retração do infill desativada, infill Gyroid, nenhum travel desprotegido no G-code. Só sobra a dica do Slope Lift. Contraponto do cenário de travel desprotegido.",
+      "facts": {
+        "printer.model": "A1",
+        "settings.z_hop": [
+          "0.4"
+        ],
+        "settings.retraction_length": [
+          "0.8"
+        ],
+        "settings.z_hop_types": [
+          "Slope Lift"
+        ],
+        "settings.reduce_infill_retraction_mode": "Disabled",
+        "settings.sparse_infill_pattern": "gyroid",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "gcode.unprotected_travel_count": 0,
+        "gcode.unprotected_travels_in_support": 0
+      },
+      "expect_rules": [
+        "bambu.travel.slope-lift-warped-edge"
+      ],
+      "expect_not": [
+        "bambu.travel.zhop-disabled",
+        "bambu.travel.unprotected-travel",
+        "bambu.travel.unprotected-support-island-travel",
+        "bambu.travel.infill-retraction-reduced",
+        "bambu.travel.infill-retraction-skip",
+        "bambu.travel.zhop-without-retraction",
+        "bambu.travel.normal-lift-nub",
+        "bambu.travel.infill-pattern-crossing-lines"
+      ]
+    },
+    {
+      "name": "support-z-below-creator-range",
+      "description": "Suporte com camada de 0.2 mm e distância Z de topo de 0.15 mm (abaixo da faixa 0.24 do Creator): dica de solda. Studio novo, então as regras de versão do suporte em árvore não disparam.",
+      "facts": {
+        "printer.model": "A1",
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "0",
+        "settings.support_type": "tree(auto)",
+        "studio.version": "02.08.04.57",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.layer_height": "0.2",
+        "settings.support_top_z_distance": "0.15"
+      },
+      "expect_rules": [
+        "bambu.support.top-z-below-creator-range"
+      ],
+      "expect_not": [
+        "bambu.support.top-z-above-creator-range",
+        "bambu.support.zero-z-same-material",
+        "bambu.support.dedicated-interface-distances",
+        "bambu.support.studio-before-2-8-2",
+        "bambu.support.studio-before-2-7-0"
+      ]
+    },
+    {
+      "name": "support-z-above-creator-range",
+      "description": "Camada de 0.16 mm com distância Z de 0.30 mm (acima de 0.24): suporte tende a ficar frouxo e a superfície ruim.",
+      "facts": {
+        "printer.model": "A1",
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "0",
+        "settings.support_type": "tree(auto)",
+        "studio.version": "02.08.04.57",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.layer_height": "0.16",
+        "settings.support_top_z_distance": "0.3"
+      },
+      "expect_rules": [
+        "bambu.support.top-z-above-creator-range"
+      ],
+      "expect_not": [
+        "bambu.support.top-z-below-creator-range",
+        "bambu.support.zero-z-same-material"
+      ]
+    },
+    {
+      "name": "support-z-lower-boundary-inside",
+      "description": "Camada de 0.2 mm com distância Z exatamente 0.24: é o limite inferior da faixa, portanto NENHUMA das duas regras de faixa dispara (lt/gt estritos).",
+      "facts": {
+        "printer.model": "A1",
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "0",
+        "settings.support_type": "tree(auto)",
+        "studio.version": "02.08.04.57",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.layer_height": "0.2",
+        "settings.support_top_z_distance": "0.24"
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "bambu.support.top-z-below-creator-range",
+        "bambu.support.top-z-above-creator-range"
+      ]
+    },
+    {
+      "name": "support-z-upper-boundary-inside",
+      "description": "Camada gravada como '0.20' (comparação numérica, igual a 0.2) com distância Z exatamente 0.28: limite superior da faixa, nada dispara.",
+      "facts": {
+        "printer.model": "A1",
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "0",
+        "settings.support_type": "tree(auto)",
+        "studio.version": "02.08.04.57",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.layer_height": "0.20",
+        "settings.support_top_z_distance": "0.28"
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "bambu.support.top-z-below-creator-range",
+        "bambu.support.top-z-above-creator-range"
+      ]
+    },
+    {
+      "name": "support-zero-z-pla-same-material",
+      "description": "Distância Z zero, interface no mesmo filamento (0) e os dois slots são PLA. Dispara o aviso de Z zero com mesmo material e também o de distância abaixo da faixa (0 < 0.24).",
+      "facts": {
+        "printer.model": "A1",
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "0",
+        "settings.support_type": "tree(auto)",
+        "studio.version": "02.08.04.57",
+        "project.filament_types": [
+          "PLA",
+          "PLA"
+        ],
+        "settings.layer_height": "0.2",
+        "settings.support_top_z_distance": "0"
+      },
+      "expect_rules": [
+        "bambu.support.zero-z-same-material",
+        "bambu.support.top-z-below-creator-range"
+      ],
+      "expect_not": [
+        "bambu.support.dedicated-interface-distances",
+        "bambu.support.top-z-above-creator-range"
+      ]
+    },
+    {
+      "name": "support-zero-z-mixed-plastics-slots",
+      "description": "Mesmo Z zero, mas um dos slots é PETG: a condição 'project.filament_types eq PLA' vale para TODOS os elementos da lista, então o aviso de Z zero com mesmo material NÃO dispara; só a faixa de distância.",
+      "facts": {
+        "printer.model": "A1",
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "0",
+        "settings.support_type": "tree(auto)",
+        "studio.version": "02.08.04.57",
+        "project.filament_types": [
+          "PLA",
+          "PETG"
+        ],
+        "printer.nozzle_count": 1,
+        "settings.layer_height": "0.2",
+        "settings.support_top_z_distance": "0"
+      },
+      "expect_rules": [
+        "bambu.support.top-z-below-creator-range"
+      ],
+      "expect_not": [
+        "bambu.support.zero-z-same-material",
+        "bambu.support.pla-petg-same-nozzle"
+      ]
+    },
+    {
+      "name": "support-pla-petg-interface-a1",
+      "description": "A1 (um bico) com peça em PLA e interface de suporte em PETG (filamento 2), torre ligada, Studio novo e distância Z dentro da faixa. Dispara o aviso de mesmo bico, o da torre e o de distâncias dedicadas. A regra da X2D (PLA no principal, PETG no auxiliar) não dispara, nem a de matriz de flush antiga.",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "2",
+        "settings.support_top_z_distance": "0.26",
+        "settings.layer_height": "0.2",
+        "settings.enable_prime_tower": "1",
+        "settings.flush_multiplier": "1.5",
+        "settings.flush_into_infill": "0",
+        "project.filament_types": [
+          "PLA",
+          "PETG"
+        ],
+        "project.filament_count": 2,
+        "studio.version": "02.08.04.57"
+      },
+      "expect_rules": [
+        "bambu.support.dedicated-interface-distances",
+        "bambu.support.pla-petg-prime-tower",
+        "bambu.support.pla-petg-same-nozzle",
+        "bambu.waste.multicolor-levers"
+      ],
+      "expect_not": [
+        "bambu.support.x2d-pla-main-petg-aux-interface",
+        "bambu.support.zero-z-same-material",
+        "bambu.support.top-z-below-creator-range",
+        "bambu.support.top-z-above-creator-range",
+        "bambu.waste.flush-matrix-pla-petg-before-2-8-0",
+        "bambu.materials.petg-low-nozzle-temp",
+        "bambu.materials.petg-part-fan-high",
+        "bambu.waste.flush-multiplier-too-low",
+        "bambu.waste.flush-into-infill-color-bleed"
+      ]
+    },
+    {
+      "name": "ironing-thin-tops-keychain",
+      "description": "Chaveiro com letras em relevo, ironing 'topmost', fluxo padrão 10%, velocidade 30 (limite incluso), apenas 3 camadas e 0.6 mm de topo, infill 10% e topo a 150 mm/s, traço de 0.7 mm no bico 0.4 com Arachne padrão. Relevo de 0.6 e base de 2.4 estão exatamente no limite aceito, então as regras de geometria do chaveiro NÃO disparam.",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_diameter": [
+          "0.4"
+        ],
+        "settings.layer_height": "0.2",
+        "settings.ironing_type": "topmost",
+        "settings.ironing_flow": "10%",
+        "settings.ironing_speed": "30",
+        "settings.top_shell_layers": "3",
+        "settings.top_shell_thickness": "0.6",
+        "settings.sparse_infill_density": "10%",
+        "settings.top_surface_speed": "150",
+        "settings.min_feature_size": "25%",
+        "settings.min_bead_width": "85%",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "project.has_painted_colors": false,
+        "object.kind": "keychain",
+        "mesh.top_surface_levels": 2,
+        "mesh.min_feature_mm": "0.7",
+        "mesh.relief_height_mm": "0.6",
+        "mesh.base_thickness_mm": "2.4"
+      },
+      "expect_rules": [
+        "bambu.ironing.topmost-leaves-base-scratched",
+        "bambu.ironing.default-flow-heat-creep",
+        "bambu.ironing.low-speed-yellows-pla",
+        "bambu.ironing.top-shell-too-thin",
+        "bambu.ironing.low-infill-under-top",
+        "bambu.ironing.top-surface-speed-high",
+        "bambu.ironing.stroke-too-thin",
+        "bambu.ironing.arachne-fine-details-defaults"
+      ],
+      "expect_not": [
+        "bambu.quality.feature-below-min-feature-size",
+        "bambu.quality.feature-widened-to-min-wall-width",
+        "bambu.ironing.relief-height-out-of-range",
+        "bambu.ironing.relief-base-too-thin",
+        "bambu.ironing.painted-keychain-many-changes",
+        "bambu.ironing.qr-outer-wall-speed",
+        "bambu.mold.ironing-top-surfaces",
+        "bambu.quality.top-shell-thinner-after-layer-reduction"
+      ]
+    },
+    {
+      "name": "ironing-off-silicone-mold",
+      "description": "Caixa de molde de silicone com ironing desligado ('no ironing'): dispara a dica de ligar ironing nas superfícies de topo do molde e a de pequenos undercuts em silicone. Mesmos valores ruins de topo/infill do cenário de ironing, mas sem ironing as regras de ironing ficam todas falsas. Regras de molde rígido (undercut, ângulo de saída) não disparam.",
+      "facts": {
+        "settings.ironing_type": "no ironing",
+        "settings.ironing_flow": "10%",
+        "settings.ironing_speed": "15",
+        "settings.top_shell_layers": "3",
+        "settings.top_shell_thickness": "0.6",
+        "settings.sparse_infill_density": "10%",
+        "settings.top_surface_speed": "150",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "object.mold_kind": "silicone",
+        "mesh.undercut_count": 2,
+        "mesh.min_draft_angle_deg": "0.5"
+      },
+      "expect_rules": [
+        "bambu.mold.ironing-top-surfaces",
+        "blender.moldrules.silicone-small-undercuts-ok"
+      ],
+      "expect_not": [
+        "bambu.ironing.default-flow-heat-creep",
+        "bambu.ironing.low-speed-yellows-pla",
+        "bambu.ironing.top-shell-too-thin",
+        "bambu.ironing.low-infill-under-top",
+        "bambu.ironing.top-surface-speed-high",
+        "bambu.ironing.topmost-leaves-base-scratched",
+        "blender.moldrules.rigid-mold-undercuts",
+        "blender.moldrules.rigid-mold-draft-angle"
+      ]
+    },
+    {
+      "name": "tall-parts-by-object-a1",
+      "description": "Três peças altas (250 mm, 40x40 mm de base) em 'by object' na A1. 250 mm cabe no volume da A1 (256), mas passa dos 25 mm de folga do cabeçote: dispara só a regra da A1. A regra equivalente da X2D (32,8 mm) também teria condição verdadeira, mas é de outra impressora e não pode disparar. As regras de peça alta e estreita (bambu.a1.tall-narrow-part) não têm condição de máquina e dependem de código.",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "settings.print_sequence": "by object",
+        "settings.timelapse_type": "traditional",
+        "project.object_count": 3,
+        "mesh.max_object_height_mm": "250",
+        "mesh.height_mm": "250",
+        "mesh.size_x_mm": "40",
+        "mesh.size_y_mm": "40",
+        "studio.version": "02.08.04.57"
+      },
+      "expect_rules": [
+        "bambu.sequence.by-object-head-clearance-a1"
+      ],
+      "expect_not": [
+        "bambu.sequence.by-object-head-clearance-x2d",
+        "bambu.a1.volume-exceeded",
+        "bambu.sequence.by-object-smooth-timelapse"
+      ]
+    },
+    {
+      "name": "tree-supports-old-studio-2-7-1",
+      "description": "Suporte em árvore no Studio 02.07.01.52: abaixo de 2.8.2 (aviso de regressão do suporte em árvore) e versão com preview lento. 2.7.1 NÃO é anterior a 2.7.0, então a regra 'antes da 2.7.0' não dispara.",
+      "facts": {
+        "studio.version": "02.07.01.52",
+        "settings.enable_support": "1",
+        "settings.support_type": "tree(auto)",
+        "project.filament_types": [
+          "PLA"
+        ]
+      },
+      "expect_rules": [
+        "bambu.support.studio-before-2-8-2",
+        "bambu.studio.preview-slow-or-frozen"
+      ],
+      "expect_not": [
+        "bambu.support.studio-before-2-7-0",
+        "bambu.support.studio-2-1-0-50-weak-supports",
+        "bambu.waste.flush-matrix-pla-petg-before-2-8-0"
+      ]
+    },
+    {
+      "name": "tpu-ams-lite-a1",
+      "description": "A1 com AMS Lite, TPU + PLA, torre ligada, Placa Textured PEI. Dispara o aviso de TPU no AMS Lite e a dica de alavancas multicor. As regras de TPU da X2D e do rótulo 'AMS 2 Pro' não disparam (outra impressora).",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "project.ams_type": "AMS Lite",
+        "project.filament_types": [
+          "TPU",
+          "PLA"
+        ],
+        "project.filament_count": 2,
+        "settings.enable_prime_tower": "1",
+        "settings.flush_into_infill": "0",
+        "settings.flush_multiplier": "1.2",
+        "settings.curr_bed_type": "Textured PEI Plate",
+        "studio.version": "02.08.04.57"
+      },
+      "expect_rules": [
+        "bambu.materials.tpu-ams-lite",
+        "bambu.waste.multicolor-levers"
+      ],
+      "expect_not": [
+        "bambu.materials.tpu-x2d-main-nozzle",
+        "bambu.versions.ams2pro-labeled-ams-lite",
+        "bambu.bed.pla-on-engineering-plate-a1",
+        "bambu.a1.multicolor-without-prime-tower",
+        "bambu.waste.flush-into-infill-color-bleed",
+        "bambu.waste.flush-multiplier-default-multicolor",
+        "bambu.waste.flush-without-tower",
+        "bambu.material.abs-asa-on-open-a1",
+        "bambu.bed.a1-open-materials",
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ]
+    },
+    {
+      "name": "tpu-petg-cf-x2d-ams-label",
+      "description": "X2D com TPU no principal, PETG-CF atribuído ao bico auxiliar, dois filamentos, agrupamento Manual e o Studio rotulando o AMS 2 Pro como 'AMS Lite'. Dispara TPU no bico principal, rótulo do AMS, cautela com PETG-CF no auxiliar, revisão do perfil do auxiliar, alavancas multicor e agrupamento Custom. Não dispara a regra 'TPU no AMS Lite' (impressora é X2D) nem 'mais de 2 cores' (só 2).",
+      "facts": {
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "printer.nozzle_diameters_differ": false,
+        "project.ams_type": "AMS Lite",
+        "project.filament_types": [
+          "TPU",
+          "PETG"
+        ],
+        "project.aux_nozzle_filament_types": [
+          "PETG-CF"
+        ],
+        "project.filament_count": 2,
+        "project.nozzle2_used": true,
+        "settings.enable_prime_tower": "1",
+        "settings.filament_map_mode": "Manual",
+        "settings.curr_bed_type": "Textured PEI Plate",
+        "settings.reduce_crossing_wall": "0",
+        "studio.version": "02.08.04.57",
+        "studio.meets_x2d_minimum": true
+      },
+      "expect_rules": [
+        "bambu.materials.tpu-x2d-main-nozzle",
+        "bambu.versions.ams2pro-labeled-ams-lite",
+        "bambu.x2d.aux-nozzle-cautious-filaments",
+        "bambu.x2d.aux-profile-review",
+        "bambu.waste.multicolor-levers",
+        "bambu.x2d.grouping-mode-custom"
+      ],
+      "expect_not": [
+        "bambu.materials.tpu-ams-lite",
+        "bambu.support.x2d-pla-main-petg-aux-interface",
+        "bambu.x2d.dual-nozzle-without-prime-tower",
+        "bambu.x2d.more-than-two-colors-purge",
+        "bambu.x2d.mixed-nozzle-diameters",
+        "bambu.x2d.grouping-mode-filament-saving",
+        "bambu.travel.avoid-crossing-wall-dual-nozzle",
+        "bambu.materials.petg-low-nozzle-temp",
+        "bambu.materials.petg-smooth-plate",
+        "bambu.materials.pla-x2d-aux-fan-warping",
+        "bambu.bed.petg-on-cool-plate",
+        "bambu.versions.x2d-studio-too-old"
+      ],
+      "expect_unchecked": [
+        "bambu.materials.petg-generic-profile"
+      ]
+    },
+    {
+      "name": "a1-mini-pla-engineering-plate-tpu",
+      "description": "A1 mini (não é A1): o padrão 'A1$' e o escopo ['a1'] excluem as regras exclusivas da A1 (PLA na Engineering Plate, multicor sem torre), mas a regra de TPU vale para 'A1' e 'a1-mini'. Mesa 0 °C para PLA na Engineering Plate dispara o aviso de placa não suportada.",
+      "facts": {
+        "printer.model": "A1 mini",
+        "printer.nozzle_count": 1,
+        "settings.curr_bed_type": "Engineering Plate",
+        "project.filament_types": [
+          "PLA",
+          "TPU"
+        ],
+        "project.filament_count": 2,
+        "settings.enable_prime_tower": "0",
+        "settings.flush_into_infill": "0",
+        "filament.bed_temp_current_plate": [
+          0,
+          60
+        ]
+      },
+      "expect_rules": [
+        "bambu.bed.plate-unsupported-for-filament",
+        "bambu.materials.tpu-ams-lite",
+        "bambu.waste.multicolor-levers"
+      ],
+      "expect_not": [
+        "bambu.bed.pla-on-engineering-plate-a1",
+        "bambu.a1.multicolor-without-prime-tower",
+        "bambu.waste.flush-without-tower"
+      ]
+    },
+    {
+      "name": "pla-engineering-plate-a1",
+      "description": "A1 com PLA e Engineering Plate selecionada (temperatura de mesa 0 para essa placa): dispara 'PLA na Engineering Plate' e 'placa sem suporte para o filamento'.",
+      "facts": {
+        "printer.model": "A1",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.curr_bed_type": "Engineering Plate",
+        "filament.bed_temp_current_plate": [
+          0
+        ]
+      },
+      "expect_rules": [
+        "bambu.bed.pla-on-engineering-plate-a1",
+        "bambu.bed.plate-unsupported-for-filament"
+      ],
+      "expect_not": [
+        "bambu.bed.petg-on-cool-plate",
+        "bambu.bed.smooth-pei-selected",
+        "bambu.material.abs-asa-on-open-a1"
+      ]
+    },
+    {
+      "name": "abs-open-a1",
+      "description": "ABS na A1 aberta, Engineering Plate (correta para ABS), encolhimento ainda em 100%. Dispara ABS em impressora aberta e a dica de Shrinkage. A regra de câmara da X2D e a de PLA na Engineering Plate não disparam.",
+      "facts": {
+        "printer.model": "A1",
+        "project.filament_types": [
+          "ABS"
+        ],
+        "settings.filament_shrink": [
+          "100%"
+        ],
+        "settings.curr_bed_type": "Engineering Plate",
+        "project.has_painted_colors": false
+      },
+      "expect_rules": [
+        "bambu.material.abs-asa-on-open-a1",
+        "bambu.dimensional.shrinkage-abs-asa"
+      ],
+      "expect_not": [
+        "bambu.materials.abs-x2d-chamber-tuning",
+        "bambu.bed.pla-on-engineering-plate-a1",
+        "bambu.dimensional.shrinkage-painted-no-effect",
+        "bambu.bed.a1-open-materials"
+      ]
+    },
+    {
+      "name": "x2d-abs-heated-chamber",
+      "description": "ASA na X2D com câmara a 60 °C: normal para ASA. Dispara só o ajuste de câmara para ABS/ASA e o Shrinkage; a regra 'câmara acima de 45 °C' é só para PLA/PETG/TPU e a de ABS na A1 é de outra impressora.",
+      "facts": {
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "project.filament_types": [
+          "ASA"
+        ],
+        "settings.chamber_temperatures": [
+          "60"
+        ],
+        "settings.filament_shrink": [
+          "100%"
+        ],
+        "project.has_painted_colors": false
+      },
+      "expect_rules": [
+        "bambu.materials.abs-x2d-chamber-tuning",
+        "bambu.dimensional.shrinkage-abs-asa"
+      ],
+      "expect_not": [
+        "bambu.materials.chamber-above-45",
+        "bambu.material.abs-asa-on-open-a1",
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ]
+    },
+    {
+      "name": "x2d-pla-chamber-46",
+      "description": "PLA na X2D com câmara pedida a 46 °C (acima de 45): dispara o aviso de câmara e a dica de ventoinha auxiliar/empenamento do PLA.",
+      "facts": {
+        "printer.model": "X2D",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.chamber_temperatures": [
+          "46"
+        ]
+      },
+      "expect_rules": [
+        "bambu.materials.chamber-above-45",
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ],
+      "expect_not": [
+        "bambu.materials.abs-x2d-chamber-tuning"
+      ]
+    },
+    {
+      "name": "x2d-pla-chamber-at-45",
+      "description": "Mesma peça com câmara exatamente em 45 °C: o limite é estrito (gt 45), então só a dica da ventoinha auxiliar dispara.",
+      "facts": {
+        "printer.model": "X2D",
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.chamber_temperatures": [
+          "45"
+        ]
+      },
+      "expect_rules": [
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ],
+      "expect_not": [
+        "bambu.materials.chamber-above-45",
+        "bambu.materials.abs-x2d-chamber-tuning"
+      ]
+    },
+    {
+      "name": "petg-cool-plate-generic-profile",
+      "description": "A1 com PETG genérico na Cool Plate: dispara PETG na Cool Plate, bico em 230 °C (limite incluso) e perfil genérico. Ventoinha em 60% (limite) e Normal Lift sem PLA não disparam; a placa não é Smooth.",
+      "facts": {
+        "printer.model": "A1",
+        "project.filament_types": [
+          "PETG"
+        ],
+        "settings.curr_bed_type": "Cool Plate",
+        "settings.nozzle_temperature": [
+          "230"
+        ],
+        "settings.fan_max_speed": [
+          "60"
+        ],
+        "filament.profile_name": [
+          "Generic PETG"
+        ],
+        "settings.z_hop": [
+          "0.4"
+        ],
+        "settings.z_hop_types": [
+          "Normal Lift"
+        ]
+      },
+      "expect_rules": [
+        "bambu.bed.petg-on-cool-plate",
+        "bambu.materials.petg-low-nozzle-temp",
+        "bambu.materials.petg-generic-profile"
+      ],
+      "expect_not": [
+        "bambu.materials.petg-smooth-plate",
+        "bambu.materials.petg-part-fan-high",
+        "bambu.travel.normal-lift-nub",
+        "bambu.travel.spiral-lift-petg-pins",
+        "bambu.bed.smooth-pei-selected"
+      ]
+    },
+    {
+      "name": "giant-part-needs-cut-a1",
+      "description": "Estátua de 420 x 180 x 310 mm na A1, ainda inteira (sem Cut): excede o volume da A1 e a caixa não cabe em nenhuma orientação. Dispara o limite de volume e o 'planejar o Cut'. As dicas pós-corte (pinos, colagem, reforço) ficam falsas porque o projeto ainda não tem objetos cortados.",
+      "facts": {
+        "printer.model": "A1",
+        "mesh.size_x_mm": "420",
+        "mesh.size_y_mm": "180",
+        "mesh.height_mm": "310",
+        "mesh.exceeds_build_volume": true,
+        "project.has_cut_objects": false,
+        "project.object_count": 1,
+        "object.flat_cut_or_pin_base_on_bed": false,
+        "settings.elefant_foot_compensation": "0.075",
+        "settings.wall_loops": "2",
+        "settings.top_shell_layers": "4"
+      },
+      "expect_rules": [
+        "bambu.a1.volume-exceeded",
+        "bambu.cut.exceeds-build-volume"
+      ],
+      "expect_not": [
+        "bambu.cut.dowel-pins-upright",
+        "bambu.cut.assembly-dry-fit-and-glue",
+        "bambu.cut.reinforce-cut-parts",
+        "bambu.cut.elephant-foot-seam-step",
+        "bambu.x2d.main-volume-exceeded",
+        "bambu.dimensional.elephant-foot-off-preset"
+      ]
+    },
+    {
+      "name": "giant-part-after-cut-a1",
+      "description": "A mesma estátua depois do Cut: duas metades que cabem na A1, face de corte apoiada na mesa sem chanfro, 2 paredes e 4 camadas de topo. Dispara pinos Dowel em pé, reforço das partes cortadas, pé de elefante na emenda, colagem a seco e chanfro da face de corte. Não dispara mais volume excedido.",
+      "facts": {
+        "printer.model": "A1",
+        "mesh.size_x_mm": "210",
+        "mesh.size_y_mm": "180",
+        "mesh.height_mm": "240",
+        "mesh.exceeds_build_volume": false,
+        "project.has_cut_objects": true,
+        "project.object_count": 2,
+        "object.flat_cut_or_pin_base_on_bed": true,
+        "mesh.bottom_edge_bevel_mm": "0",
+        "settings.elefant_foot_compensation": "0.075",
+        "settings.wall_loops": "2",
+        "settings.top_shell_layers": "4"
+      },
+      "expect_rules": [
+        "bambu.cut.dowel-pins-upright",
+        "bambu.cut.assembly-dry-fit-and-glue",
+        "bambu.cut.reinforce-cut-parts",
+        "bambu.cut.elephant-foot-seam-step",
+        "blender.cut.bevel-cut-edge-and-pin-base"
+      ],
+      "expect_not": [
+        "bambu.cut.exceeds-build-volume",
+        "bambu.a1.volume-exceeded",
+        "bambu.dimensional.elephant-foot-off-preset"
+      ]
+    },
+    {
+      "name": "cut-parts-at-reinforcement-thresholds",
+      "description": "Projeto com peças cortadas, 3 paredes, 5 camadas de topo, pé de elefante 0.18 e chanfro de 0.4 mm: todos exatamente nos limites (lt estrito), então reforço, pé de elefante na emenda e chanfro NÃO disparam; só as dicas gerais de Cut. Sem impressora conhecida, a regra de pé de elefante do preset fica não verificada.",
+      "facts": {
+        "project.has_cut_objects": true,
+        "object.flat_cut_or_pin_base_on_bed": false,
+        "mesh.bottom_edge_bevel_mm": "0.4",
+        "settings.wall_loops": "3",
+        "settings.top_shell_layers": "5",
+        "settings.elefant_foot_compensation": "0.18"
+      },
+      "expect_rules": [
+        "bambu.cut.dowel-pins-upright",
+        "bambu.cut.assembly-dry-fit-and-glue"
+      ],
+      "expect_not": [
+        "bambu.cut.reinforce-cut-parts",
+        "bambu.cut.elephant-foot-seam-step",
+        "blender.cut.bevel-cut-edge-and-pin-base"
+      ],
+      "expect_unchecked": [
+        "bambu.dimensional.elephant-foot-off-preset"
+      ]
+    },
+    {
+      "name": "x2d-part-at-exact-main-limits",
+      "description": "Peça de 256 x 256 x 261 mm na X2D com só o bico principal: exatamente o volume máximo, então 'volume excedido' não dispara. Como passa de 235 mm em X sem usar o bico 2, o arrange reserva a faixa do auxiliar e avisa.",
+      "facts": {
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "mesh.size_x_mm": "256",
+        "mesh.size_y_mm": "256",
+        "mesh.height_mm": "261",
+        "object.uses_aux_nozzle": false,
+        "project.nozzle2_used": false
+      },
+      "expect_rules": [
+        "bambu.x2d.arrange-reserves-aux-strip"
+      ],
+      "expect_not": [
+        "bambu.x2d.main-volume-exceeded",
+        "bambu.x2d.aux-volume-exceeded",
+        "bambu.a1.volume-exceeded"
+      ]
+    },
+    {
+      "name": "x2d-oversize-x-partial-facts",
+      "description": "Só se sabe que o objeto tem 300 mm em X na X2D. 'any' com um ramo verdadeiro dispara mesmo com Y e Z desconhecidos. As regras do bico auxiliar e de arrange dependem de fatos ausentes e ficam não verificadas, não disparadas.",
+      "facts": {
+        "printer.model": "X2D",
+        "mesh.size_x_mm": "300"
+      },
+      "expect_rules": [
+        "bambu.x2d.main-volume-exceeded"
+      ],
+      "expect_not": [
+        "bambu.a1.volume-exceeded"
+      ],
+      "expect_unchecked": [
+        "bambu.x2d.aux-volume-exceeded",
+        "bambu.x2d.arrange-reserves-aux-strip",
+        "bambu.cut.exceeds-build-volume"
+      ]
+    },
+    {
+      "name": "a1-part-just-over-256",
+      "description": "Objeto de 256 x 256 x 256,01 mm na A1: só a altura passa de 256 por 0,01 mm e já dispara 'volume excedido'. A regra da X2D (limite 261) não dispara.",
+      "facts": {
+        "printer.model": "A1",
+        "mesh.size_x_mm": "256",
+        "mesh.size_y_mm": "256",
+        "mesh.height_mm": "256.01"
+      },
+      "expect_rules": [
+        "bambu.a1.volume-exceeded"
+      ],
+      "expect_not": [
+        "bambu.x2d.main-volume-exceeded",
+        "bambu.x2d.aux-volume-exceeded"
+      ]
+    },
+    {
+      "name": "x2d-only-printer-known",
+      "description": "Só o modelo da impressora é conhecido (X2D). Nada dispara. As regras da X2D que dependem de outros fatos ficam não verificadas; as regras exclusivas da A1 são falsas (o escopo e 'A1$' falham), não 'não verificadas'.",
+      "facts": {
+        "printer.model": "X2D"
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "bambu.a1.volume-exceeded",
+        "bambu.a1.multicolor-without-prime-tower",
+        "bambu.material.abs-asa-on-open-a1",
+        "bambu.bed.pla-on-engineering-plate-a1"
+      ],
+      "expect_unchecked": [
+        "bambu.x2d.aux-nozzle-speed-over-limit",
+        "bambu.x2d.dual-nozzle-without-prime-tower",
+        "bambu.x2d.main-volume-exceeded",
+        "bambu.x2d.reach-z-hop-height"
+      ]
+    },
+    {
+      "name": "gcode-facts-not-collected-yet",
+      "description": "Só há fatos baratos (settings): Z-hop zerado dispara. As regras que dependem de varredura de G-code (travel desprotegido) ficam não verificadas até o G-code existir; a de retração no infill é falsa porque o modo é Disabled.",
+      "facts": {
+        "printer.model": "A1",
+        "settings.z_hop": [
+          "0"
+        ],
+        "settings.reduce_infill_retraction_mode": "Disabled"
+      },
+      "expect_rules": [
+        "bambu.travel.zhop-disabled"
+      ],
+      "expect_not": [
+        "bambu.travel.infill-retraction-reduced",
+        "bambu.travel.infill-retraction-skip"
+      ],
+      "expect_unchecked": [
+        "bambu.travel.unprotected-travel",
+        "bambu.travel.unprotected-support-island-travel"
+      ]
+    },
+    {
+      "name": "fnan-printer-unknown",
+      "description": "G-code com a sequência Fnan, mas o modelo da impressora é desconhecido. A regra do bug é só da X2D (escopo), então com o modelo ausente ela fica não verificada em vez de disparar.",
+      "facts": {
+        "gcode.contains_fnan": true
+      },
+      "expect_rules": [],
+      "expect_not": [],
+      "expect_unchecked": [
+        "bambu.x2d.fnan-flow-bug"
+      ]
+    },
+    {
+      "name": "fnan-on-a1",
+      "description": "Mesmo G-code com Fnan, mas numa A1: o bug é da X2D, a regra não se aplica e é falsa.",
+      "facts": {
+        "printer.model": "A1",
+        "gcode.contains_fnan": true
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "bambu.x2d.fnan-flow-bug"
+      ]
+    },
+    {
+      "name": "a1-multicolor-no-tower-low-flush",
+      "description": "A1 com 3 filamentos, torre desligada, 'flush into infill' ligado, multiplicador de flush em 0.3 e timelapse Smooth. Dispara multicor sem torre, purga sem torre, alavancas multicor, multiplicador baixo e Smooth sem torre. Regras da torre ligada e da X2D não disparam.",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "project.filament_count": 3,
+        "settings.enable_prime_tower": "0",
+        "settings.flush_into_infill": "1",
+        "settings.flush_multiplier": "0.3",
+        "settings.timelapse_type": "smooth",
+        "settings.print_sequence": "by layer",
+        "settings.wipe_tower_no_sparse_layers": "0",
+        "project.layer_heights_differ": false
+      },
+      "expect_rules": [
+        "bambu.a1.multicolor-without-prime-tower",
+        "bambu.waste.flush-without-tower",
+        "bambu.waste.multicolor-levers",
+        "bambu.waste.flush-multiplier-too-low",
+        "bambu.a1.timelapse-smooth-tower"
+      ],
+      "expect_not": [
+        "bambu.waste.flush-into-infill-color-bleed",
+        "bambu.waste.flush-multiplier-default-multicolor",
+        "bambu.sequence.by-object-smooth-timelapse",
+        "bambu.tower.no-sparse-layers-with-smooth-timelapse",
+        "bambu.tower.no-sparse-layers-ooze",
+        "bambu.tower.layer-height-mismatch",
+        "bambu.x2d.dual-nozzle-without-prime-tower"
+      ]
+    },
+    {
+      "name": "x2d-multicolor-smooth-timelapse-by-object",
+      "description": "X2D com 2 filamentos, torre ligada, multiplicador de flush exatamente 0.5 (limite aceito), flush into infill, torre sem camadas esparsas, timelapse Smooth em 'by object' com 2 objetos de 30 mm. Dispara sangramento de cor, torre+Smooth, ooze, Smooth+by object, revisão do auxiliar, alavancas e o bug de avoid-crossing-wall. 30 mm passa dos 25 mm da A1 (condição verdadeira) mas é de outra impressora; fica abaixo dos 32,8 mm da X2D.",
+      "facts": {
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "project.nozzle2_used": true,
+        "project.filament_count": 2,
+        "settings.enable_prime_tower": "1",
+        "settings.flush_multiplier": "0.5",
+        "settings.flush_into_infill": "1",
+        "settings.wipe_tower_no_sparse_layers": "1",
+        "settings.timelapse_type": "Smooth",
+        "settings.print_sequence": "by object",
+        "project.object_count": 2,
+        "mesh.max_object_height_mm": "30",
+        "settings.reduce_crossing_wall": "1",
+        "project.layer_heights_differ": false
+      },
+      "expect_rules": [
+        "bambu.waste.flush-into-infill-color-bleed",
+        "bambu.tower.no-sparse-layers-with-smooth-timelapse",
+        "bambu.tower.no-sparse-layers-ooze",
+        "bambu.sequence.by-object-smooth-timelapse",
+        "bambu.x2d.aux-profile-review",
+        "bambu.waste.multicolor-levers",
+        "bambu.travel.avoid-crossing-wall-dual-nozzle"
+      ],
+      "expect_not": [
+        "bambu.waste.flush-multiplier-too-low",
+        "bambu.a1.timelapse-smooth-tower",
+        "bambu.sequence.by-object-head-clearance-x2d",
+        "bambu.sequence.by-object-head-clearance-a1",
+        "bambu.waste.flush-without-tower",
+        "bambu.waste.flush-multiplier-default-multicolor",
+        "bambu.x2d.dual-nozzle-without-prime-tower",
+        "bambu.x2d.more-than-two-colors-purge",
+        "bambu.tower.layer-height-mismatch",
+        "bambu.a1.multicolor-without-prime-tower"
+      ]
+    },
+    {
+      "name": "x2d-aux-nozzle-at-limits",
+      "description": "G-code da X2D com o auxiliar exatamente nos limites (200 mm/s, 1000 mm/s², X mínimo 20.5, Z máximo 256, altura+Z-hop 256): nenhuma regra de limite dispara. Disparam apenas problemas de outra natureza: temperatura divergente por ferramenta, retração do auxiliar igual à do principal, estimativa sem tempo de troca de bico.",
+      "facts": {
+        "printer.model": "X2D",
+        "gcode.aux_nozzle_max_feedrate_mm_s": "200",
+        "gcode.aux_nozzle_max_accel_mm_s2": "1000",
+        "gcode.aux_nozzle_min_x_mm": "20.5",
+        "gcode.aux_nozzle_max_z_mm": "256",
+        "gcode.tool_xy_outside_area_count": 0,
+        "gcode.contains_fnan": false,
+        "gcode.tool_temperature_mismatch_count": 2,
+        "gcode.aux_retraction_equals_main": true,
+        "plate.tool_changes": 12,
+        "object.height_plus_zhop_mm": "256",
+        "gcode.flush_length_mismatch_count": 0
+      },
+      "expect_rules": [
+        "bambu.x2d.petg-interface-temp-bug",
+        "bambu.x2d.aux-bowden-retraction-custom-profile",
+        "bambu.x2d.estimate-misses-nozzle-change-time",
+        "bambu.waste.estimate-is-floor"
+      ],
+      "expect_not": [
+        "bambu.x2d.aux-nozzle-speed-over-limit",
+        "bambu.x2d.aux-nozzle-reach-limits",
+        "bambu.x2d.fnan-flow-bug",
+        "bambu.x2d.reach-z-hop-height",
+        "bambu.purge.flush-length-vs-matrix"
+      ]
+    },
+    {
+      "name": "x2d-aux-nozzle-just-over-limits",
+      "description": "G-code da X2D com o auxiliar 0,01 acima do avanço (200.01), 0,01 abaixo do X mínimo (20.49), altura+Z-hop 256.5, Fnan e 3 trocas de purga divergentes da matriz. Disparam velocidade, alcance, Fnan, Z-hop e purga; as regras de temperatura/retração/estimativa ficam falsas.",
+      "facts": {
+        "printer.model": "X2D",
+        "gcode.aux_nozzle_max_feedrate_mm_s": "200.01",
+        "gcode.aux_nozzle_max_accel_mm_s2": "1000",
+        "gcode.aux_nozzle_min_x_mm": "20.49",
+        "gcode.aux_nozzle_max_z_mm": "256",
+        "gcode.tool_xy_outside_area_count": 0,
+        "gcode.contains_fnan": true,
+        "object.height_plus_zhop_mm": "256.5",
+        "gcode.tool_temperature_mismatch_count": 0,
+        "gcode.aux_retraction_equals_main": false,
+        "plate.tool_changes": 0,
+        "gcode.flush_length_mismatch_count": 3
+      },
+      "expect_rules": [
+        "bambu.x2d.aux-nozzle-speed-over-limit",
+        "bambu.x2d.aux-nozzle-reach-limits",
+        "bambu.x2d.fnan-flow-bug",
+        "bambu.x2d.reach-z-hop-height",
+        "bambu.purge.flush-length-vs-matrix"
+      ],
+      "expect_not": [
+        "bambu.x2d.petg-interface-temp-bug",
+        "bambu.x2d.aux-bowden-retraction-custom-profile",
+        "bambu.x2d.estimate-misses-nozzle-change-time",
+        "bambu.waste.estimate-is-floor"
+      ]
+    },
+    {
+      "name": "dimensional-holes-and-painted-shrink",
+      "description": "Compensação de furos zerada com 4 furos de encaixe, projeto pintado por face e Shrinkage 99.5%. Dispara furos sem compensação e 'Shrinkage não afeta pintura'. A dica de Shrinkage para ABS/ASA é falsa (encolhimento ≠ 100%).",
+      "facts": {
+        "settings.xy_hole_compensation": "0",
+        "mesh.fit_hole_count": 4,
+        "project.has_painted_colors": true,
+        "settings.filament_shrink": [
+          "99.5%"
+        ]
+      },
+      "expect_rules": [
+        "bambu.dimensional.hole-compensation-zero",
+        "bambu.dimensional.shrinkage-painted-no-effect"
+      ],
+      "expect_not": [
+        "bambu.dimensional.shrinkage-abs-asa"
+      ]
+    },
+    {
+      "name": "nothing-wrong-bambu-a1-pla",
+      "description": "Projeto A1 limpo: PLA único, Textured PEI, sem suporte, Z-hop 0.4 com retração, Spiral Lift, sem torre (uma cor), ironing desligado, G-code sem travel desprotegido, Studio atual. Nenhuma regra de máquina pode disparar.",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "printer.nozzle_diameter": [
+          "0.4"
+        ],
+        "printer.nozzle_diameters_differ": false,
+        "studio.version": "02.08.04.57",
+        "studio.is_prerelease": false,
+        "studio.meets_x2d_minimum": true,
+        "project.is_third_party": false,
+        "project.printer_changed": false,
+        "project.source_printer": "A1",
+        "project.target_printer": "A1",
+        "project.object_count": 1,
+        "project.filament_count": 1,
+        "project.filament_types": [
+          "PLA"
+        ],
+        "project.has_per_object_overrides": false,
+        "project.filament_override_count": 0,
+        "project.has_painted_colors": false,
+        "project.has_cut_objects": false,
+        "project.settings_diff_count": 0,
+        "project.layer_heights_differ": false,
+        "project.custom_filament_profile": false,
+        "project.nozzle2_used": false,
+        "settings.curr_bed_type": "Textured PEI Plate",
+        "settings.enable_support": "0",
+        "settings.layer_height": "0.2",
+        "settings.z_hop": [
+          "0.4"
+        ],
+        "settings.retraction_length": [
+          "0.8"
+        ],
+        "settings.z_hop_types": [
+          "Spiral Lift"
+        ],
+        "settings.enable_prime_tower": "0",
+        "settings.flush_multiplier": "1",
+        "settings.flush_into_infill": "0",
+        "settings.print_sequence": "by layer",
+        "settings.timelapse_type": "traditional",
+        "settings.ironing_type": "no ironing",
+        "settings.sparse_infill_pattern": "gyroid",
+        "settings.sparse_infill_density": "15%",
+        "settings.reduce_infill_retraction_mode": "Disabled",
+        "settings.elefant_foot_compensation": "0.075",
+        "settings.alternate_extra_wall": "0",
+        "settings.top_shell_layers": "5",
+        "settings.top_shell_thickness": "0.6",
+        "settings.wall_loops": "3",
+        "settings.xy_hole_compensation": "0",
+        "settings.wall_sequence": "inner wall/outer wall",
+        "settings.seam_slope_type": "none",
+        "settings.filament_shrink": [
+          "100%"
+        ],
+        "settings.wipe_tower_no_sparse_layers": "0",
+        "settings.reduce_crossing_wall": "0",
+        "settings.nozzle_temperature": [
+          "220"
+        ],
+        "filament.bed_temp_current_plate": [
+          65
+        ],
+        "filament.profile_name": [
+          "Bambu PLA Basic"
+        ],
+        "object.flat_cut_or_pin_base_on_bed": false,
+        "mesh.size_x_mm": "120",
+        "mesh.size_y_mm": "80",
+        "mesh.height_mm": "60",
+        "mesh.max_object_height_mm": "60",
+        "mesh.overhang_area_mm2": 0,
+        "mesh.exceeds_build_volume": false,
+        "mesh.small_hole_count_3_6mm": 0,
+        "mesh.floating_shell_count": 0,
+        "mesh.top_surface_levels": 1,
+        "mesh.min_feature_mm": "1.2",
+        "mesh.fit_hole_count": 0,
+        "mesh.has_cylindrical_walls": false,
+        "gcode.unprotected_travel_count": 0,
+        "gcode.unprotected_travels_in_support": 0,
+        "gcode.support_line_count": 0,
+        "gcode.support_interface_line_count": 0,
+        "gcode.flow_limit_exceeded_share": 0,
+        "gcode.contains_fnan": false,
+        "plate.tool_changes": 0,
+        "gcode.start_end_template_diff_lines": 0
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "bambu.travel.zhop-disabled",
+        "bambu.travel.unprotected-travel",
+        "bambu.support.overhang-without-support",
+        "bambu.dimensional.elephant-foot-off-preset",
+        "bambu.dimensional.hole-compensation-zero",
+        "bambu.quality.scarf-seam-cylinders",
+        "bambu.waste.flush-multiplier-too-low",
+        "bambu.materials.pla-silk-volumetric-limit",
+        "bambu.bed.plate-unsupported-for-filament",
+        "bambu.cut.elephant-foot-seam-step"
+      ]
+    },
+    {
+      "name": "nothing-wrong-blender-export-ready",
+      "description": "Cena do Blender pronta para exportar: unidade métrica com escala 0.001 e milímetros, grade 0.001, clip amplo, add-ons ativos, sem transformações ou modificadores pendentes, malha fechada, Boolean Manifold sobre malha sem arestas abertas, exportação só da seleção com Scale 1. Nenhuma regra dispara.",
+      "facts": {
+        "blender.unit_system": "metric",
+        "blender.unit_scale": "0.001",
+        "blender.length_unit": "millimeters",
+        "blender.overlay_grid_scale": "0.001",
+        "blender.clip_start_mm": "0.01",
+        "blender.clip_end_mm": "100000",
+        "blender.enabled_addons": [
+          "3D Print Toolbox",
+          "Bool Tool",
+          "LoopTools"
+        ],
+        "blender.unapplied_transform_objects": 0,
+        "blender.unapplied_boolean_count": 0,
+        "blender.unapplied_modifier_count": 0,
+        "blender.non_manifold_edges": 0,
+        "blender.export_selection_only": true,
+        "blender.visible_unselected_mesh_count": 0,
+        "blender.export_scale": "1",
+        "blender.export_apply_modifiers": true,
+        "blender.visible_cutter_objects": 0,
+        "blender.loose_parts_count": 1,
+        "blender.boolean_solver": "Manifold",
+        "blender.boolean_result_face_count": 1200,
+        "blender.cutter_covers_cut_region": true,
+        "blender.cutter_display_as": "Wire",
+        "blender.cutter_non_manifold_edges": 0,
+        "blender.key_is_cylindrical": false,
+        "blender.key_clearance_per_side_mm": "0.15",
+        "blender.key_min_width_mm": "6",
+        "blender.key_socket_depth_margin_mm": "0.6",
+        "blender.key_lead_in_taper": true,
+        "blender.key_crosses_cut_plane": true,
+        "blender.insert_clearance_per_side_mm": "0.2",
+        "mesh.duplicate_vertices": 0,
+        "mesh.flipped_normal_faces": 0,
+        "mesh.open_edges": 0,
+        "mesh.internal_shell_count": 0,
+        "mesh.enclosed_cavity_count": 0
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "blender.setup.units-not-mm",
+        "blender.setup.grid-scale-not-set",
+        "blender.setup.clip-range-too-small",
+        "blender.setup.addon-3d-print-toolbox-missing",
+        "blender.export.scale-not-1-with-mm-unit-scale",
+        "blender.cut.manifold-needs-closed-mesh",
+        "blender.keys.small-pin-clearance",
+        "blender.repair.non-manifold-edges"
+      ]
+    },
+    {
+      "name": "blender-default-scene-unprepared",
+      "description": "Cena padrão do Blender (metros, escala 1.0, grade 1, clip inicial de 10 mm, sem add-ons) com duas transformações não aplicadas, Boolean pendente, 26 arestas abertas, 14 vértices duplicados e 3 partes soltas. Dispara a bateria de preparação. A regra de Scale de exportação para escala 0.001 NÃO dispara porque a escala da cena é 1.0.",
+      "facts": {
+        "blender.unit_system": "metric",
+        "blender.unit_scale": "1.0",
+        "blender.length_unit": "meters",
+        "blender.overlay_grid_scale": "1.0",
+        "blender.clip_start_mm": "10",
+        "blender.clip_end_mm": "100000",
+        "blender.enabled_addons": [],
+        "blender.unapplied_transform_objects": 2,
+        "mesh.duplicate_vertices": 14,
+        "mesh.flipped_normal_faces": 0,
+        "blender.non_manifold_edges": 26,
+        "mesh.open_edges": 26,
+        "blender.unapplied_boolean_count": 2,
+        "blender.loose_parts_count": 3,
+        "blender.export_scale": "1000",
+        "blender.boolean_solver": "Exact"
+      },
+      "expect_rules": [
+        "blender.setup.units-not-mm",
+        "blender.setup.grid-scale-not-set",
+        "blender.setup.clip-range-too-small",
+        "blender.setup.addon-3d-print-toolbox-missing",
+        "blender.setup.addon-bool-tool-missing",
+        "blender.setup.addon-looptools-missing",
+        "blender.repair.boolean-before-cleanup",
+        "blender.repair.unapplied-scale-rotation",
+        "blender.repair.duplicate-vertices",
+        "blender.repair.non-manifold-edges",
+        "blender.export.non-manifold-after-booleans",
+        "blender.cut.modifiers-not-applied",
+        "blender.cut.loose-parts-not-separated"
+      ],
+      "expect_not": [
+        "blender.repair.flipped-normals",
+        "blender.export.scale-not-1-with-mm-unit-scale",
+        "blender.cut.manifold-needs-closed-mesh"
+      ]
+    },
+    {
+      "name": "blender-mm-scene-export-mistakes",
+      "description": "Cena em milímetros (escala 0.001), malha limpa, mas exportação com Scale 0.001, 'Apply Modifiers' desmarcado com 3 modificadores pendentes e 'Selection Only' desmarcado com 2 malhas visíveis não selecionadas (cortadores). Dispara os três erros de exportação; a preparação de cena e a malha estão corretas.",
+      "facts": {
+        "blender.unit_system": "metric",
+        "blender.unit_scale": "0.001",
+        "blender.length_unit": "millimeters",
+        "blender.overlay_grid_scale": "0.001",
+        "blender.enabled_addons": [
+          "3D Print Toolbox",
+          "Bool Tool",
+          "LoopTools"
+        ],
+        "blender.export_scale": "0.001",
+        "blender.export_apply_modifiers": false,
+        "blender.unapplied_modifier_count": 3,
+        "blender.export_selection_only": false,
+        "blender.visible_unselected_mesh_count": 2,
+        "blender.non_manifold_edges": 0,
+        "mesh.open_edges": 0
+      },
+      "expect_rules": [
+        "blender.export.scale-not-1-with-mm-unit-scale",
+        "blender.export.apply-modifiers-unchecked",
+        "blender.export.selection-only-hidden-cutters"
+      ],
+      "expect_not": [
+        "blender.setup.units-not-mm",
+        "blender.setup.grid-scale-not-set",
+        "blender.setup.addon-3d-print-toolbox-missing",
+        "blender.setup.addon-bool-tool-missing",
+        "blender.setup.addon-looptools-missing",
+        "blender.export.non-manifold-after-booleans",
+        "blender.repair.non-manifold-edges"
+      ]
+    },
+    {
+      "name": "blender-boolean-cut-problems",
+      "description": "Corte com Boolean Manifold sobre malha com 8 arestas abertas: resultado com 0 faces (a peça sumiu), cortador sólido, visível e que não cobre a região, modificador não aplicado e 2 partes soltas. Dispara a cadeia de erros do corte. O cortador em si é fechado, então 'cortador orgânico com superfície aberta' não dispara.",
+      "facts": {
+        "blender.boolean_solver": "Manifold",
+        "blender.non_manifold_edges": 8,
+        "mesh.open_edges": 8,
+        "blender.boolean_result_face_count": 0,
+        "blender.cutter_covers_cut_region": false,
+        "blender.cutter_display_as": "Solid",
+        "blender.visible_cutter_objects": 1,
+        "blender.loose_parts_count": 2,
+        "blender.cutter_non_manifold_edges": 0,
+        "blender.unapplied_boolean_count": 1
+      },
+      "expect_rules": [
+        "blender.cut.manifold-needs-closed-mesh",
+        "blender.cut.part-vanishes-after-boolean",
+        "blender.cut.cutter-misses-region",
+        "blender.cut.cutter-not-wireframe",
+        "blender.cut.cutter-left-visible",
+        "blender.cut.loose-parts-not-separated",
+        "blender.cut.modifiers-not-applied",
+        "blender.repair.boolean-before-cleanup",
+        "blender.repair.non-manifold-edges",
+        "blender.export.non-manifold-after-booleans"
+      ],
+      "expect_not": [
+        "blender.cut.organic-cutter-open-surface"
+      ]
+    },
+    {
+      "name": "blender-pin-socket-problems",
+      "description": "Pino cilíndrico de 4 mm com folga de 0,1 mm por lado, margem de profundidade de 0,3 mm no furo e sem chanfro de entrada. Dispara pino redondo gira, folga curta, folga de pino fino, profundidade e entrada. O pino cruza o plano de corte (correto) e a folga de inserto (0.15) está no limite, então essas duas não disparam.",
+      "facts": {
+        "blender.key_is_cylindrical": true,
+        "blender.key_clearance_per_side_mm": "0.1",
+        "blender.key_min_width_mm": "4",
+        "blender.key_socket_depth_margin_mm": "0.3",
+        "blender.key_lead_in_taper": false,
+        "blender.key_crosses_cut_plane": true,
+        "blender.insert_clearance_per_side_mm": "0.15"
+      },
+      "expect_rules": [
+        "blender.keys.round-pin-spins",
+        "blender.keys.clearance-too-small",
+        "blender.keys.small-pin-clearance",
+        "blender.keys.socket-no-depth-margin",
+        "blender.keys.no-lead-in-taper"
+      ],
+      "expect_not": [
+        "blender.keys.pin-not-crossing-cut-plane",
+        "blender.multipart.insert-clearance-too-small"
+      ]
+    },
+    {
+      "name": "pin-clearance-at-thresholds",
+      "description": "Pino quadrado de 4,9 mm com folga de 0,12 mm por lado, margem de profundidade 0,5 mm e inserto de 0,15 mm: todos exatamente nos limites. 0,12 está na faixa 0,11 a 0,13 do pino fino. Nada dispara.",
+      "facts": {
+        "blender.key_is_cylindrical": false,
+        "blender.key_clearance_per_side_mm": "0.12",
+        "blender.key_min_width_mm": "4.9",
+        "blender.key_socket_depth_margin_mm": "0.5",
+        "blender.key_lead_in_taper": true,
+        "blender.key_crosses_cut_plane": true,
+        "blender.insert_clearance_per_side_mm": "0.15"
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "blender.keys.clearance-too-small",
+        "blender.keys.small-pin-clearance",
+        "blender.keys.socket-no-depth-margin",
+        "blender.keys.round-pin-spins",
+        "blender.keys.no-lead-in-taper",
+        "blender.multipart.insert-clearance-too-small"
+      ]
+    },
+    {
+      "name": "pin-clearance-just-outside",
+      "description": "Pino fino (4,9 mm) com folga 0,131 mm (acima da faixa 0,11 a 0,13) e folga de inserto 0,149 mm (abaixo de 0,15). Disparam só essas duas; a regra geral de folga curta (< 0,12) não.",
+      "facts": {
+        "blender.key_is_cylindrical": false,
+        "blender.key_clearance_per_side_mm": "0.131",
+        "blender.key_min_width_mm": "4.9",
+        "blender.key_socket_depth_margin_mm": "0.5",
+        "blender.key_lead_in_taper": true,
+        "blender.key_crosses_cut_plane": true,
+        "blender.insert_clearance_per_side_mm": "0.149"
+      },
+      "expect_rules": [
+        "blender.keys.small-pin-clearance",
+        "blender.multipart.insert-clearance-too-small"
+      ],
+      "expect_not": [
+        "blender.keys.clearance-too-small",
+        "blender.keys.socket-no-depth-margin"
+      ]
+    },
+    {
+      "name": "mold-rigid-box-and-split-at-limits",
+      "description": "Molde rígido (gesso) com 3 undercuts e ângulo de saída 1,5°, folga lateral 5 mm, sem funil de vazamento e só 3 chaves de registro. Todas as outras medidas do molde (altura 8, base 3,0, parede 2,4, afundamento 0,2, pavio 2,5, margem 8, folga da chave 0,15, matrix 4/8/5,5) estão exatamente nos limites e NÃO disparam. Ironing 'top' (não 'no ironing') mantém a dica de ironing em molde falsa.",
+      "facts": {
+        "object.mold_kind": "rigid",
+        "mesh.undercut_count": 3,
+        "mesh.min_draft_angle_deg": "1.5",
+        "blender.mold_side_clearance_mm": "5",
+        "blender.mold_box_height_over_part_mm": "8",
+        "blender.mold_box_base_thickness_mm": "3.0",
+        "blender.mold_box_wall_thickness_mm": "2.4",
+        "blender.mold_part_sink_depth_mm": "0.2",
+        "blender.mold_pour_spout_count": 0,
+        "blender.mold_wick_channel_diameter_mm": "2.5",
+        "blender.mold_block_margin_mm": "8",
+        "blender.mold_registration_key_count": 3,
+        "blender.mold_key_clearance_mm": "0.15",
+        "blender.matrix_shell_wall_mm": "4",
+        "blender.matrix_flange_thickness_mm": "8",
+        "blender.matrix_screw_hole_diameter_mm": "5.5",
+        "settings.ironing_type": "top"
+      },
+      "expect_rules": [
+        "blender.moldrules.rigid-mold-undercuts",
+        "blender.moldrules.rigid-mold-draft-angle",
+        "blender.moldbox.side-clearance-out-of-range",
+        "blender.moldsplit.pour-spout-missing",
+        "blender.moldsplit.registration-keys-missing"
+      ],
+      "expect_not": [
+        "blender.moldrules.silicone-small-undercuts-ok",
+        "blender.moldbox.height-over-part-out-of-range",
+        "blender.moldbox.base-thickness-out-of-range",
+        "blender.moldbox.wall-thickness-out-of-range",
+        "blender.moldbox.part-not-sunk-into-base",
+        "blender.moldsplit.wick-channel-diameter-out-of-range",
+        "blender.moldsplit.block-margin-too-small",
+        "blender.moldsplit.key-clearance-missing",
+        "blender.moldmatrix.shell-wall-too-thin",
+        "blender.moldmatrix.flange-too-thin",
+        "blender.moldmatrix.screw-hole-diameter-out-of-range",
+        "bambu.mold.ironing-top-surfaces"
+      ]
+    },
+    {
+      "name": "x2d-three-colors-aux-nozzle-no-tower",
+      "description": "X2D com 3 filamentos, bico auxiliar usado por uma peça de 240 mm em X (limite do auxiliar 235,5, do principal 256), bicos 0,2 e 0,4, camada 0,08, torre desligada e agrupamento Auto For Flush. Dispara a pilha de avisos da X2D multicor. 240 mm cabe no volume principal, então 'volume principal excedido' e a faixa reservada do arrange ficam falsos (o bico 2 está em uso).",
+      "facts": {
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "printer.nozzle_diameter": [
+          "0.2",
+          "0.4"
+        ],
+        "printer.nozzle_diameters_differ": true,
+        "project.nozzle2_used": true,
+        "project.filament_count": 3,
+        "settings.enable_prime_tower": "0",
+        "settings.flush_into_infill": "0",
+        "settings.layer_height": "0.08",
+        "settings.filament_map_mode": "Auto For Flush",
+        "settings.reduce_crossing_wall": "0",
+        "object.uses_aux_nozzle": true,
+        "mesh.size_x_mm": "240",
+        "mesh.size_y_mm": "100",
+        "mesh.height_mm": "100"
+      },
+      "expect_rules": [
+        "bambu.x2d.dual-nozzle-without-prime-tower",
+        "bambu.x2d.more-than-two-colors-purge",
+        "bambu.x2d.aux-volume-exceeded",
+        "bambu.x2d.aux-profile-review",
+        "bambu.waste.multicolor-levers",
+        "bambu.x2d.grouping-mode-filament-saving",
+        "bambu.x2d.mixed-nozzle-diameters",
+        "bambu.x2d.small-letters-02-nozzle",
+        "bambu.quality.fine-layer-multicolor"
+      ],
+      "expect_not": [
+        "bambu.x2d.main-volume-exceeded",
+        "bambu.x2d.arrange-reserves-aux-strip",
+        "bambu.waste.flush-without-tower",
+        "bambu.travel.avoid-crossing-wall-dual-nozzle",
+        "bambu.a1.multicolor-without-prime-tower",
+        "bambu.x2d.grouping-mode-custom",
+        "bambu.tower.layer-height-mismatch"
+      ]
+    },
+    {
+      "name": "tower-layer-height-mismatch-a1",
+      "description": "A1 multicolor com torre ligada, objetos com alturas de camada diferentes (bloqueador) e multiplicador de flush no padrão 1. Dispara a incompatibilidade de torre, o multiplicador padrão em multicor e as alavancas multicor.",
+      "facts": {
+        "printer.model": "A1",
+        "printer.nozzle_count": 1,
+        "project.filament_count": 2,
+        "settings.enable_prime_tower": "1",
+        "settings.flush_multiplier": "1",
+        "settings.flush_into_infill": "0",
+        "project.layer_heights_differ": true
+      },
+      "expect_rules": [
+        "bambu.tower.layer-height-mismatch",
+        "bambu.waste.flush-multiplier-default-multicolor",
+        "bambu.waste.multicolor-levers"
+      ],
+      "expect_not": [
+        "bambu.a1.multicolor-without-prime-tower",
+        "bambu.waste.flush-into-infill-color-bleed",
+        "bambu.waste.flush-without-tower"
+      ]
+    },
+    {
+      "name": "overhang-without-support",
+      "description": "Suporte desligado com 340 mm² de balanço abaixo do limiar: dispara a dica de ligar suporte. O pintor de suporte para furos pequenos só vale com suporte ligado, então não dispara apesar dos 2 furos de 3 a 6 mm.",
+      "facts": {
+        "settings.enable_support": "0",
+        "mesh.overhang_area_mm2": 340.5,
+        "mesh.small_hole_count_3_6mm": 2
+      },
+      "expect_rules": [
+        "bambu.support.overhang-without-support"
+      ],
+      "expect_not": [
+        "bambu.tools.support-painting-small-holes",
+        "bambu.support.top-z-below-creator-range",
+        "bambu.support.top-z-above-creator-range"
+      ]
+    },
+    {
+      "name": "support-gcode-without-interface",
+      "description": "Suporte ligado, G-code com 1200 segmentos de suporte e nenhum de interface, ironing de suporte ligado com espaçamento de interface 0,5 e 2 furos pequenos. Dispara falta de interface, ironing de suporte sem interface sólida e pintura de suporte em furos pequenos.",
+      "facts": {
+        "settings.enable_support": "1",
+        "gcode.support_line_count": 1200,
+        "gcode.support_interface_line_count": 0,
+        "settings.enable_support_ironing": "1",
+        "settings.support_interface_spacing": "0.5",
+        "mesh.small_hole_count_3_6mm": 2
+      },
+      "expect_rules": [
+        "bambu.support.missing-interface-in-gcode",
+        "bambu.support.ironing-needs-solid-interface",
+        "bambu.tools.support-painting-small-holes"
+      ],
+      "expect_not": [
+        "bambu.support.overhang-without-support"
+      ]
+    },
+    {
+      "name": "zhop-without-retraction-normal-lift-pla",
+      "description": "Z-hop de 0,4 mm com retração zerada, Normal Lift em PLA e dois filamentos de aderência alta marcados como sticky-type baixo (contagem 2) com retração do infill em Auto. Dispara Z-hop sem retração, espinha do Normal Lift e filamento genérico sem aderência declarada. Z-hop não está desligado e a stickiness 'High' não ativa a pulada de retração do infill.",
+      "facts": {
+        "settings.z_hop": [
+          "0.4"
+        ],
+        "settings.retraction_length": [
+          "0"
+        ],
+        "settings.z_hop_types": [
+          "Normal Lift"
+        ],
+        "project.filament_types": [
+          "PLA"
+        ],
+        "settings.reduce_infill_retraction_mode": "Auto",
+        "filament.low_stickiness_on_sticky_type_count": 2,
+        "settings.filament_metal_stickiness": [
+          "High"
+        ]
+      },
+      "expect_rules": [
+        "bambu.travel.zhop-without-retraction",
+        "bambu.travel.normal-lift-nub",
+        "bambu.travel.generic-filament-stickiness-none"
+      ],
+      "expect_not": [
+        "bambu.travel.zhop-disabled",
+        "bambu.travel.infill-retraction-skip",
+        "bambu.travel.infill-retraction-reduced"
+      ]
+    },
+    {
+      "name": "travel-auto-lift-default",
+      "description": "Z-hop de 0,4 mm com retração e tipo Auto Lift: só a dica de tipo automático dispara.",
+      "facts": {
+        "settings.z_hop": [
+          "0.4"
+        ],
+        "settings.retraction_length": [
+          "0.8"
+        ],
+        "settings.z_hop_types": [
+          "Auto Lift"
+        ]
+      },
+      "expect_rules": [
+        "bambu.travel.zhop-type-auto"
+      ],
+      "expect_not": [
+        "bambu.travel.zhop-disabled",
+        "bambu.travel.zhop-without-retraction",
+        "bambu.travel.slope-lift-warped-edge"
+      ]
+    },
+    {
+      "name": "petg-spiral-lift-smooth-plate",
+      "description": "PETG de perfil Bambu na Smooth PEI com ventoinha a 100%, bico a 225 °C e Spiral Lift. Dispara Spiral Lift em PETG, PETG na placa lisa, ventoinha alta, temperatura baixa e dica da Smooth PEI. O perfil é Bambu, então 'perfil genérico' é falso; a placa não é Cool Plate.",
+      "facts": {
+        "printer.model": "A1",
+        "project.filament_types": [
+          "PETG"
+        ],
+        "settings.curr_bed_type": "Smooth PEI Plate",
+        "settings.fan_max_speed": [
+          "100"
+        ],
+        "settings.nozzle_temperature": [
+          "225"
+        ],
+        "settings.z_hop": [
+          "0.4"
+        ],
+        "settings.z_hop_types": [
+          "Spiral Lift"
+        ],
+        "filament.profile_name": [
+          "Bambu PETG HF"
+        ]
+      },
+      "expect_rules": [
+        "bambu.travel.spiral-lift-petg-pins",
+        "bambu.materials.petg-smooth-plate",
+        "bambu.materials.petg-part-fan-high",
+        "bambu.materials.petg-low-nozzle-temp",
+        "bambu.bed.smooth-pei-selected"
+      ],
+      "expect_not": [
+        "bambu.materials.petg-generic-profile",
+        "bambu.bed.petg-on-cool-plate",
+        "bambu.travel.normal-lift-nub"
+      ]
+    },
+    {
+      "name": "old-studio-beta-x2d-project",
+      "description": "Projeto X2D salvo num Studio beta antigo (02.05.00.66, abaixo do mínimo da X2D), com PLA+PETG e suporte em árvore. Dispara Studio antigo para X2D, 3MF beta, matriz de flush PLA/PETG anterior à 2.8.0, regressões do suporte em árvore (antes da 2.7.0 e antes da 2.8.2) e a dica da ventoinha auxiliar do PLA.",
+      "facts": {
+        "studio.version": "02.05.00.66",
+        "studio.is_prerelease": true,
+        "studio.meets_x2d_minimum": false,
+        "printer.model": "X2D",
+        "project.filament_types": [
+          "PLA",
+          "PETG"
+        ],
+        "settings.enable_support": "1",
+        "settings.support_type": "tree(auto)"
+      },
+      "expect_rules": [
+        "bambu.waste.flush-matrix-pla-petg-before-2-8-0",
+        "bambu.versions.beta-3mf-makerworld",
+        "bambu.versions.x2d-studio-too-old",
+        "bambu.support.studio-before-2-7-0",
+        "bambu.support.studio-before-2-8-2",
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ],
+      "expect_not": [
+        "bambu.support.studio-2-1-0-50-weak-supports",
+        "bambu.studio.preview-slow-or-frozen",
+        "bambu.support.pla-petg-same-nozzle"
+      ]
+    },
+    {
+      "name": "studio-2-1-0-50-weak-supports",
+      "description": "Studio 02.01.00.50 com suporte normal: dispara a regra da versão com suportes fracos. Como o suporte não é em árvore, as regras de regressão do suporte em árvore não disparam.",
+      "facts": {
+        "studio.version": "02.01.00.50",
+        "settings.enable_support": "1",
+        "settings.support_type": "normal(auto)"
+      },
+      "expect_rules": [
+        "bambu.support.studio-2-1-0-50-weak-supports"
+      ],
+      "expect_not": [
+        "bambu.support.studio-before-2-7-0",
+        "bambu.support.studio-before-2-8-2"
+      ]
+    },
+    {
+      "name": "facedown-plate-engrave-too-shallow",
+      "description": "Placa com texto embutido na face que apoia na mesa (face-down), 2 cores, rebaixo de 0,3 mm (abaixo de 0,4) e pé de elefante 0,15 (deveria ser 0). Dispara profundidade do rebaixo, pé de elefante zerado e alavancas multicor. Sem o modelo da impressora, o pé de elefante do preset fica não verificado.",
+      "facts": {
+        "object.kind": "face_down_plate",
+        "project.filament_count": 2,
+        "settings.elefant_foot_compensation": "0.15",
+        "mesh.engrave_depth_mm": "0.3"
+      },
+      "expect_rules": [
+        "bambu.facedown.engrave-depth",
+        "bambu.facedown.elephant-foot-zero",
+        "bambu.waste.multicolor-levers"
+      ],
+      "expect_not": [
+        "bambu.ironing.relief-height-out-of-range",
+        "bambu.ironing.qr-outer-wall-speed"
+      ],
+      "expect_unchecked": [
+        "bambu.dimensional.elephant-foot-off-preset"
+      ]
+    },
+    {
+      "name": "pix-plate-qr-out-of-range",
+      "description": "Placa PIX com relevo de 0,9 mm (acima de 0,8), base de 1,8 mm (abaixo de 2) e parede externa a 120 mm/s. Dispara relevo, base e velocidade da parede. 'Chaveiro pintado' exige tipo chaveiro, então não dispara mesmo com cor pintada.",
+      "facts": {
+        "object.kind": "pix_plate",
+        "settings.layer_height": "0.2",
+        "mesh.relief_height_mm": "0.9",
+        "mesh.base_thickness_mm": "1.8",
+        "settings.outer_wall_speed": "120",
+        "project.has_painted_colors": true
+      },
+      "expect_rules": [
+        "bambu.ironing.relief-height-out-of-range",
+        "bambu.ironing.relief-base-too-thin",
+        "bambu.ironing.qr-outer-wall-speed"
+      ],
+      "expect_not": [
+        "bambu.ironing.painted-keychain-many-changes"
+      ]
+    },
+    {
+      "name": "keychain-painted-relief-too-low",
+      "description": "Chaveiro pintado por face com relevo de 0,5 mm (abaixo de 0,6) e base de 2,2 mm (abaixo de 2,4). Dispara chaveiro pintado, relevo baixo e base fina; a regra de velocidade do QR é só para placa PIX.",
+      "facts": {
+        "object.kind": "keychain",
+        "settings.layer_height": "0.2",
+        "project.has_painted_colors": true,
+        "mesh.relief_height_mm": "0.5",
+        "mesh.base_thickness_mm": "2.2",
+        "settings.outer_wall_speed": "120"
+      },
+      "expect_rules": [
+        "bambu.ironing.painted-keychain-many-changes",
+        "bambu.ironing.relief-height-out-of-range",
+        "bambu.ironing.relief-base-too-thin"
+      ],
+      "expect_not": [
+        "bambu.ironing.qr-outer-wall-speed"
+      ]
+    },
+    {
+      "name": "x2d-by-object-tall-objects",
+      "description": "X2D com 2 objetos de 40 mm em 'by object': passa dos 32,8 mm da X2D e dispara. A condição da regra da A1 (25 mm) também seria verdadeira, mas é de outra impressora e não pode disparar.",
+      "facts": {
+        "printer.model": "X2D",
+        "settings.print_sequence": "by object",
+        "project.object_count": 2,
+        "mesh.max_object_height_mm": "40",
+        "settings.timelapse_type": "traditional"
+      },
+      "expect_rules": [
+        "bambu.sequence.by-object-head-clearance-x2d"
+      ],
+      "expect_not": [
+        "bambu.sequence.by-object-head-clearance-a1",
+        "bambu.sequence.by-object-smooth-timelapse"
+      ]
+    },
+    {
+      "name": "x2d-pla-main-petg-aux-interface",
+      "description": "X2D com PLA no bico principal e interface de suporte em PETG no auxiliar (rótulo 'PETG', não PETG-CF), torre ligada. Dispara mistura PLA/PETG no suporte, torre, distâncias dedicadas, revisão do auxiliar, alavancas e a dica de PLA na X2D. A regra de mesmo bico da A1 e a de cautela com PETG-CF não disparam: 'contains' em lista é correspondência exata.",
+      "facts": {
+        "printer.model": "X2D",
+        "printer.nozzle_count": 2,
+        "project.nozzle2_used": true,
+        "project.filament_count": 2,
+        "settings.enable_support": "1",
+        "settings.support_interface_filament": "2",
+        "settings.support_top_z_distance": "0.26",
+        "settings.layer_height": "0.2",
+        "settings.enable_prime_tower": "1",
+        "project.filament_types": [
+          "PLA",
+          "PETG"
+        ],
+        "project.aux_nozzle_filament_types": [
+          "PETG"
+        ],
+        "studio.version": "02.08.04.57"
+      },
+      "expect_rules": [
+        "bambu.support.x2d-pla-main-petg-aux-interface",
+        "bambu.support.dedicated-interface-distances",
+        "bambu.support.pla-petg-prime-tower",
+        "bambu.x2d.aux-profile-review",
+        "bambu.waste.multicolor-levers",
+        "bambu.materials.pla-x2d-aux-fan-warping"
+      ],
+      "expect_not": [
+        "bambu.support.pla-petg-same-nozzle",
+        "bambu.x2d.aux-nozzle-cautious-filaments",
+        "bambu.x2d.dual-nozzle-without-prime-tower"
+      ]
+    },
+    {
+      "name": "a1-pc-pva-open-printer",
+      "description": "A1 com PC e PVA no projeto: dispara a checagem especial de PC/PA em impressora aberta e a de atribuição do PVA ao AMS. ABS/ASA ausentes, então a regra de ABS na A1 é falsa.",
+      "facts": {
+        "printer.model": "A1",
+        "project.filament_types": [
+          "PC",
+          "PVA"
+        ]
+      },
+      "expect_rules": [
+        "bambu.bed.a1-open-materials",
+        "bambu.material.pva-ams-assignment"
+      ],
+      "expect_not": [
+        "bambu.material.abs-asa-on-open-a1"
+      ]
+    },
+    {
+      "name": "x2d-project-drifted-from-system-presets",
+      "description": "Projeto X2D com 14 chaves diferentes do preset de sistema (incluindo sequência de impressão e Z-hop), override de objeto, 2 overrides de filamento, perfil de filamento personalizado, G-code de início/fim divergente e infill_wall_overlap em 15%. Dispara deriva de preset, sequência/timelapse alterados, G-code divergente, overrides, perfil personalizado e vãos entre infill e parede.",
+      "facts": {
+        "printer.model": "X2D",
+        "project.settings_diff_count": 14,
+        "project.settings_diff_keys": [
+          "print_sequence",
+          "timelapse_type",
+          "z_hop"
+        ],
+        "gcode.start_end_template_diff_lines": 3,
+        "project.has_per_object_overrides": true,
+        "project.filament_override_count": 2,
+        "project.custom_filament_profile": true,
+        "settings.infill_wall_overlap": "15%"
+      },
+      "expect_rules": [
+        "bambu.drift.settings-differ-from-system",
+        "bambu.drift.sequence-or-timelapse-changed",
+        "bambu.estimate.start-end-gcode-drift",
+        "bambu.3mf.per-object-overrides-present",
+        "bambu.settings.filament-overrides-active",
+        "bambu.x2d.custom-profile-variant-vector",
+        "bambu.studio.infill-wall-gaps"
+      ],
+      "expect_not": []
+    },
+    {
+      "name": "fine-detail-below-min-feature",
+      "description": "Traço de 0,05 mm no bico 0,4 com Arachne padrão (25% e 85%), parede interna/externa/interna com balanços e costura sem rampa em peça cilíndrica. Dispara detalhe abaixo do mínimo, traço fino demais para ironing, ajuste de Arachne, ordem de parede com balanços e costura em cilindro. 'Detalhe alargado' exige >= 0,10 e é falso.",
+      "facts": {
+        "printer.nozzle_diameter": [
+          "0.4"
+        ],
+        "settings.min_feature_size": "25%",
+        "settings.min_bead_width": "85%",
+        "mesh.min_feature_mm": "0.05",
+        "settings.wall_sequence": "inner wall/outer wall/inner wall",
+        "mesh.overhang_area_mm2": 120,
+        "settings.seam_slope_type": "none",
+        "mesh.has_cylindrical_walls": true
+      },
+      "expect_rules": [
+        "bambu.quality.feature-below-min-feature-size",
+        "bambu.ironing.stroke-too-thin",
+        "bambu.ironing.arachne-fine-details-defaults",
+        "bambu.quality.wall-order-three-with-overhangs",
+        "bambu.quality.scarf-seam-cylinders"
+      ],
+      "expect_not": [
+        "bambu.quality.feature-widened-to-min-wall-width"
+      ]
+    },
+    {
+      "name": "fine-detail-widened-by-min-wall",
+      "description": "Traço de exatamente 0,10 mm: não está abaixo do mínimo (lt 0,10 falso), mas o Studio o alarga para a parede mínima (0,10 <= x < 0,34). Dispara 'alargado', traço fino demais para ironing e ajuste de Arachne.",
+      "facts": {
+        "printer.nozzle_diameter": [
+          "0.4"
+        ],
+        "settings.min_feature_size": "25%",
+        "settings.min_bead_width": "85%",
+        "mesh.min_feature_mm": "0.10"
+      },
+      "expect_rules": [
+        "bambu.quality.feature-widened-to-min-wall-width",
+        "bambu.ironing.stroke-too-thin",
+        "bambu.ironing.arachne-fine-details-defaults"
+      ],
+      "expect_not": [
+        "bambu.quality.feature-below-min-feature-size"
+      ]
+    },
+    {
+      "name": "vase-mode-alternate-wall-flow-limit",
+      "description": "Alternate extra wall ligado junto com spiral vase (modo vaso) e 12% do comprimento extrudado acima do limite de vazão do filamento. Dispara a checagem de parede extra alternada, a incompatibilidade com vaso e o limite de vazão volumétrica.",
+      "facts": {
+        "settings.alternate_extra_wall": "1",
+        "settings.spiral_mode": "1",
+        "gcode.flow_limit_exceeded_share": 0.12
+      },
+      "expect_rules": [
+        "bambu.strength.alternate-extra-wall-check",
+        "bambu.strength.alternate-extra-wall-with-spiral-vase",
+        "bambu.quality.volumetric-flow-limit"
+      ],
+      "expect_not": []
+    },
+    {
+      "name": "blender-hollow-and-ai-mesh-problems",
+      "description": "Miniatura gerada por IA: cavidade fechada sem furo de drenagem, 3 cascas internas, 120 faces com normal invertida, núcleo oco com Displace sem Remesh e voxel de 0,6 mm (acima de 0,5). Dispara as regras de oco, IA, normais e voxel.",
+      "facts": {
+        "mesh.enclosed_cavity_count": 1,
+        "mesh.internal_shell_count": 3,
+        "mesh.flipped_normal_faces": 120,
+        "blender.hollow_core_modifiers": [
+          "Displace",
+          "Solidify"
+        ],
+        "blender.hollow_core_voxel_size_mm": "0.6"
+      },
+      "expect_rules": [
+        "blender.hollow.no-drain-hole",
+        "blender.ai.internal-shells-or-bubbles",
+        "blender.repair.flipped-normals",
+        "blender.hollow.core-without-voxel-remesh",
+        "blender.hollow.voxel-size-out-of-range"
+      ],
+      "expect_not": []
+    },
+    {
+      "name": "blender-hollow-and-displace-at-limits",
+      "description": "Núcleo oco com Remesh (contém 'Remesh', então a regra de Displace sem Remesh é falsa) e voxel exatamente 0,3 mm; Displace com 300000 vértices na região (limite: lt estrito) e grupo de vértices com 1500 vértices. Nada dispara.",
+      "facts": {
+        "blender.hollow_core_modifiers": [
+          "Remesh",
+          "Displace"
+        ],
+        "blender.hollow_core_voxel_size_mm": "0.3",
+        "blender.displace_region_vertex_count": "300000",
+        "blender.vertex_group_vertex_count": 1500
+      },
+      "expect_rules": [],
+      "expect_not": [
+        "blender.hollow.core-without-voxel-remesh",
+        "blender.hollow.voxel-size-out-of-range",
+        "blender.texture.displace-too-few-vertices",
+        "blender.texture.displace-empty-vertex-group"
+      ]
+    },
+    {
+      "name": "blender-displace-texture-knit-problems",
+      "description": "Textura por Displace com grupo de vértices vazio, só 120000 vértices na região e malha base de crochê com 48 faces que não são quads. Dispara as três regras de textura/crochê.",
+      "facts": {
+        "blender.vertex_group_vertex_count": 0,
+        "blender.displace_region_vertex_count": 120000,
+        "blender.non_quad_face_count": 48
+      },
+      "expect_rules": [
+        "blender.texture.displace-empty-vertex-group",
+        "blender.texture.displace-too-few-vertices",
+        "blender.knit.tessellate-base-not-quads"
+      ],
+      "expect_not": []
+    },
+    {
+      "name": "multipart-colour-split-open-back",
+      "description": "Boneco sem AMS dividido em peças de cor: a peça separada ficou com 12 arestas abertas (fundo aberto), há 2 cascas flutuantes e 3 filamentos. Dispara fundo aberto da peça de cor, não-manifold, dividir em objetos e alavancas multicor.",
+      "facts": {
+        "blender.is_color_subpart": true,
+        "blender.non_manifold_edges": 12,
+        "mesh.floating_shell_count": 2,
+        "project.filament_count": 3
+      },
+      "expect_rules": [
+        "blender.multipart.separated-part-open-back",
+        "blender.repair.non-manifold-edges",
+        "blender.export.non-manifold-after-booleans",
+        "bambu.waste.split-to-objects-floating-parts",
+        "bambu.waste.multicolor-levers"
+      ],
+      "expect_not": []
+    },
+    {
+      "name": "blender-cutter-open-pin-short",
+      "description": "Cortador orgânico com 5 arestas abertas (solver Exact) e pino que NÃO cruza o plano de corte. Dispara cortador com superfície aberta e pino fora do plano; Manifold não é o solver, então a regra de Manifold é falsa.",
+      "facts": {
+        "blender.cutter_non_manifold_edges": 5,
+        "blender.boolean_solver": "Exact",
+        "blender.non_manifold_edges": 0,
+        "blender.key_crosses_cut_plane": false
+      },
+      "expect_rules": [
+        "blender.cut.organic-cutter-open-surface",
+        "blender.keys.pin-not-crossing-cut-plane"
+      ],
+      "expect_not": [
+        "blender.cut.manifold-needs-closed-mesh",
+        "blender.export.non-manifold-after-booleans"
+      ]
+    },
+    {
+      "name": "mold-silicone-box-out-of-range",
+      "description": "Caixa de molde de silicone com todas as medidas fora da faixa (lateral 12, altura 9, base 1,5, parede 1,6, afundamento 0, pavio 3, margem 5, folga da chave 0,1, matrix 3/6/6) e ironing desligado. Dispara todas as regras de dimensão e a dica de ironing. Há 1 funil e 4 chaves, no limite, então essas duas não disparam. Regras de molde rígido são falsas.",
+      "facts": {
+        "object.mold_kind": "silicone",
+        "blender.mold_side_clearance_mm": "12",
+        "blender.mold_box_height_over_part_mm": "9",
+        "blender.mold_box_base_thickness_mm": "1.5",
+        "blender.mold_box_wall_thickness_mm": "1.6",
+        "blender.mold_part_sink_depth_mm": "0",
+        "blender.mold_wick_channel_diameter_mm": "3",
+        "blender.mold_block_margin_mm": "5",
+        "blender.mold_key_clearance_mm": "0.1",
+        "blender.matrix_shell_wall_mm": "3",
+        "blender.matrix_flange_thickness_mm": "6",
+        "blender.matrix_screw_hole_diameter_mm": "6",
+        "blender.mold_pour_spout_count": 1,
+        "blender.mold_registration_key_count": 4,
+        "settings.ironing_type": "no ironing"
+      },
+      "expect_rules": [
+        "blender.moldbox.side-clearance-out-of-range",
+        "blender.moldbox.height-over-part-out-of-range",
+        "blender.moldbox.base-thickness-out-of-range",
+        "blender.moldbox.wall-thickness-out-of-range",
+        "blender.moldbox.part-not-sunk-into-base",
+        "blender.moldsplit.wick-channel-diameter-out-of-range",
+        "blender.moldsplit.block-margin-too-small",
+        "blender.moldsplit.key-clearance-missing",
+        "blender.moldmatrix.shell-wall-too-thin",
+        "blender.moldmatrix.flange-too-thin",
+        "blender.moldmatrix.screw-hole-diameter-out-of-range",
+        "bambu.mold.ironing-top-surfaces"
+      ],
+      "expect_not": [
+        "blender.moldsplit.pour-spout-missing",
+        "blender.moldsplit.registration-keys-missing",
+        "blender.moldrules.rigid-mold-undercuts"
+      ]
+    },
+    {
+      "name": "top-shell-thinner-after-layer-change",
+      "description": "Camada de 0,12 mm com 5 camadas de topo e top_shell_thickness 0 (sem espessura mínima): o topo empilha só 0,6 mm. Dispara a dica de topo mais fino depois de reduzir a camada. Um filamento só e ironing desligado: 'fine layer multicor' e 'topo fino com ironing' ficam falsas.",
+      "facts": {
+        "settings.layer_height": "0.12",
+        "settings.top_shell_layers": "5",
+        "settings.top_shell_thickness": "0",
+        "object.top_shell_stack_mm": "0.6",
+        "project.filament_count": 1,
+        "settings.ironing_type": "no ironing"
+      },
+      "expect_rules": [
+        "bambu.quality.top-shell-thinner-after-layer-reduction"
+      ],
+      "expect_not": [
+        "bambu.quality.fine-layer-multicolor",
+        "bambu.ironing.top-shell-too-thin"
+      ]
+    },
+    {
+      "name": "pla-silk-single-slot",
+      "description": "Um único slot de PLA Silk (perfil 'Bambu PLA Silk'): dispara o limite de vazão volumétrica do Silk. Com vários slots, 'matches' em lista exige TODOS os elementos, então a regra só dispara quando todos os perfis forem Silk.",
+      "facts": {
+        "project.filament_types": [
+          "PLA"
+        ],
+        "filament.profile_name": [
+          "Bambu PLA Silk"
+        ]
+      },
+      "expect_rules": [
+        "bambu.materials.pla-silk-volumetric-limit"
+      ],
+      "expect_not": []
+    }
+  ]
+}

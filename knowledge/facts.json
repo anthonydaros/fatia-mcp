@@ -1,0 +1,938 @@
+[
+  {
+    "name": "blender.boolean_result_face_count",
+    "description": "Número de faces do resultado avaliado do objeto depois do Boolean; 0 significa que a peça sumiu.",
+    "source_of_truth": "Blender MCP: malha avaliada do objeto com os modificadores",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.boolean_solver",
+    "description": "Solver do modificador Boolean usado no corte, com o nome do menu: Exact, Manifold (Blender 4.5+), Fast ou Float (nome do Fast no Blender 5.0).",
+    "source_of_truth": "Blender MCP: propriedade Solver do modificador Boolean no objeto cortado",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.clip_end_mm",
+    "description": "Clip End da vista 3D (N → View) em mm reais, ou seja, o valor exibido com o Unit Scale aplicado; o playbook usa 10000.",
+    "source_of_truth": "Configuração da vista 3D, lida pelo Blender MCP.",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.clip_start_mm",
+    "description": "Clip Start da vista 3D (N → View) em mm reais, ou seja, o valor exibido com o Unit Scale aplicado; o playbook usa 0.1.",
+    "source_of_truth": "Configuração da vista 3D, lida pelo Blender MCP.",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.cutter_covers_cut_region",
+    "description": "Booleano: o Cortador é maior que a área de corte e cobre exatamente a metade da peça a separar.",
+    "source_of_truth": "Blender MCP: comparar o bounding box do Cortador com o da peça e o plano de corte pretendido",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.cutter_display_as",
+    "description": "Valor de Viewport Display → Display As do Cortador (menu: Bounds, Wire, Solid, Textured).",
+    "source_of_truth": "Blender MCP: Object Properties do Cortador",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.cutter_non_manifold_edges",
+    "description": "Número de arestas non-manifold do objeto Cortador; maior que 0 indica superfície aberta em vez de volume fechado.",
+    "source_of_truth": "Blender MCP: checagem de non-manifold no objeto Cortador",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.displace_region_vertex_count",
+    "description": "Número de vértices avaliados (após modificadores) na região do Vertex Group usado pelo Displace.",
+    "source_of_truth": "Blender MCP: malha avaliada (depsgraph) filtrada pelo Vertex Group",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.enabled_addons",
+    "description": "Lista com os nomes dos add-ons/extensões ativos, como aparecem em Preferences (ex.: Bool Tool, 3D Print Toolbox, LoopTools).",
+    "source_of_truth": "Preferências do Blender, lidas pelo Blender MCP.",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.export_apply_modifiers",
+    "description": "Valor da caixa Apply Modifiers na exportação do STL (true/false).",
+    "source_of_truth": "Parâmetro da chamada de exportação que o MCP executa; se o usuário exporta à mão, perguntar a ele.",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.export_scale",
+    "description": "Valor do campo Scale da exportação do STL (1.0 com Unit Scale 0.001; 1000 para modelos feitos em metros).",
+    "source_of_truth": "Parâmetro da chamada de exportação que o MCP executa; se o usuário exporta à mão, perguntar a ele.",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.export_selection_only",
+    "description": "Valor da caixa Selection Only na exportação do STL (true/false).",
+    "source_of_truth": "Parâmetro da chamada de exportação que o MCP executa; se o usuário exporta à mão, perguntar a ele.",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.hollow_core_modifiers",
+    "description": "Lista dos tipos de modificador na pilha do Nucleo_Oco, em ordem (por exemplo Displace, Remesh).",
+    "source_of_truth": "Blender MCP: pilha de modificadores do Nucleo_Oco",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.hollow_core_voxel_size_mm",
+    "description": "Voxel Size do Remesh (Voxel) do Nucleo_Oco em mm, considerando a unidade da cena e a escala do objeto.",
+    "source_of_truth": "Blender MCP: propriedade Voxel Size do modificador Remesh do Nucleo_Oco",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.insert_clearance_per_side_mm",
+    "description": "Folga por lado em mm entre a peça colorida e o berço escavado no corpo principal.",
+    "source_of_truth": "Blender MCP: Displace aplicado à peça colorida e dimensões do berço",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.is_color_subpart",
+    "description": "Booleano: o objeto é uma sub-peça destinada a ser impressa em outra cor, separada com P → Selection ou extraída por Boolean.",
+    "source_of_truth": "Declaração do usuário ou convenção de nomes no Blender",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.key_clearance_per_side_mm",
+    "description": "Folga por lado em mm entre pino e furo: metade da largura do furo menos metade da largura do pino, por par encaixado.",
+    "source_of_truth": "Blender MCP: dimensões do pino e do furo (incluindo o Displace do Pino_Furo)",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.key_is_cylindrical",
+    "description": "Booleano: o pino de encaixe tem seção circular (simetria de rotação).",
+    "source_of_truth": "Blender MCP: geometria do objeto Pino ou Pino_Macho",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.key_lead_in_taper",
+    "description": "Booleano: as pontas do pino são afuniladas por Scale menor ou Bevel.",
+    "source_of_truth": "Blender MCP: geometria das faces do topo e da base do pino",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.key_min_width_mm",
+    "description": "Menor largura da seção do pino de encaixe, em mm.",
+    "source_of_truth": "Blender MCP: dimensões do objeto pino",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.key_socket_depth_margin_mm",
+    "description": "Profundidade do furo fêmea menos o comprimento de inserção do pino, em mm (folga extra no fundo do furo).",
+    "source_of_truth": "Blender MCP: dimensões do Pino_Furo e do Pino_Macho ao longo do eixo de inserção",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.length_unit",
+    "description": "Length da cena (Scene Properties → Units), em minúsculas, ex.: millimeters.",
+    "source_of_truth": "Cena aberta, lida pelo Blender MCP.",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.loose_parts_count",
+    "description": "Número de ilhas de malha desconectadas dentro de um único objeto.",
+    "source_of_truth": "Blender MCP: contar componentes conexos da malha do objeto",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.matrix_flange_thickness_mm",
+    "description": "Espessura, em mm, das flanges laterais do Matrix Mold (modificador Solidify no plano central).",
+    "source_of_truth": "Blender MCP: parâmetro Thickness do Solidify e dimensões da flange",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.matrix_screw_hole_diameter_mm",
+    "description": "Diâmetro, em mm, dos furos de parafuso nas flanges do Matrix Mold.",
+    "source_of_truth": "Blender MCP: dimensões dos furos nas flanges",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.matrix_shell_wall_mm",
+    "description": "Parede da Casca_Externa do Matrix Mold, em mm (offset da casca menos offset do Volume_Silicone).",
+    "source_of_truth": "Blender MCP: offsets dos objetos Volume_Silicone e Casca_Externa em relação ao modelo",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.modifier_stack",
+    "description": "Lista ordenada dos modificadores do objeto (tipo e modo, por exemplo Subdivision Surface Simple, Displace).",
+    "source_of_truth": "Blender MCP: leitura da pilha de modificadores do objeto",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_block_margin_mm",
+    "description": "Menor margem, em mm, entre a peça positiva (com funil e canal de pavio) e as faces externas do bloco do molde.",
+    "source_of_truth": "Blender MCP: bounding boxes do positivo e do bloco",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_box_base_thickness_mm",
+    "description": "Espessura, em mm, da base da caixa de molde impressa em 3D.",
+    "source_of_truth": "Blender MCP: dimensão em Z da base da caixa",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_box_height_over_part_mm",
+    "description": "Altura da caixa de molde menos a altura da peça positiva, em mm.",
+    "source_of_truth": "Blender MCP: dimensões em Z dos objetos caixa e peça",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_box_wall_thickness_mm",
+    "description": "Espessura, em mm, das paredes externas da caixa de molde impressa em 3D.",
+    "source_of_truth": "Blender MCP: espessura das paredes da caixa",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_key_clearance_mm",
+    "description": "Menor folga, em mm, entre cada chave da Metade_A e o encaixe subtraído na Metade_B.",
+    "source_of_truth": "Blender MCP: medir chave e encaixe correspondentes",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_part_sink_depth_mm",
+    "description": "Profundidade, em mm, com que a peça positiva está mergulhada na base da caixa após o Boolean Union (0 se não foi unida).",
+    "source_of_truth": "Blender MCP: posição Z da peça em relação à face superior da base e estado do modificador Boolean",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_pour_spout_count",
+    "description": "Número de cilindros largos de preenchimento (funil de vazamento) unidos ao positivo do molde.",
+    "source_of_truth": "Blender MCP: inspeção dos objetos e modificadores do molde",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_registration_key_count",
+    "description": "Número de chaves de registro (esferas ou cones truncados) nas metades do molde bipartido.",
+    "source_of_truth": "Blender MCP: objetos e modificadores Boolean das metades",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_side_clearance_mm",
+    "description": "Menor distância, em mm, entre a peça positiva e a parede interna da caixa de molde para silicone (vira a parede de silicone).",
+    "source_of_truth": "Blender MCP: medir as dimensões da peça e da caixa na cena",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_split_offset_mm",
+    "description": "Distância, em mm, entre o plano de corte das duas metades do molde e o centro da bounding box da peça no eixo de abertura.",
+    "source_of_truth": "Blender MCP: posição do corte e bounding box do positivo",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.mold_wick_channel_diameter_mm",
+    "description": "Diâmetro, em mm, do cilindro fino do canal de pavio de um molde de vela (ausente se não houver canal).",
+    "source_of_truth": "Blender MCP: dimensões do cilindro do canal de pavio",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.non_manifold_edges",
+    "description": "Número de arestas non-manifold (buracos, arestas com mais de duas faces) da malha.",
+    "source_of_truth": "Blender MCP: análise de malha (seleção non-manifold ou 3D Print Toolbox)",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.non_quad_face_count",
+    "description": "Número de faces do objeto que não são Quads (triângulos e N-gons).",
+    "source_of_truth": "Blender MCP: mesh.polygons, tamanho de cada polígono",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.object_distance_from_world_origin_mm",
+    "description": "Distância, em mm, entre o centro do objeto positivo (origem do objeto ou centro da bounding box; a fonte não diz qual) e a origem do mundo (0,0,0).",
+    "source_of_truth": "Blender MCP: localização e bounding box do objeto",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.object_types",
+    "description": "Tipo de cada objeto da cena ou da seleção (MESH, CURVE ...).",
+    "source_of_truth": "Blender MCP: object.type",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.overlay_grid_scale",
+    "description": "Overlays → Guides → Scale da vista 3D, número; o playbook usa 0.001.",
+    "source_of_truth": "Configuração da vista 3D, lida pelo Blender MCP.",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.subsurf_render_levels",
+    "description": "Nível Render do modificador Subdivision Surface não aplicado (maior valor entre os objetos a exportar).",
+    "source_of_truth": "Blender MCP: leitura da pilha de modificadores.",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.subsurf_viewport_levels",
+    "description": "Nível Viewport do modificador Subdivision Surface não aplicado (maior valor entre os objetos a exportar).",
+    "source_of_truth": "Blender MCP: leitura da pilha de modificadores.",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.unapplied_boolean_count",
+    "description": "Número de modificadores Boolean ainda não aplicados nos objetos que serão exportados (Peca_A, Peca_B, pinos).",
+    "source_of_truth": "Blender MCP: lista de modificadores dos objetos de exportação",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.unapplied_modifier_count",
+    "description": "Número de modificadores ainda na pilha (não aplicados) dos objetos que serão exportados.",
+    "source_of_truth": "Blender MCP: leitura da pilha de modificadores de cada objeto selecionado.",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.unapplied_transform_objects",
+    "description": "Número de objetos de malha da cena (ou da seleção) com escala diferente de 1 ou rotação diferente de 0 ainda não aplicadas.",
+    "source_of_truth": "Transformações dos objetos, lidas pelo Blender MCP.",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.unit_scale",
+    "description": "Unit Scale da cena do Blender (número, por exemplo 0.001 para milímetros).",
+    "source_of_truth": "Blender MCP: propriedade de unidades da cena ativa",
+    "cost": "cheap"
+  },
+  {
+    "name": "blender.unit_system",
+    "description": "Unit System da cena (Scene Properties → Units), em minúsculas, ex.: metric.",
+    "source_of_truth": "Cena aberta, lida pelo Blender MCP.",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.uv_layer_count",
+    "description": "Quantidade de mapas UV do objeto (0 = sem UV).",
+    "source_of_truth": "Blender MCP: mesh.uv_layers",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.vertex_group_vertex_count",
+    "description": "Quantidade de vértices atribuídos ao Vertex Group usado pelo Displace.",
+    "source_of_truth": "Blender MCP: pesos do Vertex Group no mesh",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.visible_cutter_objects",
+    "description": "Quantidade de objetos usados como operando de Boolean (Cortador) ainda visíveis na cena.",
+    "source_of_truth": "Blender MCP: objetos referenciados por Boolean e sua visibilidade",
+    "cost": "expensive"
+  },
+  {
+    "name": "blender.visible_unselected_mesh_count",
+    "description": "Número de objetos de malha visíveis na view layer que NÃO estão selecionados (por exemplo cortadores de Boolean deixados visíveis). São os que o exportador STL do Blender 4.2/5.0 leva junto quando Selection Only está desmarcada; objetos realmente ocultos não entram, pela leitura do código do exportador.",
+    "source_of_truth": "Blender MCP: lista de objetos da cena com estado de visibilidade e de seleção.",
+    "cost": "cheap"
+  },
+  {
+    "name": "filament.bed_temp_current_plate",
+    "description": "Por filamento, a temperatura de mesa do filamento para a placa definida em curr_bed_type (chaves do perfil do filamento: cool_plate_temp, eng_plate_temp, hot_plate_temp, textured_plate_temp, supertack_plate_temp); 0 significa placa sem suporte. O mapeamento de curr_bed_type para a chave não está no guia.",
+    "source_of_truth": "project_settings.config (curr_bed_type e as chaves *_plate_temp do filamento)",
+    "cost": "cheap"
+  },
+  {
+    "name": "filament.low_stickiness_on_sticky_type_count",
+    "description": "Número de filamentos do projeto cujo filament_type é PETG, PA, TPU, PCTG ou PPA e cujo filament_metal_stickiness é None ou Low (tipo e stickiness comparados pelo mesmo índice de filamento).",
+    "source_of_truth": "project_settings.config: listas filament_type e filament_metal_stickiness do 3MF, cruzadas por índice.",
+    "cost": "free"
+  },
+  {
+    "name": "filament.profile_name",
+    "description": "Nome do perfil (preset) de filamento de cada slot do projeto, lista por filamento.",
+    "source_of_truth": "Nome do preset de filamento de cada slot gravado no 3MF.",
+    "cost": "free"
+  },
+  {
+    "name": "gcode.aux_nozzle_max_accel_mm_s2",
+    "description": "Maior aceleração (comandos M204, mm/s²) em vigor nos trechos do G-code fatiado com o bico auxiliar da X2D ativo.",
+    "source_of_truth": "Varredura do G-code fatiado separando por ferramenta.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.aux_nozzle_max_feedrate_mm_s",
+    "description": "Maior avanço efetivo (mm/s, convertido de F em mm/min) nos trechos do G-code fatiado com o bico auxiliar da X2D ativo.",
+    "source_of_truth": "Varredura do G-code fatiado separando por ferramenta.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.aux_nozzle_max_z_mm",
+    "description": "Maior Z (mm) alcançado pelo bico auxiliar, incluindo Z-hop.",
+    "source_of_truth": "Varredura do G-code fatiado separando por ferramenta.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.aux_nozzle_min_x_mm",
+    "description": "Menor X (mm) alcançado pelo bico auxiliar, incluindo viagens.",
+    "source_of_truth": "Varredura do G-code fatiado separando por ferramenta.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.aux_retraction_equals_main",
+    "description": "true se o comprimento de retração do bico auxiliar é igual ao do principal.",
+    "source_of_truth": "Varredura das retrações (E negativo) do G-code por ferramenta.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.contains_fnan",
+    "description": "true se o G-code contém a sequência Fnan (avanço com NaN).",
+    "source_of_truth": "Busca de texto simples no arquivo G-code.",
+    "cost": "cheap"
+  },
+  {
+    "name": "gcode.filament_nozzle_assignment",
+    "description": "Mapa filamento -> bico efetivamente usado no G-code.",
+    "source_of_truth": "Varredura do G-code fatiado (trocas de ferramenta) cruzada com os filamentos do projeto.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.first_layer_area_mm2",
+    "description": "Área aproximada da pegada da primeira camada, em mm².",
+    "source_of_truth": "G-code fatiado (extrusões da primeira camada)",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.first_layer_brim_present",
+    "description": "Indica se a primeira camada contém brim.",
+    "source_of_truth": "G-code fatiado (; FEATURE: na primeira camada)",
+    "cost": "cheap"
+  },
+  {
+    "name": "gcode.first_layer_contact_share",
+    "description": "Fração (0 a 1) da pegada da base do modelo que tem extrusão do modelo na primeira camada, excluindo suporte.",
+    "source_of_truth": "G-code fatiado: camada 1, trechos de modelo (marcadores ; FEATURE:) comparados com a pegada da base na malha.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.first_layer_height_mm",
+    "description": "Altura da primeira camada, em mm.",
+    "source_of_truth": "G-code fatiado (primeiro ; LAYER_HEIGHT:)",
+    "cost": "cheap"
+  },
+  {
+    "name": "gcode.first_layer_speed_mm_s",
+    "description": "Velocidade de impressão da primeira camada no G-code, em mm/s.",
+    "source_of_truth": "G-code fatiado (F na primeira camada)",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.flow_limit_exceeded_share",
+    "description": "Fração (0 a 1) do comprimento extrudado em que a vazão calculada (largura × camada × velocidade) excede o Max volumetric speed do filamento.",
+    "source_of_truth": "G-code fatiado (velocidades, '; LINE_WIDTH:', altura de camada) e Max volumetric speed do filamento",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.flush_length_mismatch_count",
+    "description": "Número de M620.10 cujo L diverge de matriz × multiplicador ÷ 2,4053.",
+    "source_of_truth": "G-code fatiado (M620.10) e settings.flush_volumes_matrix",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.flush_volume_per_change",
+    "description": "Volume de purga (mm³) efetivamente emitido em cada troca de filamento.",
+    "source_of_truth": "Varredura do G-code nos blocos de troca/purga.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.m73_time_s",
+    "description": "Tempo total recomposto a partir das linhas M73 do G-code, em segundos.",
+    "source_of_truth": "G-code fatiado (M73)",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.purge_g",
+    "description": "Gramas de filamento purgadas nas trocas, recompostas a partir do G-code (não a estimativa do Studio).",
+    "source_of_truth": "Comprimentos de flush no G-code (marcador M620.10, seção 18 do guia: 'L' contra matriz × multiplicador ÷ 2,4053, detecção parcial) convertidos em massa.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.start_end_template_diff_lines",
+    "description": "Número de linhas em que o G-code de início e de fim difere dos templates públicos do perfil.",
+    "source_of_truth": "G-code fatiado contra os JSON de perfil",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.support_interface_line_count",
+    "description": "Número de segmentos de extrusão de interface de suporte no G-code.",
+    "source_of_truth": "G-code fatiado (; FEATURE: de interface de suporte)",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.support_line_count",
+    "description": "Número de segmentos de extrusão de suporte no G-code.",
+    "source_of_truth": "G-code fatiado (; FEATURE: de suporte)",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.tool_temperature_mismatch_count",
+    "description": "Número de M104/M109 cujo S difere de nozzle_temperature do filamento atribuído à ferramenta.",
+    "source_of_truth": "G-code fatiado (M104/M109) e settings.nozzle_temperature",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.tool_xy_outside_area_count",
+    "description": "Número de movimentos de uma ferramenta fora de extruder_printable_area.",
+    "source_of_truth": "G-code fatiado (coordenadas por ferramenta) e settings.extruder_printable_area",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.top_layer_count",
+    "description": "Número de camadas de superfície de topo contadas no G-code.",
+    "source_of_truth": "G-code fatiado (; FEATURE: e ; CHANGE_LAYER)",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.tower_g",
+    "description": "Gramas de filamento gastas na torre de purga, recompostas a partir do G-code.",
+    "source_of_truth": "Extrusão do G-code marcada como torre de purga (FEATURE de torre).",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.tower_height_mm",
+    "description": "Altura atingida pela torre no G-code, em mm.",
+    "source_of_truth": "G-code fatiado (Z das extrusões da torre)",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.unprotected_travel_count",
+    "description": "Quantidade de travels XY sem extrusão, acima de retraction_minimum_travel, logo após extrusão na mesma Z, sem E negativo e sem subida de Z.",
+    "source_of_truth": "Varredura do G-code fatiado (marcadores ; FEATURE:, movimentos G0/G1, sinal de E e Z).",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.unprotected_travels_in_support",
+    "description": "Quantidade de travels desprotegidos acima do threshold que ocorrem dentro da mesma ilha de suporte.",
+    "source_of_truth": "Varredura do G-code fatiado combinada com os marcadores ; FEATURE: de suporte.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.base_thickness_mm",
+    "description": "Espessura em mm da base sólida sob o relevo (da mesa até o plano de topo da base).",
+    "source_of_truth": "Análise da malha: altura do plano de topo da base.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.bbox_max_dim_mm",
+    "description": "Maior dimensão da caixa delimitadora do objeto em mm, tal como o fatiador a interpretaria.",
+    "source_of_truth": "Vértices do STL ou 3MF (caixa delimitadora).",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.bottom_edge_bevel_mm",
+    "description": "Largura em mm do maior chanfro nas arestas da face apoiada na mesa (borda do corte ou base do pino); 0 se não houver chanfro.",
+    "source_of_truth": "Análise da malha: arestas ao redor da face inferior.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.coplanar_triangle_share",
+    "description": "Fração (0 a 1) de triângulos que pertencem a regiões planas subdivididas em mais de 2 triângulos coplanares.",
+    "source_of_truth": "Análise de geometria da malha.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.duplicate_vertices",
+    "description": "Número de vértices duplicados (sobrepostos ou dentro da distância de fusão).",
+    "source_of_truth": "Análise de geometria do STL/Blender",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.enclosed_cavity_count",
+    "description": "Número de cavidades internas totalmente fechadas, sem abertura para o exterior.",
+    "source_of_truth": "Análise de geometria do STL (componentes de cascas internas)",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.engrave_depth_mm",
+    "description": "Profundidade em mm do texto ou QR embutido na face que apoia na mesa (método face-down).",
+    "source_of_truth": "Análise da malha: profundidade do rebaixo na face voltada à mesa.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.exceeds_build_volume",
+    "description": "true quando a caixa envolvente da peça, na melhor orientação, não cabe no volume de impressão (largura, profundidade e altura).",
+    "source_of_truth": "Caixa envolvente do objeto comparada ao tamanho da mesa e à altura máxima da impressora (printer.*).",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.fit_hole_count",
+    "description": "Número de furos relevantes para encaixe (parafuso, eixo, pino), circulares, passantes ou cegos. O guia fala em \"furos horizontais\" sem esclarecer a orientação do furo.",
+    "source_of_truth": "Análise da malha do objeto (detecção de furos cilíndricos); o guia não define tamanho mínimo.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.flat_bottom_area_mm2",
+    "description": "Área, em mm2, da região plana na base da peça (faces voltadas para baixo na altura do Z mínimo).",
+    "source_of_truth": "Análise de geometria da peça positiva",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.flipped_normal_faces",
+    "description": "Número de faces cuja normal aponta para dentro do sólido.",
+    "source_of_truth": "Análise de geometria do STL/Blender",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.floating_shell_count",
+    "description": "Número de cascas (shells) desconectadas do corpo principal cujo Z mínimo é maior que zero, ou seja, que não tocam a mesa (olhos, botões flutuantes).",
+    "source_of_truth": "Análise de componentes conectados da malha e do Z mínimo de cada um.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.footprint_area_mm2",
+    "description": "Área da pegada do objeto na mesa (caixa XY), em mm².",
+    "source_of_truth": "Caixa delimitadora XY do objeto no 3MF/STL, depois de aplicar a orientação da placa.",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.has_cylindrical_walls",
+    "description": "Verdadeiro se as paredes visíveis dominantes do objeto são cilíndricas (costura reta fica evidente).",
+    "source_of_truth": "Análise da malha (curvatura das paredes)",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.has_slender_protrusions",
+    "description": "Verdadeiro se o objeto tem projeções finas e esbeltas (dedos, antenas) que dependem de suporte.",
+    "source_of_truth": "Análise da malha (seções finas e longas)",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.height_mm",
+    "description": "Altura (eixo Z) da caixa delimitadora do objeto, em mm, na orientação em que será impresso e com a transformação do 3MF aplicada.",
+    "source_of_truth": "Caixa delimitadora do objeto no 3MF/STL, depois de aplicar a orientação da placa.",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.height_to_footprint",
+    "description": "Razão entre a altura do objeto e a dimensão da sua base (raiz da área da pegada); indica peça alta e estreita.",
+    "source_of_truth": "Bounding box e área de contato com a mesa",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.internal_shell_count",
+    "description": "Número de cascas (componentes conexos) totalmente contidas dentro de outra casca, ou de cavidades/bolhas internas soltas.",
+    "source_of_truth": "Análise de geometria da malha (componentes conexos e teste de contenção).",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.max_object_height_mm",
+    "description": "Altura (Z) em mm do objeto mais alto do projeto, a partir da caixa delimitadora da malha.",
+    "source_of_truth": "Caixa delimitadora de cada objeto no 3MF (malha já posicionada na placa).",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.min_draft_angle_deg",
+    "description": "Menor ângulo de saída, em graus, entre as faces do modelo mestre e a direção de abertura do molde.",
+    "source_of_truth": "Análise de geometria do modelo mestre com direção de abertura informada",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.min_feature_mm",
+    "description": "Menor largura (mm) de uma feição fina do modelo (texto, dentes, nervuras, traços de relevo, paredes finas), estimada na malha ou nas fatias; compara com min_feature_size, min_bead_width e com o traço mínimo de 0,85 mm do relevo.",
+    "source_of_truth": "Análise da malha do objeto, seções transversais ou largura de linha do G-code ('; LINE_WIDTH:').",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.min_thickness_mm",
+    "description": "Espessura mínima local da peça (mm), usada para saber se as paredes consomem o miolo.",
+    "source_of_truth": "Análise de geometria da malha (espessura de parede).",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.min_z_mm",
+    "description": "Coordenada Z mínima, em mm, da bounding box da peça positiva (esperado 0 no Fluxo A, antes de afundar 0.2 mm na base).",
+    "source_of_truth": "Bounding box do objeto lida pelo Blender MCP ou pelo STL",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.open_edges",
+    "description": "Número de arestas de borda abertas (pertencentes a apenas uma face) da malha.",
+    "source_of_truth": "Análise de geometria do STL",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.overhang_area_mm2",
+    "description": "Área total (mm²) das faces do objeto cujo ângulo de inclinação (slope angle) está abaixo do limiar de suporte (30° de fábrica, support_threshold_angle; texto do Studio: suporte é gerado para balanços cujo ângulo de inclinação está abaixo do limiar). Zero se não houver. A convenção do ângulo (horizontal ou vertical) deve ser fixada pela implementação.",
+    "source_of_truth": "Análise da malha do objeto (normais das faces versus o limiar de suporte)",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.relief_height_mm",
+    "description": "Altura em mm do relevo (letras, logo, QR) acima do plano de topo da base.",
+    "source_of_truth": "Análise da malha: diferença de Z entre o topo do relevo e o topo da base.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.self_intersections",
+    "description": "Número de faces que se auto-interseccionam na malha.",
+    "source_of_truth": "Análise de geometria do STL",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.sharp_edge_count",
+    "description": "Número de arestas afiadas (cantos vivos) da malha, com a posição para saber se estão em saliências.",
+    "source_of_truth": "Análise de geometria do STL (ângulo diedral entre faces)",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.size_x_mm",
+    "description": "Dimensão X (mm) da caixa delimitadora do objeto, na orientação atual e com a transformação do 3MF aplicada; para o projeto, usar o maior valor entre os objetos.",
+    "source_of_truth": "Malha do objeto no 3MF com transformação aplicada (caixa delimitadora).",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.size_y_mm",
+    "description": "Dimensão Y (mm) da caixa delimitadora do objeto, na orientação atual e com a transformação do 3MF aplicada.",
+    "source_of_truth": "Malha do objeto no 3MF com transformação aplicada (caixa delimitadora).",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.small_hole_count_3_6mm",
+    "description": "Número de furos com diâmetro entre 3 e 6 mm (por exemplo furos de parafuso).",
+    "source_of_truth": "Análise da malha: detecção de furos cilíndricos e medição do diâmetro.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.top_surface_levels",
+    "description": "Número de níveis (alturas Z) distintos de superfície superior horizontal do objeto, por exemplo 2 para base mais letras em relevo.",
+    "source_of_truth": "Análise da malha: faces voltadas para cima e horizontais agrupadas por altura Z.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.triangle_count",
+    "description": "Número de triângulos da malha.",
+    "source_of_truth": "Contagem no STL binário (campo de contagem do cabeçalho) ou no 3MF.",
+    "cost": "cheap"
+  },
+  {
+    "name": "mesh.undercut_count",
+    "description": "Número de regiões que formam retenções (undercuts) em relação à direção de abertura do molde escolhida.",
+    "source_of_truth": "Análise de geometria do modelo mestre com direção de abertura informada",
+    "cost": "expensive"
+  },
+  {
+    "name": "object.flat_cut_or_pin_base_on_bed",
+    "description": "true se a face plana de um corte (ou a base de um pino) fica apoiada na mesa na orientação de impressão.",
+    "source_of_truth": "Contexto do corte feito no Blender/MCP somado à orientação do objeto no 3MF; sem esse contexto, análise da face inferior da malha.",
+    "cost": "expensive"
+  },
+  {
+    "name": "object.height_plus_zhop_mm",
+    "description": "Altura do objeto (bounding box em Z) mais o maior valor de z_hop do projeto, em mm.",
+    "source_of_truth": "Malha do objeto no projeto e project_settings.config (z_hop)",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.kind",
+    "description": "Tipo de peça: keychain, pix_plate, face_down_plate ou other. Declarado pelo usuário ou inferido pelo agente; não existe como campo no 3MF.",
+    "source_of_truth": "Declarado pelo usuário ou inferido pelo agente (nome do arquivo, descrição); não consta do 3MF.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.mold_kind",
+    "description": "Tipo de molde que o usuário pretende: 'rigid' (gesso, cimento ou cera direto no molde impresso) ou 'silicone' (caixa impressa onde se despeja silicone líquido).",
+    "source_of_truth": "Informado pelo usuário na conversa; não existe em nenhum arquivo do projeto.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.origin",
+    "description": "Origem do modelo declarada pelo usuário: ai (gerado por IA), download, scan ou modeled.",
+    "source_of_truth": "Informação dada pelo usuário ou metadados do arquivo",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.top_shell_stack_mm",
+    "description": "top_shell_layers × layer_height, em mm: a espessura que as camadas de topo dão sozinhas. Se top_shell_thickness for maior que 0, o Studio aumenta as camadas até atingi-lo (seção 7.3 do guia), então este valor só representa o topo real quando top_shell_thickness é 0.",
+    "source_of_truth": "project_settings.config (top_shell_layers, layer_height) e overrides por objeto",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.uses_aux_nozzle",
+    "description": "Verdadeiro se o objeto inteiro é impresso com o bico auxiliar da X2D (filamento do objeto atribuído ao bico 2).",
+    "source_of_truth": "Atribuição de filamento/bico por objeto gravada no 3MF; a chave exata não é citada neste trecho do guia e precisa ser confirmada numa X2D real.",
+    "cost": "cheap"
+  },
+  {
+    "name": "plate.time_s",
+    "description": "Tempo estimado de impressão da placa fatiada, em segundos.",
+    "source_of_truth": "Resultado do fatiamento gravado no 3MF ou cabeçalho do G-code.",
+    "cost": "cheap"
+  },
+  {
+    "name": "plate.tool_changes",
+    "description": "Número de trocas de filamento/ferramenta da placa fatiada.",
+    "source_of_truth": "Resultado do fatiamento gravado no 3MF ou contagem de trocas no G-code.",
+    "cost": "cheap"
+  },
+  {
+    "name": "plate.waste_weight_g",
+    "description": "Massa descartada (torre, purga e troca) na placa fatiada (g).",
+    "source_of_truth": "Resultado do fatiamento gravado no 3MF (informações da placa), se disponível; senão varredura do G-code.",
+    "cost": "expensive"
+  },
+  {
+    "name": "plate.weight_g",
+    "description": "Peso total estimado da placa fatiada em gramas; o guia não diz se já inclui purga e torre, então confira antes de comparar.",
+    "source_of_truth": "Metadados da placa fatiada no 3MF (slice_info) ou cabeçalho do G-code.",
+    "cost": "cheap"
+  },
+  {
+    "name": "printer.bed_size_mm",
+    "description": "Maior dimensão útil da mesa da impressora de destino, em mm.",
+    "source_of_truth": "printable_area e printable_height do perfil de máquina.",
+    "cost": "free"
+  },
+  {
+    "name": "printer.model",
+    "description": "Modelo da impressora de destino do projeto (por exemplo A1, A1 mini, X2D).",
+    "source_of_truth": "printer_model / printer_settings_id em project_settings.config; a chave de comparação exata deve ser fixada na implementação.",
+    "cost": "free"
+  },
+  {
+    "name": "printer.nozzle_count",
+    "description": "Número de bicos da impressora de destino (1, ou 2 na X2D).",
+    "source_of_truth": "Perfil de máquina em project_settings.config (um valor de nozzle_diameter por extrusor).",
+    "cost": "free"
+  },
+  {
+    "name": "printer.nozzle_diameter",
+    "description": "Diâmetro do bico em mm (vetor por extrusor na X2D).",
+    "source_of_truth": "nozzle_diameter em project_settings.config.",
+    "cost": "free"
+  },
+  {
+    "name": "printer.nozzle_diameters_differ",
+    "description": "true se os valores da lista nozzle_diameter do projeto não são todos iguais entre os bicos.",
+    "source_of_truth": "Derivado da lista nozzle_diameter em project_settings.config; a fonte não nomeia este fato.",
+    "cost": "free"
+  },
+  {
+    "name": "project.ams_type",
+    "description": "Tipo de AMS gravado no projeto (por exemplo AMS Lite, AMS 2 Pro).",
+    "source_of_truth": "Metadados de AMS do 3MF (formato exato não confirmado no guia).",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.aux_nozzle_filament_types",
+    "description": "Lista de rótulos dos filamentos atribuídos ao bico auxiliar (direito): o filament_type (ex.: PETG-CF, ASA-CF) e, quando o tipo é genérico, o produto pelo nome do preset (ex.: 'PLA Silk' em 'Bambu PLA Silk').",
+    "source_of_truth": "Atribuição filamento-bico no 3MF; a chave exata não é citada no guia e precisa ser confirmada na implementação.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.custom_filament_profile",
+    "description": "Verdadeiro se algum filamento do projeto é um perfil personalizado (não é preset Bambu).",
+    "source_of_truth": "Perfis de filamento embutidos no 3MF (origem/herança).",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.filament_count",
+    "description": "Quantidade de filamentos efetivamente usados na placa (atribuídos a objetos, suportes ou camadas), não só configurados nos slots.",
+    "source_of_truth": "Lista de filamentos do 3MF cruzada com as atribuições dos objetos.",
+    "cost": "free"
+  },
+  {
+    "name": "project.filament_override_count",
+    "description": "Quantidade de parâmetros da máquina sobrescritos por Setting Overrides dos filamentos do projeto.",
+    "source_of_truth": "Perfis de filamento embutidos no 3MF.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.filament_types",
+    "description": "Lista com o tipo de material (filament_type) de cada filamento do projeto: PLA, PETG, ABS, ASA...",
+    "source_of_truth": "Perfis de filamento do 3MF (chave filament_type em project_settings.config).",
+    "cost": "free"
+  },
+  {
+    "name": "project.has_cut_objects",
+    "description": "true quando o 3MF contém objetos resultantes do Cut (metades cortadas ou conectores).",
+    "source_of_truth": "Estrutura do 3MF: informação de corte e objetos de conector; o guia não nomeia o arquivo, a confirmar no parser.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.has_painted_colors",
+    "description": "Verdadeiro quando o 3MF contém pintura de cor por face (modelo pintado com cor).",
+    "source_of_truth": "Presença de dados de pintura de cor nos meshes do 3MF.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.has_per_object_overrides",
+    "description": "Verdadeiro se algum objeto tem overrides de configuração próprios (ícone de cadeado).",
+    "source_of_truth": "Metadados por objeto do 3MF (model_settings.config); o nome exato do arquivo deve ser confirmado no parser.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.is_third_party",
+    "description": "Verdadeiro se o 3MF foi criado por outro autor ou para outra máquina (origem diferente da sessão atual).",
+    "source_of_truth": "Metadados do 3MF; a regra exata de detecção não é dada pelo guia e deve ser fixada na implementação.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.layer_heights_differ",
+    "description": "Verdadeiro se os objetos do 3MF têm altura de camada (ou perfil de camada variável) diferente entre si.",
+    "source_of_truth": "Overrides de layer_height por objeto e perfis de camada variável nos metadados do 3MF, comparados entre objetos.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.nozzle2_used",
+    "description": "true se algum objeto, skirt, brim ou suporte está atribuído ao bico 2 (auxiliar, direito).",
+    "source_of_truth": "Atribuição de filamento/objeto a bico no 3MF; a chave exata não é citada no guia e precisa ser confirmada na implementação.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.object_count",
+    "description": "Número de objetos na placa do projeto.",
+    "source_of_truth": "Lista de objetos do 3MF.",
+    "cost": "free"
+  },
+  {
+    "name": "project.printer_changed",
+    "description": "Verdadeiro se project.source_printer difere de project.target_printer.",
+    "source_of_truth": "Comparação entre a impressora de origem do 3MF e a impressora atual.",
+    "cost": "free"
+  },
+  {
+    "name": "project.settings_diff_count",
+    "description": "Número de chaves do project_settings.config que diferem do preset de sistema de mesmo nome.",
+    "source_of_truth": "project_settings.config contra os JSON de perfil de sistema",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.settings_diff_keys",
+    "description": "Lista das chaves que diferem do preset de sistema.",
+    "source_of_truth": "project_settings.config contra os JSON de perfil de sistema",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.source_printer",
+    "description": "Impressora para a qual o 3MF foi criado.",
+    "source_of_truth": "printer_model gravado no 3MF.",
+    "cost": "free"
+  },
+  {
+    "name": "project.target_printer",
+    "description": "Impressora atualmente selecionada para fatiar o projeto.",
+    "source_of_truth": "Seleção de impressora da sessão ou perfil de máquina ativo.",
+    "cost": "free"
+  },
+  {
+    "name": "studio.is_prerelease",
+    "description": "Verdadeiro se a versão do Studio que salvou o projeto é beta/pré-lançamento.",
+    "source_of_truth": "Versão gravada nos metadados do 3MF.",
+    "cost": "cheap"
+  },
+  {
+    "name": "studio.meets_x2d_minimum",
+    "description": "Verdadeiro se a versão do Studio (a gravada no 3MF) é 2.5.3.60 ou superior; comparação numérica por componente, não por texto.",
+    "source_of_truth": "Versão do Studio nos metadados do 3MF comparada com 2.5.3.60.",
+    "cost": "free"
+  },
+  {
+    "name": "studio.version",
+    "description": "Versão do Bambu Studio que abriu ou salvou o projeto.",
+    "source_of_truth": "Metadados do 3MF e versão instalada.",
+    "cost": "free"
+  },
+  {
+    "name": "blender.key_crosses_cut_plane",
+    "description": "Booleano: o pino de encaixe (Pino) atravessa o plano de corte entre Peca_A e Peca_B, isto é, tem volume dos dois lados do plano.",
+    "source_of_truth": "Blender MCP: bounding box do objeto Pino comparada com o plano de corte entre as duas metades",
+    "cost": "expensive"
+  }
+]
