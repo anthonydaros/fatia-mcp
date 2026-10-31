@@ -24,3 +24,12 @@ test("openInSlicer validates the file before launching anything", async () => {
   await assert.rejects(openInSlicer(model, path.join(dir, "NoSlicer")), /executable not found/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("openInSlicer rejects instead of crashing the process when the executable cannot start", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "open-in-slicer-"));
+  const model = path.join(dir, "model.3mf");
+  fs.writeFileSync(model, "x");
+  // A folder passes existsSync but cannot be spawned; an unhandled 'error' event would kill the server.
+  await assert.rejects(openInSlicer(model, dir), /EACCES|ENOENT|EFTYPE|UNKNOWN/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

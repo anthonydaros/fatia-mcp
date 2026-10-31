@@ -684,7 +684,7 @@ const DEFAULT_SLICER_PROFILE = process.env.BAMBU_SLICER_PROFILE || process.env.S
 const DEFAULT_TEMPLATE_3MF_PATH = process.env.BAMBU_TEMPLATE_3MF_PATH || "";
 const DEFAULT_TEMPLATE_DIR =
   process.env.BAMBU_TEMPLATE_DIR ||
-  path.join(process.env.HOME || process.cwd(), "Sync", "bambu", "templates");
+  path.join(os.homedir(), "Sync", "bambu", "templates");
 const SLICER_SCHEMA_VALUES = [
   ...SLICER_TYPES,
   "fulu-orca",
@@ -737,7 +737,9 @@ function resolveSlicerConfig(args: Record<string, unknown> | undefined): {
   slicerProfile: string;
 } {
   const slicerType = normalizeSlicerType(String(args?.slicer_type || DEFAULT_SLICER_TYPE));
-  const slicerPath = slicerType === "orca-slicer-api" ? "" : String(args?.slicer_path || process.env.SLICER_PATH || defaultSlicerPathFor(slicerType));
+  // SLICER_PATH belongs to SLICER_TYPE; any other slicer type uses its own install default.
+  const envSlicerPath = slicerType === normalizeSlicerType(DEFAULT_SLICER_TYPE) ? process.env.SLICER_PATH : undefined;
+  const slicerPath = slicerType === "orca-slicer-api" ? "" : String(args?.slicer_path || envSlicerPath || defaultSlicerPathFor(slicerType));
   const slicerProfile = String(args?.slicer_profile || DEFAULT_SLICER_PROFILE);
   return { slicerType, slicerPath, slicerProfile };
 }
@@ -902,10 +904,10 @@ type UploadGcodeSource = {
 function expandUserPath(rawPath: string): string {
   const trimmed = rawPath.trim();
   if (trimmed === "~") {
-    return process.env.HOME || trimmed;
+    return os.homedir();
   }
   if (trimmed.startsWith("~/")) {
-    return path.join(process.env.HOME || "", trimmed.slice(2));
+    return path.join(os.homedir(), trimmed.slice(2));
   }
   return path.resolve(trimmed);
 }
@@ -3919,12 +3921,8 @@ class BambuPrinterMCPServer {
 
           case "open_in_slicer": {
             if (!args?.file_path) throw new Error("Missing required parameter: file_path");
-            const openType = normalizeSlicerType(String(args.slicer_type || DEFAULT_SLICER_TYPE));
-            // SLICER_PATH belongs to the configured slicer; another slicer uses its install default.
-            const openPath = openType === normalizeSlicerType(DEFAULT_SLICER_TYPE) && process.env.SLICER_PATH
-              ? process.env.SLICER_PATH
-              : defaultSlicerPathFor(openType);
-            result = await openInSlicer(String(args.file_path), openPath);
+            const { slicerPath } = this.resolveSlicerConfigFromArgs(args as Record<string, unknown>, "open_in_slicer");
+            result = await openInSlicer(String(args.file_path), slicerPath);
             break;
           }
 

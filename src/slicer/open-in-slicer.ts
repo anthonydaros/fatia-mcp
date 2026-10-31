@@ -30,7 +30,10 @@ export async function openInSlicer(rawPath: string, executable: string): Promise
     // open -a reuses a running instance instead of starting a second copy.
     await execFileAsync("open", ["-a", bundle, filePath], { timeout: 30000 });
   } else {
-    spawn(executable, [filePath], { detached: true, stdio: "ignore" }).unref();
+    const child = spawn(executable, [filePath], { detached: true, stdio: "ignore" });
+    // A bad executable emits 'error' instead of 'spawn'; unhandled, it would crash the whole server.
+    await new Promise<void>((resolve, reject) => child.once("error", reject).once("spawn", resolve));
+    child.unref();
   }
   return { opened: true, app: bundle ?? executable, file_path: filePath };
 }

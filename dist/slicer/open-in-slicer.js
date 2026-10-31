@@ -31,7 +31,10 @@ export async function openInSlicer(rawPath, executable) {
         await execFileAsync("open", ["-a", bundle, filePath], { timeout: 30000 });
     }
     else {
-        spawn(executable, [filePath], { detached: true, stdio: "ignore" }).unref();
+        const child = spawn(executable, [filePath], { detached: true, stdio: "ignore" });
+        // A bad executable emits 'error' instead of 'spawn'; unhandled, it would crash the whole server.
+        await new Promise((resolve, reject) => child.once("error", reject).once("spawn", resolve));
+        child.unref();
     }
     return { opened: true, app: bundle ?? executable, file_path: filePath };
 }
