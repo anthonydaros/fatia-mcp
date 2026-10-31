@@ -20,9 +20,9 @@ Pre-sliced dual-nozzle jobs retain their complete diameter list. Pass `nozzle_di
 
 Use a sliced file carrying its machine, nozzle, filament, and bed metadata. Declare non-RFID materials in the slicer and supply the complete physical AMS mapping or select external-spool printing. Available printer-reported materials are compared with that declaration. Reports cannot prove the contents of a manually labelled spool, the physical nozzle behind a manual setting, or that the build plate is clear. The checks validate declared object bounds and supported thermal syntax; they do not simulate arbitrary motion or authenticate a file's metadata.
 
-Legacy P1/X1/A1-mini `.gcode.3mf` transport cannot send an AMS mapping or select a plate. It accepts a single external-spool-only plate; export a `.3mf` project for checked AMS mappings. Remote `.gcode` starts download and inspect the file, then print a uniquely named checked copy. The optional BambuNetwork wrapper also requires local MQTT telemetry even for cloud dispatch. Its raw mutation and parameter-override routes are restricted.
+Legacy P1/X1/A1-mini `.gcode.3mf` transport cannot send an AMS mapping or select a plate. It accepts a single external-spool-only plate; export a `.3mf` project for checked AMS mappings. Remote `.gcode` starts download and inspect the file, then print a uniquely named checked copy.
 
-Resume accepts an inspected job started by this server through either direct printing or the BambuNetwork wrapper, after fresh paused-job identity and configuration checks. Bridge submissions use a unique task name as well as a unique remote filename; `project_name` (or the legacy `task_name` label) remains the project label.
+Resume accepts an inspected job started by this server through either direct printing or the X2D native route, after fresh paused-job identity and configuration checks. Native submissions use a unique project name as well as a unique remote filename; `project_name` (or the legacy `task_name` label) remains the project label in the result.
 
 These preflight changes have automated regression coverage with intercepted printer transports. Earlier live-print evidence below predates this additional gate; no new physical print is claimed by those tests.
 
@@ -34,7 +34,7 @@ These preflight changes have automated regression coverage with intercepted prin
 | Pre-sliced `.gcode.3mf` → printer | MCP `print_3mf` | ✅ Works (verified live on Kingpin H2D) |
 | Other slicing combinations | Pre-slice in the GUI, then use `print_3mf` for a supported printer | Inspect the preview and use the printer's supported transport. |
 
-Choose GUI export or CLI slicing. The optional [BambuNetwork bridge](./SETUP.md#bambunetwork-bridge-optional) is a separate print path.
+Choose GUI export or CLI slicing.
 
 **Path A — pre-slice in Bambu Studio:**
 
@@ -209,7 +209,7 @@ For the default direct LAN path, the MCP selects the upload location and command
 
 The filename suffix is significant for the legacy route: the code recognizes `.gcode.3mf` for `gcode_file`, while other `.3mf` names use project-file handling. Keep the slicer's sliced-file export name when using the legacy path. Do not rename unsliced content to force routing.
 
-These routes are implemented in [`src/printers/bambu.ts`](../src/printers/bambu.ts). The [BambuNetwork bridge](./SETUP.md#bambunetwork-bridge-optional) is separately selected and has its own runtime parameters; this table does not establish bridge compatibility.
+These routes are implemented in [`src/printers/bambu.ts`](../src/printers/bambu.ts).
 
 ## AMS mapping (auto-derived from the 3MF)
 

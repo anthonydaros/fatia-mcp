@@ -44,8 +44,7 @@ Use direct LAN printing by default. Explain any LAN/Developer Mode setting
 I need to enable. Prefer Bambu Studio GUI slicing/export; discover
 an existing slicer before suggesting an install. For Bambu Studio CLI auto-slicing,
 require its matching installed profile tree (see guide).
-A slicer is not needed here to print a pre-sliced file. Configure the optional
-BambuNetwork bridge only if I choose it, and explain its runtime/auth needs.
+A slicer is not needed here to print a pre-sliced file.
 X2D supports status and slicing; native printing requires macOS or x86-64 Linux and a locally built helper.
 
 If this harness does not already provide code mode or an equivalent, suggest
@@ -129,7 +128,6 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 
 - [Start here](#start-here)
 - [Description](#description)
-- [BambuNetwork bridge (optional)](#bambunetwork-bridge-optional)
 - [Features](#features)
 - [Set up with your agent](#set-up-with-your-agent)
 - [What to ask your agent](#what-to-ask-your-agent)
@@ -165,17 +163,6 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 **Why a separate package?** The parent project carries all printer adapters in a single binary. When working exclusively with Bambu hardware, that breadth adds unnecessary weight. This fork strips the project to its Bambu core for a smaller, faster install. See each project's changelog for its current fixes and supported workflows.
 
 **Note on resource usage.** STL manipulation loads entire mesh geometry into memory. For large or complex STL files (greater than 10 MB), these operations can be memory-intensive. See [General Limitations and Considerations](#general-limitations-and-considerations) for details.
-
-</details>
-
-<details>
-<summary><strong>BambuNetwork bridge (optional)</strong></summary>
-
-## BambuNetwork bridge (optional)
-
-The optional **BambuNetwork bridge** exposes `bambu_network_bridge_status`, `bambu_network_call`, and `print_3mf_bambu_network`, also reachable through `print_3mf` with `connection_mode: "bambu_network"`. Slicer selection does not enable the bridge. It needs a separately installed bridge runtime and an explicit launch command; cloud printing also needs an authenticated BambuNetwork session.
-
-See the [bridge section of the setup reference](./docs/SETUP.md#bambunetwork-bridge-optional) for the settings, connection probes and print requirements. Bridge protocol tests and a successful handshake do not establish a successful physical print.
 
 </details>
 
@@ -931,15 +918,7 @@ Set `auto_match_ams: true` to match the sliced 3MF's `tray_info_idx` values agai
 
 Layer height, nozzle temperature, and other slicer parameters cannot be overridden via this tool -- they are baked into the 3MF's G-code at slice time. Apply those settings in your slicer before generating the 3MF.
 
-For the optional BambuNetwork bridge, set `connection_mode: "bambu_network"` and explicitly choose `connection_type: "cloud"` or `"lan"`; see the [bridge section](./docs/SETUP.md#bambunetwork-bridge-optional). A successful command submission is not proof that the printer accepted it: inspect printer state, HMS errors, and the printer itself.
-
-#### bambu_network_bridge_status
-
-Inspect the configured bridge without starting it using `{}`. Use `{"connect": true}` to launch the host, handshake, and initialize an agent. See the [bridge section](./docs/SETUP.md#bambunetwork-bridge-optional) for interpreting the result.
-
-#### bambu_network_call
-
-Call an allowed read-only probe such as `{"method": "net.is_user_login", "payload": {}}`. The default injects the initialized agent; use `with_agent: false` for `bridge.handshake`. Raw printer mutations and unknown methods are refused; use the dedicated checked print or printer tools.
+A successful command submission is not proof that the printer accepted it: inspect printer state, HMS errors, and the printer itself.
 
 #### X2D native transport (macOS)
 
@@ -968,10 +947,6 @@ Once the helper, plug-in and certificates are installed, X2D printing, upload an
 #### x2d_native_control
 
 This optional X2D metadata tool accepts `ams_filament_setting` and `extrusion_cali_sel`, plus the read-only queries `extrusion_cali_get`, `extrusion_cali_get_result`, and `flowrate_get_result`. It validates command fields, numeric metadata, and AMS unit/slot selection. Motion, filament loading, heating, safety-setting changes, and task control are not exposed through raw JSON; use the dedicated checked tools where available. A metadata declaration does not verify the physical spool contents.
-
-#### print_3mf_bambu_network
-
-Submit a sliced project through the separately configured BambuNetwork runtime. `connection_type` defaults to `cloud`. Both cloud and LAN bridge jobs require a printer IP, LAN access code, matching serial/device ID, and fresh MQTT safety telemetry. File, raw AMS/nozzle mapping, and extra-option overrides cannot replace checked parameters. See the [bridge section](./docs/SETUP.md#bambunetwork-bridge-optional) for the print requirements. A zero bridge return code confirms submission, not a physical print or direct X2D support.
 
 #### resolve_3mf_ams_slots
 
@@ -1364,7 +1339,7 @@ Understanding these constraints will help you avoid frustrating errors and set a
 
 6. **Only hidden or informational HMS entries let an operation proceed.** Fatal, serious and common HMS entries block printing, heating and resume. The exceptions are info-level entries and serious or common entries that Bambu lists for the exact printer model with empty text: the printer screen, Bambu Studio and Bambu Handy never show those, and the printer keeps printing with them. An X2D, for example, raises the hidden camera code `HMS 0500-0600-0002-0070` at every boot. The list comes from the bundled HMS tables of a pinned Bambu Studio commit (`scripts/generate-hidden-hms.mjs`), selected by the printer's serial prefix as Bambu Studio does, and covers X2D, P2S, H2D, H2D Pro, H2S and H2C. Each model's own table decides: `0500-0600-0002-0070` is hidden in the X2D table, but the P2S table does not list it, so it still blocks a P2S. If Bambu later publishes text for a listed code, the gate keeps passing it until the list is regenerated from a newer Studio release. The print preflight names any hidden entry it passes, and the first check that passes each one logs it on stderr, so headless runs still record it. `clear_hms_errors` leaves hidden entries alone. Unlisted codes and other models' tables never qualify.
 
-7. **Network requirements depend on the path.** Direct MQTT/FTPS tools require local reachability and compatible LAN/Developer Mode settings. Bridge cloud jobs use BambuNetwork and require its runtime, internet access, and authentication. Standard status, camera, file, and control tools remain local; bridge printing does not turn them into cloud tools.
+7. **Network requirements depend on the path.** Direct MQTT/FTPS tools require local reachability and compatible LAN/Developer Mode settings. Standard status, camera, file, and control tools remain local; `bambu_connect` hands a file to the signed-in Bambu Connect app, which has its own cloud session.
 
 8. **Self-signed TLS certificate.** The printer's FTPS server uses a self-signed certificate. The `basic-ftp` client is configured with `rejectUnauthorized: false` to accept it. This is standard for local network Bambu connections but assumes a trusted local network environment.
 

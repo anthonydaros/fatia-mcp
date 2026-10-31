@@ -232,6 +232,19 @@ test("native AMS cannot silently fall back; explicit external-spool printing is 
   assert.deepEqual(JSON.parse(call.mapping), [-1]);
 });
 
+test("native print rejects invalid ams_slots values before the helper starts", async t => {
+  const s = await server(t);
+  for (const invalidSlot of [null, "", "not-a-slot", 1.5, 16]) {
+    const result = await s.print({ ams_slots: [invalidSlot] });
+    assert.equal(result.isError, true, `invalid ams_slots value should fail: ${JSON.stringify(invalidSlot)}`);
+    assert.match(result.content[0].text, /ams_slots\[0\].*integer/i);
+  }
+  const emptyMapping = await s.print({ ams_mapping: [], ams_slots: [null] });
+  assert.equal(emptyMapping.isError, true);
+  assert.match(emptyMapping.content[0].text, /ams_slots\[0\].*integer/i);
+  assert.equal((await s.events()).some(e => e.kind === "helper"), false);
+});
+
 for (const [label, options, transport] of [
   ["darwin", { platform: "darwin" }, "helper"],
   ["linux with a complete install", { platform: "linux" }, "helper"],

@@ -9,6 +9,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { BambuImplementation } from "../dist/printers/bambu.js";
+import { UNPINNED_PLUGIN_ENV, createFakeNativeHome } from "./fixtures/native-home.mjs";
 
 // Mocked printers never report a started job; tests that cover it opt back in.
 process.env.BAMBU_DISPATCH_CHECK_MS = "0";
@@ -51,18 +52,12 @@ test("X2D direct print methods reject model and serial identities before upload 
 
 test("X2D MCP print requests stop before slicing, status, uploads, and connections", async (t) => {
   const { dir, file } = await fixture(t, false);
-  const { file: slicedFile } = await fixture(t);
   const effectsFile = path.join(dir, "effects.jsonl");
-  const bridgeFile = path.join(dir, "bridge.jsonl");
-  const sessionFile = path.join(dir, "local-session.jsonl");
   await fs.writeFile(effectsFile, "");
-  await fs.writeFile(bridgeFile, "");
-  await fs.writeFile(sessionFile, "");
   const preload = `
     import { appendFileSync } from 'node:fs';
     import { BambuImplementation } from ${JSON.stringify(new URL("../dist/printers/bambu.js", import.meta.url).href)};
     import { STLManipulator } from ${JSON.stringify(new URL("../dist/stl/stl-manipulator.js", import.meta.url).href)};
-    import { BambuNetworkBridge } from ${JSON.stringify(new URL("../dist/bambu-network-bridge.js", import.meta.url).href)};
     for (const method of ['getPrinter', 'getStatus', 'ftpUpload']) {
       BambuImplementation.prototype[method] = async () => {
         appendFileSync(${JSON.stringify(effectsFile)}, method + '\\n');
@@ -72,14 +67,6 @@ test("X2D MCP print requests stop before slicing, status, uploads, and connectio
     STLManipulator.prototype.sliceSTL = async () => {
       appendFileSync(${JSON.stringify(effectsFile)}, 'slice\\n');
       throw new Error('Unexpected slicing');
-    };
-    BambuNetworkBridge.prototype.callWithAgent = async (method, payload) => {
-      appendFileSync(${JSON.stringify(bridgeFile)}, JSON.stringify({ method, payload }) + '\\n');
-      return { ok: true, value: 0 };
-    };
-    BambuNetworkBridge.prototype.startLocalPrint = async function (printer, method, payload, options) {
-      appendFileSync(${JSON.stringify(sessionFile)}, JSON.stringify({ ...printer, password: printer.password ? '[set]' : '' }) + '\\n');
-      return { result: await this.callWithAgent(method, payload, options), jobUpdates: [] };
     };
     BambuImplementation.prototype.getSafetyStatus = async (_host, serial) => ({
       connected:true, serial, model:'x2d', status:'IDLE',
@@ -94,7 +81,6 @@ test("X2D MCP print requests stop before slicing, status, uploads, and connectio
     env: {
       ...process.env, MCP_TRANSPORT: "stdio", BAMBU_MODEL: "", BAMBU_PRINTER_MODEL: "",
       BAMBU_PRINTER_HOST: "127.0.0.1", BAMBU_PRINTER_SERIAL: "UNKNOWN", BAMBU_PRINTER_ACCESS_TOKEN: "DUMMY",
-      BAMBU_NETWORK_BRIDGE_COMMAND: "/configured/test-only/bridge",
     },
     stderr: "pipe",
   });
@@ -124,58 +110,48 @@ test("X2D MCP print requests stop before slicing, status, uploads, and connectio
   assert.equal(elicitations, requests.length, "an elicited X2D model must receive the same guard");
   assert.equal(await fs.readFile(effectsFile, "utf8"), "", "preflight must not contact printers or invoke slicing");
 
-  for (const name of ["print_3mf", "print_3mf_bambu_network"]) {
-    const result = await client.callTool({ name, arguments: {
-      three_mf_path: slicedFile, bambu_model: "x2d", bambu_serial: "20PTEST", use_ams: false,
-      connection_mode: "bambu_network", connection_type: "lan",
-    } });
-    assert.notEqual(result.isError, true, "the explicitly configured bridge retains its separate print path");
-  }
-  const bridgeCalls = (await fs.readFile(bridgeFile, "utf8")).trim().split("\n").map(JSON.parse);
-  assert.equal(bridgeCalls.length, 2);
-  for (const call of bridgeCalls) {
-    assert.equal(call.method, "net.start_local_print");
-    assert.equal(call.payload.params.dev_id, "20PTEST");
-    assert.notEqual(call.payload.params.filename, slicedFile, "bridge must receive a checked private snapshot");
-    assert.equal(path.basename(call.payload.params.filename), path.basename(slicedFile));
-    // The plug-in names the stored file and printer job from project_name; resume binds to this checked name.
-    assert.match(call.payload.params.project_name, /^checked-[0-9a-f-]{36}-/);
-    assert.equal(call.payload.params.project_name, call.payload.params.task_name);
-  }
-  const sessions = (await fs.readFile(sessionFile, "utf8")).trim().split("\n").map(JSON.parse);
-  assert.deepEqual(sessions, Array(2).fill({ devId: "20PTEST", devIp: "127.0.0.1", username: "bblp", password: "[set]", useSsl: true }),
-    "each LAN bridge print opens the plug-in's own session for the checked printer");
-  assert.equal(await fs.readFile(effectsFile, "utf8"), "", "bridge routing must not use the direct printer transport");
+  // The BambuNetwork bridge was removed; its connection mode is no longer a valid route.
+  const removed = await client.callTool({ name: "print_3mf", arguments: {
+    three_mf_path: file, bambu_model: "x2d", bambu_serial: "20PTEST", use_ams: false, connection_mode: "bambu_network",
+  } });
+  assert.equal(removed.isError, true);
+  assert.match(removed.content?.[0]?.text || "", /Unsupported connection_mode/);
+  assert.equal(await fs.readFile(effectsFile, "utf8"), "", "an unsupported mode must not contact printers or invoke slicing");
 });
 
 // Dual external spools: 255 (right/main nozzle) and 254 (left/deputy nozzle) must reach the
-// configured bridge unchanged and still pass through the fresh per-nozzle material check.
-test("X2D bridge prints encode verified external spools using the official virtual-slot contract", async (t) => {
+// native helper unchanged and still pass through the fresh per-nozzle material check.
+test("X2D native prints encode verified external spools using the official virtual-slot contract", async (t) => {
   const { dir, file: slicedFile } = await fixture(t);
-  const bridgeFile = path.join(dir, "bridge.jsonl");
-  const sessionFile = path.join(dir, "local-session.jsonl");
+  const helperFile = path.join(dir, "helper.jsonl");
   const virSlotFile = path.join(dir, "vir_slot.json");
-  await fs.writeFile(bridgeFile, "");
-  await fs.writeFile(sessionFile, "");
+  const helper = path.join(dir, "helper.mjs");
+  await fs.writeFile(helperFile, "");
   await fs.writeFile(virSlotFile, JSON.stringify([{ id: "254", tray_type: "PLA" }, { id: "255", tray_type: "PLA" }]));
+  await fs.writeFile(helper, `#!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
+const e = process.env;
+appendFileSync(${JSON.stringify(helperFile)}, JSON.stringify({ mode: process.argv[2], file: e.BAMBU_NATIVE_FILE, useAMS: e.BAMBU_NATIVE_USE_AMS,
+  mapping: e.BAMBU_NATIVE_AMS_MAPPING, mapping2: e.BAMBU_NATIVE_AMS_MAPPING2, projectName: e.BAMBU_NATIVE_PROJECT_NAME, destination: e.BAMBU_NATIVE_DST_FILE }) + '\\n');
+const input = createInterface({ input: process.stdin });
+const authorization = new Promise(resolve => input.once('line', resolve));
+console.log('native_dispatch_request=1');
+if (await authorization !== 'native_dispatch_authorized=1') process.exit(21);
+console.log('native_print result=0');
+process.exit(0);
+`, { mode: 0o755 });
   const preload = `
-    import { appendFileSync, readFileSync } from 'node:fs';
+    import { readFileSync } from 'node:fs';
     import { BambuImplementation } from ${JSON.stringify(new URL("../dist/printers/bambu.js", import.meta.url).href)};
-    import { BambuNetworkBridge } from ${JSON.stringify(new URL("../dist/bambu-network-bridge.js", import.meta.url).href)};
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
     for (const method of ['getPrinter', 'getStatus', 'ftpUpload']) {
       BambuImplementation.prototype[method] = async () => { throw new Error('Unexpected printer side effect: ' + method); };
     }
-    BambuNetworkBridge.prototype.callWithAgent = async (method, payload) => {
-      appendFileSync(${JSON.stringify(bridgeFile)}, JSON.stringify({ method, payload }) + '\\n');
-      return { ok: true, value: 0 };
-    };
-    BambuNetworkBridge.prototype.startLocalPrint = async function (printer, method, payload, options) {
-      appendFileSync(${JSON.stringify(sessionFile)}, JSON.stringify({ ...printer, password: printer.password ? '[set]' : '' }) + '\\n');
-      return { result: await this.callWithAgent(method, payload, options), jobUpdates: [] };
-    };
+    BambuImplementation.prototype.disconnectAll = async () => {};
     BambuImplementation.prototype.getSafetyStatus = async (_host, serial) => ({
       connected:true, serial, model:'x2d', status:'IDLE',
-      raw:{model:'x2d',vir_slot:[{id:254,tray_type:'PLA'},{id:255,tray_type:'PLA'}],gcode_state:'IDLE',print_error:0,hms:[],nozzle_diameter:['0.4','0.4'],
+      raw:{model:'x2d',gcode_state:'IDLE',print_error:0,hms:[],nozzle_diameter:['0.4','0.4'],
         device:{nozzle:{info:[{id:0,diameter:0.4,type:'HH01',stat:0},{id:1,diameter:0.4,type:'HH01',stat:0}]}},
         vir_slot: JSON.parse(readFileSync(${JSON.stringify(virSlotFile)}, 'utf8'))},
       observation:{source:'mqtt',requestedAt:Date.now()-1,receivedAt:Date.now(),identitySource:'report'}
@@ -188,7 +164,8 @@ test("X2D bridge prints encode verified external spools using the official virtu
     env: {
       ...process.env, MCP_TRANSPORT: "stdio", BAMBU_MODEL: "", BAMBU_PRINTER_MODEL: "",
       BAMBU_PRINTER_HOST: "127.0.0.1", BAMBU_PRINTER_SERIAL: "UNKNOWN", BAMBU_PRINTER_ACCESS_TOKEN: "DUMMY",
-      BAMBU_NETWORK_BRIDGE_COMMAND: "/configured/test-only/bridge",
+      BAMBU_NATIVE_HELPER: helper, BAMBU_NATIVE_HOME: createFakeNativeHome(dir), ...UNPINNED_PLUGIN_ENV,
+      BAMBU_DEFAULT_CONNECTION_MODE: "", BAMBU_NATIVE_TRY_EMMC_PRINT: undefined,
     },
     stderr: "pipe",
   });
@@ -196,23 +173,27 @@ test("X2D bridge prints encode verified external spools using the official virtu
   client.setRequestHandler(ElicitRequestSchema, async () => ({ action: "accept", content: { confirmed: true } }));
   t.after(() => transport.close());
   await client.connect(transport);
-  const print = (extra) => client.callTool({ name: "print_3mf_bambu_network", arguments: {
-    three_mf_path: slicedFile, bambu_model: "x2d", bambu_serial: "20PTEST", connection_mode: "bambu_network", connection_type: "lan", ...extra,
+  const print = (extra) => client.callTool({ name: "print_3mf", arguments: {
+    three_mf_path: slicedFile, bambu_model: "x2d", bambu_serial: "20PTEST", connection_mode: "bambu_native", ...extra,
   } });
-  const bridgeCalls = async () => (await fs.readFile(bridgeFile, "utf8")).trim().split("\n").filter(Boolean).map(JSON.parse);
+  const helperCalls = async () => (await fs.readFile(helperFile, "utf8")).trim().split("\n").filter(Boolean).map(JSON.parse);
 
   const left = await fixture(t, true, 1);
   for (const [index, args] of [{ ams_mapping: [255] }, { ams_slots: [255] }, { ams_mapping: [254], three_mf_path: left.file }, { ams_mapping: [255], use_ams: false }].entries()) {
     const result = await print(args);
     assert.notEqual(result.isError, true, `${JSON.stringify(args)}: ${result.content?.[0]?.text}`);
-    const calls = await bridgeCalls();
+    const calls = await helperCalls();
     assert.equal(calls.length, index + 1);
-    assert.equal(calls[index].method, "net.start_local_print");
-    assert.equal(calls[index].payload.params.ams_mapping, "[-1]", "flat mapping uses the vendor virtual-tray sentinel");
-    assert.equal(calls[index].payload.params.task_use_ams, args.use_ams !== false);
-    assert.deepEqual(JSON.parse(calls[index].payload.params.ams_mapping2), [{ams_id:index === 2 ? 254 : 255,slot_id:0}]);
+    assert.equal(calls[index].mode, "--print-authorized");
+    assert.equal(calls[index].mapping, "[-1]", "flat mapping uses the vendor virtual-tray sentinel");
+    assert.equal(calls[index].useAMS, String(args.use_ams !== false));
+    assert.deepEqual(JSON.parse(calls[index].mapping2), [{ams_id:index === 2 ? 254 : 255,slot_id:0}]);
+    assert.notEqual(calls[index].file, slicedFile, "the helper must receive a checked private snapshot");
+    // The plug-in names the stored file and printer job from the project name; resume binds to this checked name.
+    assert.match(calls[index].projectName, /^checked-[0-9a-f-]{36}-/);
+    assert.equal(calls[index].destination.replace(/(?:\.gcode)?\.3mf$/i, ""), calls[index].projectName);
   }
-  const before = (await bridgeCalls()).length;
+  const before = (await helperCalls()).length;
   for (const args of [{ ams_mapping: [254], use_ams: false }, { ams_slots: [254], use_ams: false }]) {
     const result = await print(args);
     assert.equal(result.isError, true, 'explicit wrong-nozzle spool must not be silently replaced');
@@ -231,5 +212,5 @@ test("X2D bridge prints encode verified external spools using the official virtu
   const missing = await print({ ams_mapping: [255] });
   assert.equal(missing.isError, true);
   assert.match(missing.content?.[0]?.text || "", /255/);
-  assert.equal((await bridgeCalls()).length, before, "rejected mappings must never reach the bridge");
+  assert.equal((await helperCalls()).length, before, "rejected mappings must never reach the helper");
 });

@@ -113,14 +113,7 @@ BLENDER_MCP_TIMEOUT_MS=120000
 | `SLICER_TYPE` | `bambustudio` | No | `bambustudio`, `prusaslicer`, `cura`, or `slic3r` |
 | `SLICER_PATH` | Platform default for the selected slicer | No | Full path to the slicer executable. `BAMBU_STUDIO_PATH` supplies the BambuStudio default only |
 | `SLICER_PROFILE` | | No | Process profile/config file; `BAMBU_SLICER_PROFILE` takes precedence. Does not replace the required machine preset for BambuStudio |
-| `BAMBU_DEV_ID` | | Bridge printing | Fallback device ID when no serial is resolved; an explicit `dev_id` tool argument takes priority over both. See the [bridge section](#bambunetwork-bridge-optional) |
 | `BAMBU_NATIVE_HOME` | `~/.config/bambu-printer-mcp/bambu-native` | No | Linux X2D native helper, pinned plug-in and certificates installed by `bambu-printer-mcp-native-setup`; honors `XDG_CONFIG_HOME`. `BAMBU_NATIVE_HELPER` selects an alternate helper executable; `BAMBU_NATIVE_ALLOW_UNPINNED_PLUGIN=1` accepts a plug-in other than the pinned build. `BAMBU_EMERGENCY_MQTT_TIMEOUT_MS` (default 15000, 1–60000 ms) bounds each MQTT send of a Linux X2D stop or heater-off. X2D prints go to a ready SD card or USB stick, otherwise internal storage; `BAMBU_NATIVE_TRY_EMMC_PRINT=1` or `0` forces internal or external storage |
-| `BAMBU_NETWORK_BRIDGE_COMMAND` | | Bridge tools | Trusted shell command launching the bridge's binary-protocol host or platform wrapper, not the slicer GUI |
-| `BAMBU_NETWORK_CONFIG_DIR` | `~/.config/bambu-printer-mcp/bambu-network` | No | Persistent bridge configuration/log directory |
-| `BAMBU_NETWORK_COUNTRY_CODE` | `US` | No | Bridge country/region setting |
-| `BAMBU_NETWORK_CERT_DIR` | `cert` inside `BAMBU_NETWORK_CONFIG_DIR` | No | Certificate folder passed to the networking plug-in. By default the server writes Bambu's public `printer.cer` and `slicer_base64.cer` there (pinned by SHA-256); LAN bridge printing needs `printer.cer`. See the [bridge section](#bambunetwork-bridge-optional) |
-| `PJARCZAK_BAMBU_PLUGIN_DIR` | | Linux bridge | Folder holding `libbambu_networking.so` and `libBambuSource.so`. On Linux the server passes their absolute paths as `PJARCZAK_BAMBU_NETWORK_SO` and `PJARCZAK_BAMBU_SOURCE_SO` unless those are set. See the [bridge section](#bambunetwork-bridge-optional) |
-| `BAMBU_NETWORK_USER_INFO` | | No | Sensitive runtime-compatible JSON for `net.change_user`; see the [bridge section](#bambunetwork-bridge-optional) |
 | `FFMPEG_PATH` | `ffmpeg` | No | Trusted executable for RTSP camera snapshots |
 | `MCP_ALLOW_EXECUTABLE_ARG` | disabled | No | Enables per-call executable overrides; normally configure executables in server environment instead |
 | `BAMBU_TEMPLATE_DIR` | `~/Sync/bambu/templates` | No | Named slicing-template registry |
@@ -208,23 +201,11 @@ Use the harness's built-in code mode or equivalent when available. Otherwise, su
 
 <a id="enabling-developer-mode-required"></a>
 
-## BambuNetwork bridge (optional)
-
-An advanced path that prints through Bambu's networking plug-in instead of the direct LAN MQTT/FTPS path. The MCP speaks the framed stdin/stdout protocol of a separately installed bridge host; it does not install that host, provision a VM or supply a login UI. Selecting a slicer never enables it. Use `print_3mf_bambu_network`, or `print_3mf` with `connection_mode: "bambu_network"`.
-
-Set `BAMBU_NETWORK_BRIDGE_COMMAND` (a trusted command for the host binary or its platform wrapper, never the slicer GUI), `BAMBU_MODEL`, and the other `BAMBU_NETWORK_*` and `PJARCZAK_BAMBU_PLUGIN_DIR` settings from the [environment variables reference](#environment-variables-reference) in the server's environment, then restart the server. Do not enable per-call `bridge_command` overrides just to follow this section.
-
-1. Probe without printing. `bambu_network_bridge_status` with `{}` reports configuration and process state without starting the bridge. With `{"connect": true}` it launches the host, performs `bridge.handshake` and initializes the network agent; it contacts the network service but submits no print.
-2. For a cloud job, check `bambu_network_call` with `{"method": "net.is_user_login", "payload": {}}`. The bridge's configuration directory is separate from any slicer's, so a slicer's own login does not prove the bridge agent is logged in. `BAMBU_NETWORK_USER_INFO` is not a password and the project defines no universal token schema.
-3. Print. These calls submit real jobs; run them only after checking the sliced preview, printer model, material mapping and authentication. `connection_type` is `cloud` by default for `print_3mf_bambu_network` and `lan` needs `dev_ip` and the LAN access code. Every bridge print also needs a reachable printer IP, access code and matching serial/device ID for fresh local safety verification, even for cloud submission. `plate_index` is zero-based, `ams_mapping` is positional across the project's filaments, and raw mapping, nozzle, configuration-file and extra-option overrides are refused.
-
-On Linux, a host that reopens its stdout through `/proc/self/fd` exits with code 101 because Node.js gives a child process a socket. Launch it through a wrapper that pipes its output through `cat` (`"/path/to/host" "$@" | cat`); a host crash then shows in `lastStderr` instead of the exit code. Set `PJARCZAK_BAMBU_PLUGIN_DIR` so the server can pass the plug-in library paths, and keep `printer.cer` in the certificate folder, which the server supplies by default. Neither a successful handshake nor a zero result proves that the printer started: inspect `get_printer_status` and the HMS diagnostics.
-
 ## Enabling Developer Mode for direct LAN
 
 The default `lan_mqtt_ftps` path connects to the printer locally. Enable **LAN Only Mode** and, on firmware with authorization controls, **Developer Mode** to allow third-party commands. Older firmware may expose the LAN interfaces without a separate Developer Mode toggle. Follow the model-specific [LAN setup](https://wiki.bambulab.com/en/knowledge-sharing/enable-lan-mode) and [Developer Mode instructions](https://wiki.bambulab.com/en/knowledge-sharing/enable-developer-mode); firmware and menu names vary.
 
-Bambu describes Developer Mode as the route for custom local integrations in its [third-party integration update](https://blog.bambulab.com/updates-and-third-party-integration-with-bambu-connect/). A Bambu Cloud login is not a credential required by this MCP's direct LAN path. The optional [BambuNetwork bridge](#bambunetwork-bridge-optional) has separate authentication requirements.
+Bambu describes Developer Mode as the route for custom local integrations in its [third-party integration update](https://blog.bambulab.com/updates-and-third-party-integration-with-bambu-connect/). A Bambu Cloud login is not a credential required by this MCP's direct LAN path.
 
 H2-series status may arrive through `push_status` without answering the legacy `get_version` handshake. This fork accepts the live status stream; receiving status alone does not confirm permission to start a print.
 
@@ -299,7 +280,7 @@ The access token is the **Access Code** shown on the printer's network settings 
 3. Navigate to Settings > Network.
 4. The Access Code is shown here.
 
-**"The printer rejected the print command (HMS 0500-0500-0001-0007)":** Bambu firmware 01.08.05 and later only accept third-party LAN control with LAN Only Mode and Developer Mode on (Settings > WLAN on the printer). LAN Only Mode turns off cloud and Bambu Handy remote access while it is on. Otherwise start the uploaded file from Bambu Studio or the printer's screen, or print through the [bridge's LAN mode](#bambunetwork-bridge-optional), which signs the command through Bambu's networking plug-in as Bambu Studio does; it printed on a P1S with Developer Mode off. The rejection stays as a fatal HMS entry that blocks later prints until you clear it with `clear_hms_errors` or dismiss it on the printer.
+**"The printer rejected the print command (HMS 0500-0500-0001-0007)":** Bambu firmware 01.08.05 and later only accept third-party LAN control with LAN Only Mode and Developer Mode on (Settings > WLAN on the printer). LAN Only Mode turns off cloud and Bambu Handy remote access while it is on. Otherwise start the uploaded file from Bambu Studio or the printer's screen. The rejection stays as a fatal HMS entry that blocks later prints until you clear it with `clear_hms_errors` or dismiss it on the printer.
 
 **"Printer nozzle 0 type is unknown or does not match the job":** the file was sliced for a different nozzle material than the printer reports (a stock P1S preset assumes stainless steel). Slice again with `nozzle_type` or set `BAMBU_NOZZLE_TYPE`.
 

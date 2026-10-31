@@ -9,7 +9,6 @@ import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import JSZip from "jszip";
 import { BambuImplementation } from "../dist/printers/bambu.js";
-import { BambuNetworkBridge } from "../dist/bambu-network-bridge.js";
 import { withPrintSnapshot } from "../dist/safety/artifact.js";
 
 // Mocked printers never report a started job; tests that cover it opt back in.
@@ -322,17 +321,15 @@ for (const [name, changes, error] of [
   });
 }
 
-async function interceptedMcp(t, { blockBridgeInitialization = false, realBridgeRequest = false, model = "p1s", nozzleDiameters = [0.4], ams, bridgeResponse = { ok: true, value: 0 }, localPrint } = {}) {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "bambu-bridge-safety-"));
+async function interceptedMcp(t, { model = "p1s", nozzleDiameters = [0.4], ams } = {}) {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "bambu-mcp-safety-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const eventsPath = path.join(dir, "events.jsonl");
-  const releasePath = path.join(dir, "release-agent");
   const statusPath = path.join(dir, "reported-status.json");
   const preload = path.join(dir, "boundaries.mjs");
   await fs.writeFile(preload, `
     import fs from 'node:fs';
     import { BambuImplementation } from ${JSON.stringify(pathToFileURL(path.join(root, "dist/printers/bambu.js")).href)};
-    import { BambuNetworkBridge } from ${JSON.stringify(pathToFileURL(path.join(root, "dist/bambu-network-bridge.js")).href)};
     import { STLManipulator } from ${JSON.stringify(pathToFileURL(path.join(root, "dist/stl/stl-manipulator.js")).href)};
     const log = event => fs.appendFileSync(${JSON.stringify(eventsPath)}, JSON.stringify(event) + '\\n');
     BambuImplementation.prototype.ftpUpload = async (_host, _token, file, remote) => log({action:'upload', file, remote});
@@ -346,73 +343,14 @@ async function interceptedMcp(t, { blockBridgeInitialization = false, realBridge
         raw:{model:${JSON.stringify(model)},...${JSON.stringify(['h2d','h2dpro','h2c','x2d'].includes(model) ? {vir_slot:[{id:254,tray_type:'PLA'},{id:255,tray_type:'PLA'}]} : {})},gcode_state:'IDLE',nozzle_diameter:${JSON.stringify(String(nozzleDiameters[0]))},device:{nozzle:{info:${JSON.stringify(nozzleDiameters.map((diameter, id) => ({ id, diameter, type: "HH01", stat: 0 })))}}},print_error:0,hms:[],...${JSON.stringify(ams ? { ams } : {})},...reported},
         observation:{source:'mqtt',requestedAt:now,receivedAt:now,identitySource:'report'}};
     };
-    ${localPrint ? `BambuNetworkBridge.prototype.startLocalPrint = async (printer, method, payload) => {
-      log({ action:'local-print', printer: { ...printer, password: '[set]' }, method, payload });
-      return ${JSON.stringify(localPrint)};
-    };` : ""}
-    BambuNetworkBridge.prototype.ensureAgent = async () => {
-      ${blockBridgeInitialization ? `log({action:'agent-wait'}); while (!fs.existsSync(${JSON.stringify(releasePath)})) await new Promise(resolve => setTimeout(resolve,10));` : ""}
-      return { agent: 0, handshake: { ok: true } };
-    };
-    ${realBridgeRequest ? `BambuNetworkBridge.prototype.ensureStarted = async function () {
-      this.child = {exitCode:0, stdin:{write:(frame, callback) => {
-        const message=JSON.parse(frame.subarray(16).toString('utf8'));
-        log({action:'bridge-frame',...message});
-        const payload=Buffer.from(JSON.stringify(${JSON.stringify(bridgeResponse)}));
-        const response=Buffer.alloc(16+payload.length);
-        response.writeUInt32LE(0x52424a50,0); response.writeUInt32LE(2,4);
-        response.writeUInt32LE(frame.readUInt32LE(8),8); response.writeUInt32LE(payload.length,12); payload.copy(response,16);
-        queueMicrotask(()=>this.handleStdout(response)); callback?.(); return true;
-      }}};
-    };` : `BambuNetworkBridge.prototype.request = async (method, payload) => {
-      log({ action:'bridge', method, payload });
-      return ${JSON.stringify(bridgeResponse)};
-    };`}
   `);
-  const transport = new StdioClientTransport({ command: process.execPath, args: ["--import", preload, path.join(root, "dist/index.js")], cwd: dir, stderr: "pipe", env: { ...process.env, MCP_TRANSPORT: "stdio", BAMBU_MODEL: "", BAMBU_PRINTER_MODEL: "", BAMBU_PRINTER_HOST: host, BAMBU_PRINTER_SERIAL: serial, BAMBU_SERIAL: serial, BAMBU_PRINTER_ACCESS_TOKEN: token, BAMBU_TOKEN: token, BAMBU_DEV_ID: serial, BAMBU_NETWORK_BRIDGE_COMMAND: "" } });
+  const transport = new StdioClientTransport({ command: process.execPath, args: ["--import", preload, path.join(root, "dist/index.js")], cwd: dir, stderr: "pipe", env: { ...process.env, MCP_TRANSPORT: "stdio", BAMBU_MODEL: "", BAMBU_PRINTER_MODEL: "", BAMBU_PRINTER_HOST: host, BAMBU_PRINTER_SERIAL: serial, BAMBU_SERIAL: serial, BAMBU_PRINTER_ACCESS_TOKEN: token, BAMBU_TOKEN: token, BAMBU_DEV_ID: serial } });
   const client = new Client({ name: "safety-dispatch-tests", version: "1" }, { capabilities: { elicitation: { form: {} } } });
   client.setRequestHandler(ElicitRequestSchema, async () => ({ action: "accept", content: { confirmed: true } }));
   t.after(() => client.close());
   await client.connect(transport);
-  return { client, eventsPath, releaseAgent: () => fs.writeFile(releasePath, "release"), setReportedStatus: reported => fs.writeFile(statusPath, JSON.stringify(reported)) };
+  return { client, eventsPath, setReportedStatus: reported => fs.writeFile(statusPath, JSON.stringify(reported)) };
 }
-
-test("a LAN bridge print that the plug-in cannot publish reports the cause and the plug-in's own job reports", async (t) => {
-  const { client, eventsPath } = await interceptedMcp(t, { localPrint: { result: { ok: true, value: -4030, job_id: 1 }, jobUpdates: [
-    { status: 1, code: 100, msg: "0.0M/0.0M" }, { status: 3, code: -4030, msg: "send msg failed" },
-  ] } });
-  const file = await fixture(t);
-  const result = await client.callTool({ name: "print_3mf_bambu_network", arguments: { three_mf_path: file, bambu_model: "p1s", nozzle_diameter: "0.4", bed_type: "textured_plate", use_ams: false, connection_type: "lan" } });
-  assert.equal(result.isError, true);
-  assert.match(result.content.map(item => item.text ?? "").join(" "),
-    /start_local_print returned non-zero result -4030 \(the networking plug-in could not send the print command to the printer over MQTT\)\. Plug-in reported: status 1, code 100: 0\.0M\/0\.0M; status 3, code -4030: send msg failed\./);
-  const events = (await fs.readFile(eventsPath, "utf8")).trim().split("\n").map(JSON.parse);
-  const local = events.filter(event => event.action === "local-print");
-  assert.equal(local.length, 1);
-  assert.equal(local[0].method, "net.start_local_print");
-  assert.deepEqual(local[0].printer, { devId: serial, devIp: host, username: "bblp", password: "[set]", useSsl: true });
-});
-
-test("a LAN bridge job runs under the checked name while the result keeps the caller's project name", async (t) => {
-  const { client, eventsPath } = await interceptedMcp(t, { localPrint: { result: { ok: true, value: 0, job_id: 1 }, jobUpdates: [] } });
-  const file = await fixture(t);
-  const result = await client.callTool({ name: "print_3mf_bambu_network", arguments: { three_mf_path: file, bambu_model: "p1s", nozzle_diameter: "0.4", bed_type: "textured_plate", use_ams: false, connection_type: "lan", project_name: "My cube" } });
-  assert.notEqual(result.isError, true, result.content?.[0]?.text);
-  const body = JSON.parse(result.content[0].text);
-  assert.equal(body.projectName, "My cube");
-  assert.match(body.printerJobName, /^checked-[0-9a-f-]{36}-/);
-  const local = (await fs.readFile(eventsPath, "utf8")).trim().split("\n").map(JSON.parse).find(event => event.action === "local-print");
-  assert.equal(local.payload.params.project_name, body.printerJobName, "the plug-in names the stored file and printer job from project_name");
-  assert.equal(local.payload.params.task_name, body.printerJobName);
-});
-
-test("raw BambuNetwork start_print cannot bypass the inspected print handler", async (t) => {
-  const { client, eventsPath } = await interceptedMcp(t);
-  const result = await client.callTool({ name: "bambu_network_call", arguments: { method: "net.start_print", with_agent: false, payload: { client_job_id: 0, params: { filename: "uninspected.gcode" } } } });
-  assert.equal(result.isError, true);
-  assert.match(result.content.map((item) => item.text ?? "").join(" "), /safety|print_3mf_bambu_network|inspect|not allowed|disabled/i);
-  await assert.rejects(fs.access(eventsPath), { code: "ENOENT" }, "raw mutation must be rejected before invoking the bridge");
-});
 
 test("public print and heating tools enforce safety before their transport boundaries", async (t) => {
   const { client, eventsPath } = await interceptedMcp(t);
@@ -424,8 +362,7 @@ test("public print and heating tools enforce safety before their transport bound
     ["upload_file", { file_path: unsafeGcode, filename: "unsafe.gcode", print: true, bambu_model: "p1s" }, /temperature|thermal|limit/i],
     ["start_print", { filename: "uninspected.gcode", bambu_model: "p1s" }, /inspect|download|unavailable/i],
     ["start_print_job", { filename: "uninspected.gcode", bambu_model: "p1s" }, /inspect|download|unavailable/i],
-    ["print_3mf_bambu_network", { three_mf_path: unsafe3mf, bambu_model: "p1s", bed_type: "textured_plate", ams_slots: [0], connection_type: "cloud" }, /temperature|thermal|limit/i],
-    ["print_3mf_bambu_network", { three_mf_path: safe3mf, bambu_model: "p1s", bed_type: "textured_plate", plate_index: 98, ams_slots: [0], connection_type: "cloud" }, /plate/i],
+    ["print_3mf", { three_mf_path: safe3mf, bambu_model: "p1s", bed_type: "textured_plate", plate_index: 98, use_ams: false }, /plate/i],
     ["set_temperature", { component: "nozzle", temperature: "not-a-number", bambu_model: "p1s", material: "PLA" }, /number|finite|temperature/i],
     ["set_temperature", { component: "bed", temperature: 300, bambu_model: "p1s" }, /temperature|limit/i],
   ]) {
@@ -433,12 +370,12 @@ test("public print and heating tools enforce safety before their transport bound
       const result = await client.callTool({ name, arguments: args });
       assert.equal(result.isError, true);
       assert.match(result.content.map((item) => item.text ?? "").join(" "), expected);
-      await assert.rejects(fs.access(eventsPath), { code: "ENOENT" }, "rejected public request must not upload, publish, or invoke bridge");
+      await assert.rejects(fs.access(eventsPath), { code: "ENOENT" }, "rejected public request must not upload or publish");
     });
   }
 });
 
-test("verified public direct and bridge prints reach their intended transport", async (t) => {
+test("verified public direct prints reach their intended transport", async (t) => {
   const { client, eventsPath } = await interceptedMcp(t);
   const file = await fixture(t);
   const direct = await client.callTool({ name: "print_3mf", arguments: { three_mf_path: file, bambu_model: "p1s", nozzle_diameter: "0.4", bed_type: "textured_plate", use_ams: false } });
@@ -447,54 +384,39 @@ test("verified public direct and bridge prints reach their intended transport", 
   assert.deepEqual(directEvents.map(({ action }) => action), ["upload", "publish"]);
   assert.equal(directEvents[1].payload.print.command, "gcode_file");
   assert.equal(directEvents[1].payload.print.param, directEvents[0].remote.slice(1));
-
-  await fs.writeFile(eventsPath, "");
-  const bridge = await client.callTool({ name: "print_3mf_bambu_network", arguments: { three_mf_path: file, bambu_model: "p1s", nozzle_diameter: "0.4", bed_type: "textured_plate", use_ams: false, connection_type: "cloud" } });
-  assert.notEqual(bridge.isError, true, bridge.content?.[0]?.text);
-  const bridgeEvents = (await fs.readFile(eventsPath, "utf8")).trim().split("\n").map(JSON.parse);
-  const print = bridgeEvents.find((event) => event.method === "net.start_print");
-  assert.ok(print, "verified bridge handler must issue net.start_print");
-  assert.equal(print.payload.params.plate_index, 1, "bridge uses one-based plate numbers");
-  assert.notEqual(print.payload.params.filename, file, "bridge must consume the checked private copy");
-  assert.match(print.payload.params.dst_file, /^checked-[a-f0-9-]+-job\.gcode\.3mf$/);
-  assert.equal(print.payload.params.task_use_ams, false);
-  assert.equal(print.payload.params.ams_mapping, "[254]");
 });
 
-async function startBridgeJob(t, options) {
-  const server = await interceptedMcp(t, { realBridgeRequest: true, ...options });
+async function startDirectJob(t, options) {
+  const server = await interceptedMcp(t, options);
   const file = await fixture(t);
-  const result = await server.client.callTool({ name: "print_3mf_bambu_network", arguments: { three_mf_path: file, bambu_model: "p1s", bed_type: "textured_plate", use_ams: false, connection_type: "cloud" } });
+  const result = await server.client.callTool({ name: "print_3mf", arguments: { three_mf_path: file, bambu_model: "p1s", bed_type: "textured_plate", use_ams: false } });
   const events = (await fs.readFile(server.eventsPath, "utf8")).trim().split("\n").map(JSON.parse);
-  const params = events.find(event => event.action === "bridge-frame" && event.method === "net.start_print")?.payload.params;
-  assert.ok(params, "the bridge job must reach the native request boundary");
-  return { ...server, result, params };
+  const remote = events.find(event => event.action === "publish")?.payload.print.param;
+  assert.ok(remote, "the direct job must reach the publish boundary");
+  return { ...server, result, remote };
 }
 
-for (const identityField of ["gcode_file", "subtask_name"]) {
-  test(`a verified bridge job resumes when fresh ${identityField} identifies its unique artifact`, async (t) => {
-    const server = await startBridgeJob(t);
-    assert.notEqual(server.result.isError, true, server.result.content?.[0]?.text);
-    assert.match(server.params.task_name, /^checked-[a-f0-9-]+-job/);
-    const reportedName = identityField === "gcode_file" ? server.params.dst_file : server.params.task_name;
-    await server.setReportedStatus({ gcode_state: "PAUSE", [identityField]: reportedName });
-    await fs.writeFile(server.eventsPath, "");
-    const resumed = await server.client.callTool({ name: "resume_print", arguments: {} });
-    assert.notEqual(resumed.isError, true, resumed.content?.[0]?.text);
-    const events = (await fs.readFile(server.eventsPath, "utf8")).trim().split("\n").map(JSON.parse);
-    assert.deepEqual(events.map(event => event.action), ["publish"]);
-    assert.equal(events[0].payload.print.command, "resume");
-  });
-}
+test("a verified direct job resumes when fresh gcode_file identifies its unique artifact", async (t) => {
+  const server = await startDirectJob(t);
+  assert.notEqual(server.result.isError, true, server.result.content?.[0]?.text);
+  assert.match(server.remote, /^cache\/checked-[a-f0-9-]+-job/);
+  await server.setReportedStatus({ gcode_state: "PAUSE", gcode_file: server.remote });
+  await fs.writeFile(server.eventsPath, "");
+  const resumed = await server.client.callTool({ name: "resume_print", arguments: {} });
+  assert.notEqual(resumed.isError, true, resumed.content?.[0]?.text);
+  const events = (await fs.readFile(server.eventsPath, "utf8")).trim().split("\n").map(JSON.parse);
+  assert.deepEqual(events.map(event => event.action), ["publish"]);
+  assert.equal(events[0].payload.print.command, "resume");
+});
 
 for (const [description, changedReport, expected] of [
   ["a different paused job", { gcode_file: "unverified.gcode", subtask_name: "other project" }, /identity|artifact|match/i],
   ["a changed physical nozzle", { nozzle_diameter: "0.6", device: { nozzle: { info: [{ id: 0, diameter: 0.6, type: "HH01", stat: 0 }] } } }, /nozzle|diameter/i],
 ]) {
-  test(`bridge-job resume refuses ${description}`, async (t) => {
-    const server = await startBridgeJob(t);
+  test(`direct-job resume refuses ${description}`, async (t) => {
+    const server = await startDirectJob(t);
     assert.notEqual(server.result.isError, true, server.result.content?.[0]?.text);
-    await server.setReportedStatus({ gcode_state: "PAUSE", gcode_file: server.params.dst_file, ...changedReport });
+    await server.setReportedStatus({ gcode_state: "PAUSE", gcode_file: server.remote, ...changedReport });
     await fs.writeFile(server.eventsPath, "");
     const resumed = await server.client.callTool({ name: "resume_print", arguments: {} });
     assert.equal(resumed.isError, true);
@@ -503,34 +425,23 @@ for (const [description, changedReport, expected] of [
   });
 }
 
-test("a rejected bridge start cannot authorize a later resume", async (t) => {
-  const server = await startBridgeJob(t, { bridgeResponse: { ok: true, value: -1 } });
-  assert.equal(server.result.isError, true);
-  await server.setReportedStatus({ gcode_state: "PAUSE", gcode_file: server.params.dst_file });
-  await fs.writeFile(server.eventsPath, "");
-  const resumed = await server.client.callTool({ name: "resume_print", arguments: {} });
-  assert.equal(resumed.isError, true);
-  assert.match(resumed.content?.[0]?.text ?? "", /inspected|server instance|verified/i);
-  assert.equal(await fs.readFile(server.eventsPath, "utf8"), "", "failed submission cannot leave a resumable job receipt");
-});
-
 test("public print schemas expose ordered nozzle diameter arrays", async (t) => {
   const { client } = await interceptedMcp(t);
   const { tools } = await client.listTools();
-  for (const name of ["print_3mf", "print_3mf_bambu_network"]) {
+  for (const name of ["print_3mf"]) {
     const schema = tools.find(tool => tool.name === name)?.inputSchema;
     assert.equal(schema?.properties?.nozzle_diameters?.type, "array", `${name} must accept per-nozzle diameters`);
     assert.equal(schema.properties.nozzle_diameters.items.type, "number");
   }
 });
 
-for (const tool of ["print_3mf", "print_3mf_bambu_network"]) {
+for (const tool of ["print_3mf"]) {
   for (const [description, nozzleArgs] of [
     ["explicit ordered nozzle diameters", { nozzle_diameters: [0.4, 0.6] }],
     ["job metadata when no nozzle argument is supplied", {}],
   ]) {
     test(`${tool} accepts mixed H2D nozzles using ${description}`, async (t) => {
-      const { client, eventsPath } = await interceptedMcp(t, { model: "h2d", nozzleDiameters: [0.4, 0.6], realBridgeRequest: true });
+      const { client, eventsPath } = await interceptedMcp(t, { model: "h2d", nozzleDiameters: [0.4, 0.6] });
       const file = await fixture(t, { model: "h2d", nozzleDiameters: [0.4, 0.6] });
       const result = await client.callTool({ name: tool, arguments: { three_mf_path: file, bambu_model: "h2d", bed_type: "textured_plate", use_ams: false, ...nozzleArgs } });
       assert.notEqual(result.isError, true, result.content?.[0]?.text);
@@ -542,30 +453,22 @@ for (const tool of ["print_3mf", "print_3mf_bambu_network"]) {
         assert.equal(await fs.readFile(eventsPath,"utf8"),beforeWrongSpool,'rejected mapping must not upload or dispatch');
       }
       const events = beforeWrongSpool.trim().split("\n").map(JSON.parse);
-      if (tool === "print_3mf") {
-        assert.deepEqual(events.map(event => event.action), ["upload", "publish"]);
-        assert.equal(events[1].payload.print.command, "project_file");
-        assert.equal(events[1].payload.print.param, "Metadata/plate_1.gcode");
-      } else {
-        assert.equal(events.filter(event => event.action === "bridge-frame" && event.method === "net.start_print").length, 1);
-      }
+      assert.deepEqual(events.map(event => event.action), ["upload", "publish"]);
+      assert.equal(events[1].payload.print.command, "project_file");
+      assert.equal(events[1].payload.print.param, "Metadata/plate_1.gcode");
     });
   }
 
   test(`${tool} accepts mixed H2D nozzles with a verified AMS mapping`, async (t) => {
     const { client, eventsPath } = await interceptedMcp(t, {
-      model: "h2d", nozzleDiameters: [0.4, 0.6], realBridgeRequest: true,
+      model: "h2d", nozzleDiameters: [0.4, 0.6],
       ams: { tray_now: "0", ams: [{ id: "0", tray: [{ id: "0", tray_type: "PLA", nozzle_temp_min: "190", nozzle_temp_max: "240" }] }] },
     });
     const file = await fixture(t, { model: "h2d", nozzleDiameters: [0.4, 0.6] });
     const result = await client.callTool({ name: tool, arguments: { three_mf_path: file, bambu_model: "h2d", nozzle_diameters: [0.4, 0.6], bed_type: "textured_plate", ams_slots: [0] } });
     assert.notEqual(result.isError, true, result.content?.[0]?.text);
     const events = (await fs.readFile(eventsPath, "utf8")).trim().split("\n").map(JSON.parse);
-    if (tool === "print_3mf") {
-      assert.deepEqual(events.find(event => event.action === "publish")?.payload.print.ams_mapping, [0]);
-    } else {
-      assert.equal(events.find(event => event.action === "bridge-frame" && event.method === "net.start_print")?.payload.params.ams_mapping, "[0]");
-    }
+    assert.deepEqual(events.find(event => event.action === "publish")?.payload.print.ams_mapping, [0]);
   });
 
   for (const [description, nozzleArgs] of [
@@ -583,7 +486,7 @@ for (const tool of ["print_3mf", "print_3mf_bambu_network"]) {
   }
 
   test(`${tool} rejects a mixed H2D file when the live second nozzle differs`, async (t) => {
-    const { client, eventsPath } = await interceptedMcp(t, { model: "h2d", nozzleDiameters: [0.4, 0.8], realBridgeRequest: true });
+    const { client, eventsPath } = await interceptedMcp(t, { model: "h2d", nozzleDiameters: [0.4, 0.8] });
     const file = await fixture(t, { model: "h2d", nozzleDiameters: [0.4, 0.6] });
     const result = await client.callTool({ name: tool, arguments: { three_mf_path: file, bambu_model: "h2d", nozzle_diameters: [0.4, 0.6], bed_type: "textured_plate", use_ams: false } });
     assert.equal(result.isError, true);
@@ -612,105 +515,6 @@ for (const tool of ["print_3mf", "print_3mf_bambu_network"]) {
     await assert.rejects(fs.access(eventsPath), { code: "ENOENT" });
   });
 }
-
-function bridgeWithCapturedFrames(t, beforeStartup = async () => {}) {
-  const bridge = new BambuNetworkBridge();
-  const frames = [];
-  bridge.ensureStarted = async () => {
-    await beforeStartup();
-    bridge.child = { exitCode: 0, stdin: { write(frame, callback) {
-      frames.push(JSON.parse(frame.subarray(16).toString("utf8")));
-      const payload = Buffer.from(JSON.stringify({ ok: true, value: 0 }));
-      const response = Buffer.alloc(16 + payload.length);
-      response.writeUInt32LE(0x52424a50, 0);
-      response.writeUInt32LE(2, 4);
-      response.writeUInt32LE(frame.readUInt32LE(8), 8);
-      response.writeUInt32LE(payload.length, 12);
-      payload.copy(response, 16);
-      queueMicrotask(() => bridge.handleStdout(response));
-      callback?.();
-      return true;
-    } } };
-  };
-  t.after(() => bridge.stop());
-  return { bridge, frames };
-}
-
-test("bridge request checks fresh state after process startup and before writing a frame", async (t) => {
-  let completeStartup;
-  let startupEntered;
-  const waiting = new Promise(resolve => { startupEntered = resolve; });
-  const startupGate = new Promise(resolve => { completeStartup = resolve; });
-  const { bridge, frames } = bridgeWithCapturedFrames(t, async () => { startupEntered(); await startupGate; });
-  let state = "IDLE";
-  const request = bridge.request("net.start_print", {}, {
-    beforeDispatch: async () => { if (state !== "IDLE") throw new Error("Fresh printer state is RUNNING"); },
-    timeoutMs: 1000,
-  });
-  const rejected = assert.rejects(request, /RUNNING/);
-  await waiting;
-  state = "RUNNING";
-  completeStartup();
-  await rejected;
-  assert.deepEqual(frames, [], "no print frame may be written after startup invalidates the observed state");
-});
-
-test("bridge request checks cancellation after awaited preflight immediately before frame write", async (t) => {
-  const { bridge, frames } = bridgeWithCapturedFrames(t);
-  let releasePreflight;
-  let preflightEntered;
-  const waiting = new Promise(resolve => { preflightEntered = resolve; });
-  const preflightGate = new Promise(resolve => { releasePreflight = resolve; });
-  let cancelled = false;
-  const request = bridge.request("net.start_print", {}, {
-    beforeDispatch: async () => { preflightEntered(); await preflightGate; },
-    assertDispatchAllowed: () => { if (cancelled) throw new Error("Print cancelled"); },
-    timeoutMs: 1000,
-  });
-  const rejected = assert.rejects(request, /cancelled/);
-  await waiting;
-  cancelled = true;
-  releasePreflight();
-  await rejected;
-  assert.deepEqual(frames, [], "cancellation during async preflight must stop the actual frame write");
-});
-
-test("bridge request writes a valid frame after both preflight hooks allow dispatch", async (t) => {
-  const { bridge, frames } = bridgeWithCapturedFrames(t);
-  const checks = [];
-  const result = await bridge.request("net.start_print", { agent: 7, params: { plate_index: 1 } }, {
-    beforeDispatch: async method => { checks.push(["fresh-state", method]); },
-    assertDispatchAllowed: method => { checks.push(["cancellation", method]); },
-    onDispatched: method => { checks.push(["dispatched", method]); },
-    timeoutMs: 1000,
-  });
-  assert.deepEqual(result, { ok: true, value: 0 });
-  assert.deepEqual(checks, [["fresh-state", "net.start_print"], ["cancellation", "net.start_print"], ["dispatched", "net.start_print"]]);
-  assert.deepEqual(frames, [{ method: "net.start_print", payload: { agent: 7, params: { plate_index: 1 } } }]);
-});
-
-test("public stop during bridge agent initialization prevents the actual native print frame", async (t) => {
-  const { client, eventsPath, releaseAgent } = await interceptedMcp(t, { blockBridgeInitialization: true, realBridgeRequest: true });
-  const file = await fixture(t);
-  const pending = client.callTool({ name: "print_3mf_bambu_network", arguments: { three_mf_path: file, bambu_model: "p1s", nozzle_diameter: "0.4", bed_type: "textured_plate", use_ams: false, connection_type: "lan" } });
-  try {
-    const deadline = Date.now() + 5000;
-    while (!(await fs.readFile(eventsPath, "utf8").catch(() => "")).includes('"agent-wait"')) {
-      assert.ok(Date.now() < deadline, "bridge initialization gate must be reached");
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    const stopped = await client.callTool({ name: "cancel_print", arguments: {} });
-    assert.notEqual(stopped.isError, true, stopped.content?.[0]?.text);
-  } finally {
-    await releaseAgent();
-  }
-  const result = await pending;
-  assert.equal(result.isError, true);
-  assert.match(result.content.map(item => item.text ?? "").join(" "), /cancelled|canceled|stop/i);
-  const events = (await fs.readFile(eventsPath, "utf8")).trim().split("\n").map(JSON.parse);
-  assert.equal(events.filter(event => event.action === "publish" && event.payload?.print?.command === "stop").length, 1);
-  assert.equal(events.filter(event => event.action === "bridge-frame").length, 0, "the real bridge request must stop before stdin.write");
-});
 
 test("human preflight declines before upload and shows inspected settings", async (t) => {
   const file = await fixture(t);
@@ -885,7 +689,7 @@ for (const failure of ["confirmation recheck", "upload", "dispatch recheck", "pu
   });
 }
 
-test("bridge snapshots are retained only after handoff, including an uncertain result", async (t) => {
+test("print snapshots are retained only after handoff, including an uncertain result", async (t) => {
   const file = await fixture(t);
   let rejectedSnapshot;
   await assert.rejects(withPrintSnapshot(file, async snapshot => { rejectedSnapshot = snapshot; throw Error("preflight rejected"); }), /preflight rejected/);
