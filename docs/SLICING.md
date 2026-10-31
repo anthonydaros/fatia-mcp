@@ -151,7 +151,9 @@ a foreign printer's filament settings; it does not change object assignments or
 AMS tray mapping. A geometry-only 3MF without project settings has no embedded
 slot list to replace.
 
-Implementation: [`src/slicer/profile-flatten.ts`](../src/slicer/profile-flatten.ts).
+Without `slicer_profile` or a template, a project 3MF is sliced with the printer's default process and filaments unless the user chooses to keep the creator's settings (`project_settings: "keep"`; see the `slice_stl` section of the README). Keeping reads `Metadata/project_settings.config`: `different_settings_to_system` holds one semicolon-separated key list for the process, one per filament slot, and one for the printer, in that order. The process keys are overlaid on the target printer's process preset (for a 3MF made for the target printer itself that list is not trusted: Bambu Studio rewrites it on save, so every process value that differs from the preset is overlaid), per-extruder-variant values where the target has the same extruder and variant, and each `filament_settings_id` is mapped to the target-compatible preset with the same base name. The remainder is reported in `settings_report`.
+
+Implementation: [`src/slicer/profile-flatten.ts`](../src/slicer/profile-flatten.ts), [`src/slicer/project-settings.ts`](../src/slicer/project-settings.ts).
 Optional installed-slicer smoke test: `node scripts/test-cli-slice.mjs --model h2s` (substitute the supported target model). This slices a fixture; it does not print.
 
 ## Why the sliced file matters

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { EventEmitter } from 'events';
+import { type ProjectSettingsPlan } from '../slicer/project-settings.js';
 export type ProgressCallback = (progress: number, message?: string) => void;
 export type OperationResult = {
     success: boolean;
@@ -49,6 +50,7 @@ export interface BambuSliceOptions {
     minSave?: boolean;
     skipModifiedGcodes?: boolean;
     slicePlate?: number;
+    projectPlan?: ProjectSettingsPlan;
 }
 export declare function bambuCliFailureReason(exitCode: unknown, resultPath: string): string | undefined;
 export declare class STLManipulator extends EventEmitter {
@@ -77,6 +79,11 @@ export declare class STLManipulator extends EventEmitter {
     private isolateMachineSettings;
     /** --load-filaments is positional; a single override must cover every project slot. */
     private expandProjectFilaments;
+    /**
+     * Map a 3MF's creator settings onto the target printer. Undefined when the 3MF
+     * carries none; the caller decides whether to keep them (BambuSliceOptions.projectPlan).
+     */
+    planProjectSettings(inputPath: string, slicerPath: string, printerPreset: string, modelCode: string, skipFilaments?: boolean): Promise<ProjectSettingsPlan | undefined>;
     private resolveBambuStudioBedType;
     /**
      * Load STL file and return geometry and bounding box

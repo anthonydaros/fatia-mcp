@@ -1091,7 +1091,7 @@ Slice an STL or 3MF using a named template from the local registry. This is a hi
 }
 ```
 
-This uses the named template as the slicing profile source and still supports live printer filament selection unless you explicitly override `load_filaments`. The template settings are applied at slice time, and the later `print_3mf` step computes H2-safe AMS mapping from the newly sliced output.
+This uses the named template as the slicing profile source. Live printer filament selection is off by default; `use_printer_filaments: true` enables it when a printer is configured and no `load_filaments` override is given. The template settings are applied at slice time, and the later `print_3mf` step computes H2-safe AMS mapping from the newly sliced output.
 
 #### slice_stl
 
@@ -1113,6 +1113,26 @@ The result is JSON. `output_path` is the output file. For a sliced 3MF, `plates`
   ]
 }
 ```
+
+**Keeping a 3MF creator's settings.** A downloaded 3MF carries its creator's changes (infill pattern, speeds) and filament presets, and the Bambu Studio CLI replaces them with whatever it is given. For a 3MF with no `slicer_profile` or template, the server therefore builds a plan for the target `bambu_model` and asks the user, per file, to choose between the two:
+
+- `keep`: the project's own process preset where the target printer has it, else the one with the same base name (else the printer's default process), the project's changed process settings on top (for a 3MF made for the target printer itself, every process value that differs from the preset, because Bambu Studio rewrites the changed-keys list when it saves), and each filament slot mapped to the target-compatible preset with the same base name (for example `Generic PLA @BBL H2D` becomes `Generic PLA @BBL X2D 0.4 nozzle`). Settings that exist per extruder variant are carried over where the target has the same extruder and variant, and the rest are listed. A slot with no equivalent uses the printer's default filament and is listed. Machine settings and edits to a filament preset are never carried over.
+- `printer_default`: the printer's default process and default filament in every slot.
+
+The prompt shows the differences (`key: project value -> printer default`, `filament N: from -> to`). Pass `project_settings: "keep"` or `"printer_default"` to skip it. If the client cannot ask and the argument is missing, the call fails with the differences so the agent can ask the user. A 3MF that differs from the printer's defaults in nothing that could be kept is not asked about. STL input, an explicit `slicer_profile` and a template are unchanged. The result gains a `settings_report`:
+
+```json
+"settings_report": {
+  "mode": "keep",
+  "kept": ["sparse_infill_pattern: gyroid -> grid"],
+  "not_kept": ["outer_wall_speed: no X2D equivalent for extruder 2 Direct Drive Standard"],
+  "filament_map": [{ "slot": 1, "from": "Generic PLA @BBL H2D", "to": "Generic PLA @BBL X2D 0.4 nozzle" }]
+}
+```
+
+With `printer_default`, `kept` is empty and `not_kept` lists what the project would have kept.
+
+`use_printer_filaments` defaults to false: a configured printer does not replace the project's filaments unless the call asks for it.
 
 Every Bambu Studio slice writes into a fresh `slice-*` folder under `TEMP_DIR`, so repeated or concurrent slices never share files. The folder keeps only the sliced 3MF (the `plate_N.gcode` files are inside it). A `slicer_profile` path that does not exist is an error and the slicer does not run. Cancelling the request stops the slicer process.
 
@@ -1149,6 +1169,8 @@ When `slicer_type` is `bambustudio` (the default), these additional parameters a
 | `skip_objects` | string | Object indices to skip, comma-separated (e.g. `"3,5,10"`) |
 | `load_filaments` | string | Filament profile paths, semicolon-separated |
 | `load_filament_ids` | string | Filament-to-object mapping, comma-separated |
+| `project_settings` | string | `keep` or `printer_default`: whether a 3MF without `slicer_profile`/template keeps its creator's settings or uses the printer defaults. Asked per file when omitted. Also on `slice_with_template`. |
+| `use_printer_filaments` | boolean | Default false. When true, a configured printer's current or first loaded AMS filament replaces the filaments. |
 | `nozzle_volume_type` | string | Installed nozzle flow type: `standard` or `high_flow` (default: `BAMBU_NOZZLE_VOLUME_TYPE`, else the preset's Standard default). `high_flow` uses the presets' High Flow values, such as the filament's High Flow max volumetric speed, and is refused if the machine preset declares no High Flow variant. Also on `slice_with_template`. |
 | `filament_colours` | string | Slot colours, one `#RRGGBB` per filament slot, semicolon-separated. Explicit values take priority, followed by input 3MF colours, each custom profile's colour, then the BambuStudio default. |
 | `enable_timelapse` | boolean | Enable timelapse-aware slicing |

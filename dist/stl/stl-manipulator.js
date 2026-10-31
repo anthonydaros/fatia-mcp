@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { execFile } from 'child_process';
 import { flattenForCli, detectProfilesRoot, resolveBblMachineProfile } from '../slicer/profile-flatten.js';
 import { profileJsonFiles } from '../slicer/profile-files.js';
+import { buildProjectSettingsPlan, readProjectConfig } from '../slicer/project-settings.js';
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 // Best-effort: a leftover file is only wasted disk and must never fail a slice or mask its real error (Windows EBUSY/EPERM).
@@ -291,6 +292,20 @@ export class STLManipulator extends EventEmitter {
         else if (slicerProfile) {
             processPath = slicerProfile;
         }
+        const plan = slicerProfile ? undefined : bambuOptions?.projectPlan;
+        if (plan) {
+            processPath = this.writeTempJson(outputBase, 'project_process', {
+                name: `${plan.process} (project settings)`, type: 'process', from: 'User', inherits: plan.process, ...plan.overlay,
+            });
+            if (!bambuOptions?.loadFilaments) {
+                for (const { to } of plan.filaments) {
+                    const filamentPath = findProfile('filament', to);
+                    if (!filamentPath)
+                        throw new Error(`Filament profile "${to}" was not found; refusing to omit its slot.`);
+                    filamentPaths.push(filamentPath);
+                }
+            }
+        }
         if (!processPath) {
             const defaultProcessName = typeof machineConfig?.default_print_profile === 'string'
                 ? machineConfig.default_print_profile
@@ -451,17 +466,10 @@ export class STLManipulator extends EventEmitter {
     async expandProjectFilaments(inputPath, bundle) {
         if (!inputPath.toLowerCase().endsWith('.3mf') || bundle.filamentPaths.length === 0)
             return bundle;
-        const JSZip = (await import('jszip')).default;
-        const zip = await JSZip.loadAsync(await fs.promises.readFile(inputPath));
-        const file = zip.file('Metadata/project_settings.config');
+        const data = await readProjectConfig(inputPath);
         // Geometry-only 3MFs have no embedded filament slots.
-        if (!file)
+        if (!data)
             return bundle;
-        const config = JSON.parse(await file.async('string'));
-        if (!config || typeof config !== 'object' || Array.isArray(config)) {
-            throw new Error('Cannot determine project filament slots: invalid project_settings.config.');
-        }
-        const data = config;
         const count = Math.max(0, ...['filament_settings_id', 'filament_type', 'filament_colour', 'filament_diameter']
             .map(key => Array.isArray(data[key]) ? data[key].length : 0));
         if (count === 0)
@@ -480,6 +488,26 @@ export class STLManipulator extends EventEmitter {
             throw new Error(`Project declares ${count} filament slots, but ${bundle.filamentPaths.length} profiles were supplied. Provide one profile for all slots or one per slot.`);
         }
         return { ...bundle, filamentColours: colours, projectTowerPosition };
+    }
+    /**
+     * Map a 3MF's creator settings onto the target printer. Undefined when the 3MF
+     * carries none; the caller decides whether to keep them (BambuSliceOptions.projectPlan).
+     */
+    async planProjectSettings(inputPath, slicerPath, printerPreset, modelCode, skipFilaments = false) {
+        const config = await readProjectConfig(inputPath);
+        if (!config)
+            return undefined;
+        const profilesRoot = detectProfilesRoot(slicerPath);
+        const roots = [path.join(profilesRoot, 'BBL'), ...configuredBambuProfileDirs()];
+        return buildProjectSettingsPlan({
+            config, printerPreset, modelCode, skipFilaments,
+            machine: await resolveBblMachineProfile(profilesRoot, printerPreset),
+            leaf: (kind, name) => {
+                const file = this.findProfileFile(kind, name, roots);
+                return file ? this.readJsonFile(file) : undefined;
+            },
+            flatProcess: name => resolveBblMachineProfile(profilesRoot, name),
+        });
     }
     resolveBambuStudioBedType(bedType) {
         if (!bedType)

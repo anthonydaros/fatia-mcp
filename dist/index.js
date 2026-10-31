@@ -16,6 +16,7 @@ import { importFileViaBambuConnect } from "./bambu-connect.js";
 import { BlenderMcpBridge } from "./blender-mcp-bridge.js";
 import { bridgeAmsMapping2Entry, bridgeAmsMappingValue, externalTrayForNozzle, hasAmsMappingInput, normalizeAmsMappingObject, normalizeBridgeAmsTrayValue } from "./ams-mapping.js";
 import { analyze3MFAmsRequirements, analyze3MFPlateObjects, analyzeCollarCharm3MF, extractBambuTemplateSettings, getCollarCharmRolePolicy, parse3MF, readSliceResults } from './3mf_parser.js';
+import { settingsReport } from './slicer/project-settings.js';
 import { BambuImplementation, assertDirectPrintSupported } from "./printers/bambu.js";
 import { inspectPrintFile } from "./safety/print-file.js";
 import { externalStorageState, validatePrinterState } from "./safety/printer-state.js";
@@ -137,6 +138,11 @@ function resolveNozzleVolumeType(value) {
     return NOZZLE_VOLUME_TYPES[normalized];
 }
 const VALID_BAMBUSTUDIO_CLI_BED_TYPES = ["textured_plate", "cool_plate", "engineering_plate", "hot_plate"];
+const PROJECT_SETTINGS_SCHEMA = {
+    type: "string",
+    enum: ["keep", "printer_default"],
+    description: "3MF input without a slicer profile or template: \"keep\" slices with the settings the project's creator saved (changed process settings, and each filament mapped to the bambu_model's equivalent preset); \"printer_default\" uses the printer's default process and filament. When omitted, the user is asked; if the client cannot ask, the call fails and you must ask the user, then pass this. The result's settings_report lists what was kept and not kept.",
+};
 // Map model IDs to BambuStudio --load-machine preset names
 const BAMBU_MODEL_PRESETS = {
     p1s: (n) => `Bambu Lab P1S ${n} nozzle`,
@@ -1005,6 +1011,64 @@ class BambuPrinterMCPServer {
                     `Valid models: ${VALID_BAMBU_MODELS.join(", ")}`);
             }
             throw elicitError;
+        }
+    }
+    /**
+     * A 3MF sliced without a profile carries its creator's settings: keep them, or use the
+     * printer's defaults? Asks the user unless project_settings answers. Returns the report for
+     * the tool result (and sets options.projectPlan to keep), or undefined when there is no choice.
+     */
+    async resolveProjectSettings(args, inputPath, slicerType, slicerPath, hasProfile, printerPreset, model, options) {
+        const requested = args?.project_settings;
+        if (requested !== undefined && requested !== "keep" && requested !== "printer_default") {
+            throw new Error('project_settings must be "keep" or "printer_default".');
+        }
+        if (slicerType !== "bambustudio" || hasProfile || !printerPreset || !inputPath.toLowerCase().endsWith(".3mf"))
+            return undefined;
+        const plan = await this.stlManipulator.planProjectSettings(inputPath, slicerPath, printerPreset, FILAMENT_MODEL_CODES[model], Boolean(options.loadFilaments));
+        if (!plan)
+            return undefined;
+        // Keeping changes nothing when the project differs from the defaults in no kept setting.
+        const mode = requested ?? (plan.kept.length === 0 ? "printer_default" : await this.askProjectSettings(inputPath, plan, printerPreset));
+        if (mode === "keep")
+            options.projectPlan = plan;
+        return settingsReport(plan, mode);
+    }
+    async askProjectSettings(inputPath, plan, printerPreset) {
+        const list = (title, items) => items.length ? `\n${title}\n${items.map(item => `- ${item}`).join("\n")}` : "";
+        const differences = `${list("Keeping the project's settings changes (project -> printer default):", plan.kept)}${list("Cannot be kept:", plan.notKept)}`;
+        try {
+            const result = await this.server.elicitInput({
+                mode: "form",
+                message: `${path.basename(inputPath)} was made for ${plan.from.printer} (${plan.from.process}) and carries its creator's settings. It will be sliced for ${printerPreset}.${differences}`,
+                requestedSchema: {
+                    type: "object",
+                    properties: {
+                        project_settings: {
+                            type: "string",
+                            title: "Settings to slice with",
+                            oneOf: [
+                                { const: "keep", title: "Keep project settings" },
+                                { const: "printer_default", title: "Use printer defaults" },
+                            ],
+                        },
+                    },
+                    required: ["project_settings"],
+                },
+            }, { timeout: this.confirmationTimeoutMs });
+            const choice = result.action === "accept" ? result.content?.project_settings : undefined;
+            if (choice === "keep" || choice === "printer_default")
+                return choice;
+            throw new Error("The settings choice was cancelled; nothing was sliced.");
+        }
+        catch (error) {
+            if (isElicitationTimeout(error)) {
+                throw new Error(`No settings choice within ${describeDuration(this.confirmationTimeoutMs)}; nothing was sliced. Ask the user, then pass project_settings.`);
+            }
+            if (isElicitationUnsupported(error)) {
+                throw new Error(`${path.basename(inputPath)} carries its creator's settings and this MCP client cannot ask the user. Ask the user whether to keep them or use the printer defaults, then call again with project_settings "keep" or "printer_default".${differences}`);
+            }
+            throw error;
         }
     }
     bridgeOptionsFromArgs(args, toolName) {
@@ -1920,7 +1984,8 @@ class BambuPrinterMCPServer {
                                     enum: [...VALID_NOZZLE_VOLUME_TYPES],
                                     description: "Bambu-compatible slicing: the flow type of the nozzle installed on the printer (default: BAMBU_NOZZLE_VOLUME_TYPE, else standard). high_flow uses the presets' High Flow values, such as the filament's High Flow max volumetric speed, and is refused if the machine preset has no High Flow variant. Printing compares it with the printer's reported nozzle flow."
                                 },
-                                use_printer_filaments: { type: "boolean", description: "When true, and no explicit slicer profile or load_filaments override is provided, use the printer's current or first loaded AMS filament as the slicer filament profile." },
+                                use_printer_filaments: { type: "boolean", description: "Default false. When true, a printer is configured, and no explicit slicer profile or load_filaments override is provided, replace the filaments with the printer's current or first loaded AMS filament." },
+                                project_settings: PROJECT_SETTINGS_SCHEMA,
                                 host: { type: "string", description: "Hostname or IP of the printer (default: value from env)" },
                                 bambu_serial: { type: "string", description: "Serial number (default: value from env)" },
                                 bambu_token: { type: "string", description: "Access token (default: value from env)" },
@@ -1980,7 +2045,8 @@ class BambuPrinterMCPServer {
                                     enum: [...VALID_NOZZLE_VOLUME_TYPES],
                                     description: "Bambu-compatible slicing: the flow type of the nozzle installed on the printer (default: BAMBU_NOZZLE_VOLUME_TYPE, else standard). high_flow uses the presets' High Flow values, such as the filament's High Flow max volumetric speed, and is refused if the machine preset has no High Flow variant. Printing compares it with the printer's reported nozzle flow."
                                 },
-                                use_printer_filaments: { type: "boolean", description: "When true, and no explicit slicer profile or load_filaments override is provided, use the printer's current or first loaded AMS filament as the slicer filament profile. Template 3MF process settings can still be used at the same time." },
+                                use_printer_filaments: { type: "boolean", description: "Default false. When true, a printer is configured, and no explicit slicer profile or load_filaments override is provided, replace the filaments with the printer's current or first loaded AMS filament. Template 3MF process settings can still be used at the same time." },
+                                project_settings: PROJECT_SETTINGS_SCHEMA,
                                 uptodate: { type: "boolean", description: "Refresh 3MF preset configs to match the latest BambuStudio version. Use when slicing downloaded or older 3MF files to prevent stale-config failures." },
                                 repetitions: { type: "number", description: "Print N identical copies of the model. Each copy gets its own plate placement. Example: 3 prints three copies." },
                                 orient: { type: "boolean", description: "Auto-orient the model for optimal printability (minimize supports, maximize bed adhesion). Recommended for raw STL imports that lack a pre-set orientation." },
@@ -3329,7 +3395,7 @@ class BambuPrinterMCPServer {
                             sliceBambuOptions.skipModifiedGcodes = Boolean(args.skip_modified_gcodes);
                         if (args?.slice_plate !== undefined)
                             sliceBambuOptions.slicePlate = Number(args.slice_plate);
-                        const usePrinterFilaments = args?.use_printer_filaments !== undefined ? Boolean(args.use_printer_filaments) : true;
+                        const usePrinterFilaments = args?.use_printer_filaments !== undefined ? Boolean(args.use_printer_filaments) : false;
                         if (usePrinterFilaments &&
                             !explicitSlicerProfile &&
                             !sliceBambuOptions.loadFilaments &&
@@ -3345,7 +3411,9 @@ class BambuPrinterMCPServer {
                                 console.warn("Could not resolve live printer filaments for slicing:", filamentError);
                             }
                         }
-                        result = await sliceResult(await this.stlManipulator.sliceSTL(String(args.stl_path), slicerType, slicerPath, activeSlicerProfile, undefined, printerPreset, sliceBambuOptions, extra.signal));
+                        const settingsResult = await this.resolveProjectSettings(args, String(args.stl_path), slicerType, slicerPath, Boolean(activeSlicerProfile), printerPreset, sliceModel, sliceBambuOptions);
+                        const sliced = await sliceResult(await this.stlManipulator.sliceSTL(String(args.stl_path), slicerType, slicerPath, activeSlicerProfile, undefined, printerPreset, sliceBambuOptions, extra.signal));
+                        result = settingsResult ? { ...sliced, settings_report: settingsResult } : sliced;
                         break;
                     }
                     case "slice_stl": {
@@ -3410,7 +3478,7 @@ class BambuPrinterMCPServer {
                             sliceBambuOptions.skipModifiedGcodes = Boolean(args.skip_modified_gcodes);
                         if (args?.slice_plate !== undefined)
                             sliceBambuOptions.slicePlate = Number(args.slice_plate);
-                        const usePrinterFilaments = args?.use_printer_filaments !== undefined ? Boolean(args.use_printer_filaments) : true;
+                        const usePrinterFilaments = args?.use_printer_filaments !== undefined ? Boolean(args.use_printer_filaments) : false;
                         if (usePrinterFilaments &&
                             !explicitSlicerProfile &&
                             !sliceBambuOptions.loadFilaments &&
@@ -3426,8 +3494,10 @@ class BambuPrinterMCPServer {
                                 console.warn("Could not resolve live printer filaments for slicing:", filamentError);
                             }
                         }
-                        result = await sliceResult(await this.stlManipulator.sliceSTL(String(args.stl_path), slicerType, slicerPath, activeSlicerProfile, undefined, // progressCallback
+                        const settingsResult = await this.resolveProjectSettings(args, String(args.stl_path), slicerType, slicerPath, Boolean(activeSlicerProfile), printerPreset, sliceModel, sliceBambuOptions);
+                        const sliced = await sliceResult(await this.stlManipulator.sliceSTL(String(args.stl_path), slicerType, slicerPath, activeSlicerProfile, undefined, // progressCallback
                         printerPreset, sliceBambuOptions, extra.signal));
+                        result = settingsResult ? { ...sliced, settings_report: settingsResult } : sliced;
                         break;
                     }
                     case "print_3mf": {
