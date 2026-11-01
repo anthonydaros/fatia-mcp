@@ -10,7 +10,7 @@ import JSZip from "jszip";
 import { openProject } from "../dist/knowledge/facts/settings.js";
 import { listSafe3mfEntries } from "../dist/safety/archive.js";
 import { geometryFromConfig, readLayoutModel } from "../dist/tuning/layout.js";
-import { STALE_IMAGE, filamentSequenceFor, moveTransform, rebuildPlates, spliceItemTransforms, writeLaidOutProject } from "../dist/tuning/layout-writer.js";
+import { STALE_IMAGE, filamentSequenceFor, moveTransform, proveLayout, rebuildPlates, spliceItemTransforms, writeLaidOutProject } from "../dist/tuning/layout-writer.js";
 import { buildLayoutProject, tiltX, x2dConfig } from "./fixtures/layout-project.mjs";
 
 const sha = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
@@ -268,4 +268,25 @@ test("plate pictures that the project does not have are not an error, and the re
   assert.ok(!out.includes("plate_1.png") && out.includes("/3D/3dmodel.model"));
   const bare = await write(t, spec({ images: false }));
   assert.equal((await bare.run()).dropped_entries.length, 0);
+});
+
+test("the proof catches a file that is not what the plan says: a shifted centre, a wrong size, a plate holding the wrong objects", async t => {
+  const env = await write(t);
+  const result = await env.run();
+  const bytes = await fs.readFile(env.source);
+  const before = {
+    model: await readLayoutModel(await openProject(env.source)), zip: await JSZip.loadAsync(bytes), order: listSafe3mfEntries(bytes),
+    dropped: new Set(result.dropped_entries), rewritten: new Map(result.rewritten_entries.map(n => [n, ""])),
+  };
+  const prove = plan => proveLayout({ file: result.path, expectedPlan: plan, before, geometry: geo, minGapMm: 8 });
+  assert.equal((await prove(PLAN)).ok, true, "the plan it was written from");
+  const failing = async plan => (await prove(plan)).checks.filter(c => !c.ok).map(c => c.check);
+  const shifted = { plates: PLAN.plates.map(p => ({ ...p, items: p.items.map(i => ({ ...i, cx: i.cx + 5 })) })) };
+  assert.deepEqual(await failing(shifted), ["every object is where the plan put it (centre, size, same height on the bed)"]);
+  const unturned = { plates: PLAN.plates.map(p => ({ ...p, items: p.items.map(i => ({ ...i, rotate: 0 })) })) };
+  assert.deepEqual(await failing(unturned), ["every object is where the plan put it (centre, size, same height on the bed)"], "A was turned in the file, the plan says it was not");
+  const swapped = { plates: [{ ...PLAN.plates[0], items: [PLAN.plates[0].items[0], PLAN.plates[1].items[0]] }, { ...PLAN.plates[1], items: [PLAN.plates[0].items[1], PLAN.plates[1].items[1]] }] };
+  assert.ok((await failing(swapped)).includes("plates hold what the plan says"));
+  const fewer = { plates: [PLAN.plates[0]] };
+  assert.ok((await failing(fewer)).includes("plate count as planned"));
 });
