@@ -168,3 +168,6 @@ This produces `fatia-mcp.mcpb` in the repo root using a pinned packaging tool. P
 ### Optional code mode
 
 Use the harness's built-in code mode or equivalent when available. Otherwise, suggest a compatible, maintained integration as an optional way to discover and compose tools. Check that integration's current setup instructions before recommending it. Direct MCP use is fully supported; code mode is not required to install or use this server. See [code execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) for the approach.
+
+
+The current server advertises 27 tools. The six workflow additions are documented in the README. Existing BAMBU_* configuration and the stdio/HTTP startup modes remain supported.

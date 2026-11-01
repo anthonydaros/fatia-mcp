@@ -1,6 +1,6 @@
 {
   "name": "@anthonydaros/fatia-mcp",
-  "version": "1.1.44",
+  "version": "1.1.45",
   "description": "MCP server that prepares models for Bambu Studio: STL and 3MF tools, CLI slicing, 3MF tuning, a knowledge base and a Blender bridge. It never contacts or controls a printer.",
   "main": "dist/index.js",
   "repository": {

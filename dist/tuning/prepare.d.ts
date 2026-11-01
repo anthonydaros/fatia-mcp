@@ -30,6 +30,8 @@ export interface PrepareInput {
     /** A valid bambu_model, e.g. "x2d". */
     model: string;
     partContext?: unknown;
+    /** Explicit measured candidate in this run; absent preserves the default ranking. */
+    selectRound?: number;
     /** CLI slices allowed in all, the baseline and an STL's retarget slice included. */
     maxSlices: number;
     maxMinutes: number;
@@ -87,6 +89,7 @@ export interface Measure {
     /** Per changed key: did the slice's CONFIG_BLOCK show the tuned value? null = could not be compared. */
     reach: Record<string, boolean | null>;
     reused_from?: "baseline";
+    gcode_complete?: boolean;
 }
 export interface BlockerHit {
     rule: string;
@@ -171,6 +174,13 @@ export interface RunData {
     minutes: number;
     best?: RoundRecord;
     bestWhy?: string;
+    alternativeArtifacts?: Record<number, {
+        path?: string;
+        error?: string;
+        blockers?: Array<Record<string, unknown>>;
+        unchecked?: unknown;
+    }>;
+    selectionError?: string;
     /** What the engine asked for next and was not run (budget, cycle). */
     pending: TuningItem[];
     delivered?: {

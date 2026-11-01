@@ -84,6 +84,33 @@ export interface FlattenOptions {
         wipe_tower_y?: unknown;
     };
 }
+interface IndexedProfile {
+    filePath: string;
+    data: Record<string, unknown>;
+}
+/** Name index plus unreadable JSON files, reported when a name is missing. */
+type NameIndex = Map<string, IndexedProfile> & {
+    malformed?: string[];
+};
+/**
+ * Build a name -> {filePath, data} map for every JSON in
+ * <profilesRoot>/<vendor>/{machine,process,filament}/.
+ *
+ * The `name` field inside each JSON is the lookup key (this is what
+ * `inherits` references). We index every file, including non-instantiable
+ * abstract bases like `fdm_machine_common` and `fdm_bbl_3dp_001_common`,
+ * because those are the parents we'll walk to.
+ */
+export declare function buildNameIndex(profilesRoot: string, vendor: string, userProfileRoots?: string[]): Promise<NameIndex>;
+/**
+ * Resolve the full inheritance chain for `leafName` and return a single
+ * deep-merged object. Child wins on key collision.
+ *
+ * Throws on:
+ *   - Unknown name (broken `inherits` reference).
+ *   - Cycles (A -> B -> A).
+ */
+export declare function flattenByName(leafName: string, index: NameIndex, visiting?: Set<string>): Record<string, unknown>;
 /** Resolve bundled machine defaults before choosing process and filament leaves. */
 export declare function resolveBblMachineProfile(profilesRoot: string, machineLeaf: string): Promise<Record<string, unknown>>;
 /** Best-effort extruder count for fallback nozzle_volume_type sizing. */
@@ -102,3 +129,4 @@ export declare function flattenForCli(opts: FlattenOptions): Promise<FlattenedPr
  * Override via BAMBU_PROFILES_ROOT env.
  */
 export declare function detectProfilesRoot(slicerPath?: string): string;
+export {};

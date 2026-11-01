@@ -113,7 +113,7 @@ function isPathLikeExecutable(slicerPath) {
         slicerPath.includes("\\") ||
         /^[A-Za-z]:/.test(slicerPath));
 }
-function configuredBambuProfileDirs() {
+export function configuredBambuProfileDirs() {
     const override = process.env.BAMBU_SLICER_PROFILE_DIRS;
     if (override !== undefined) {
         return override.split(path.delimiter).filter(Boolean).map(dir => path.resolve(dir));

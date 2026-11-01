@@ -51,6 +51,27 @@ Tell me what worked and whether I need to restart or reload the harness.
 
 [Setup reference](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SETUP.md) · [Optional code mode](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SETUP.md#optional-code-mode)
 
+## Compare, inspect and test
+
+Six workflow tools extend the existing preparation tools:
+
+| Tool | What it does |
+|---|---|
+| `list_slicer_profiles` | Lists installed machine/process/filament presets, dependency errors and declared compatibility. Studio-only compatibility expressions remain unknown. |
+| `compare_projects` | Compares two saved 3MFs: settings, materials, plates and transformed geometry. Objects are paired by build order; model-content hashes also detect paint/modifier changes. |
+| `compare_slice_scenarios` | Compares up to six process variants of an existing, printer-compatible 3MF within slice/time budgets. Saves separate unsliced projects for review. |
+| `extract_3mf_objects` | Exports selected printable build items of a plate as separate STL files, preserving world transforms. |
+| `estimate_print_cost` | Estimates sliced-project material cost from your prices, with optional energy assumptions and explicit copies/part counts. |
+| `create_fit_test` | Creates separate watertight pin/socket STL pairs and a manifest for specified radial gaps. Hole diameter clearance is twice the radial gap. |
+
+`preflight_check` findings now include the matching condition, observed facts and proposed next action. `prepare_print_project` reports measured alternatives and saves eligible candidates; `select_round` chooses an eligible measured round in that run. The default remains automatic selection. Review the reported unknowns and each candidate in Bambu Studio.
+
+For scenario comparisons, use `path`, optional `bambu_model` and zero-based `plate_index`, and `scenarios: [{"name":"original","settings":{}},{"name":"fine","settings":{"layer_height":0.16}}]`. `max_slices` counts failed CLI attempts too; maximum six. `max_minutes` defaults to ten. Prepare an STL or a project for another printer first with `prepare_print_project`. Only the advertised process settings can vary; settings not confirmed in G-code are excluded from ranking.
+
+For costs, supply a sliced 3MF `path` and `material_price_per_kg`, or `filament_prices: [{"slot":1,"price_per_kg":100}]`. `copies` multiplies the entire project; `parts_per_project` enables an explicitly allocated per-part estimate. Supply both `power_w` and `electricity_price_per_kwh` to include energy. Currency defaults to BRL. Missing consumption or plate coverage is unknown, never zero; known sliced-subset costs remain available when whole-project totals cannot be established; labor, failures and depreciation are excluded, and recorded material use may omit purge/tower waste.
+
+Extraction accepts `file_path`, optional zero-based `plate_index`, and stable zero-based `item_indices` from the project's build order. Geometry tools support millimeter 3MFs. Fit tests accept `gaps_mm` (default 0.1, 0.2, 0.3 mm) or a bounded start/end/step range, plus `peg_diameter_mm` and `depth_mm`. Filenames and the manifest identify each gap; the files contain no embossed text. Fit requires physical testing on your chosen material and printer.
+
 ## What to ask your agent
 
 Ask for the result you want, not the steps. Current models plan across tools: they search the web, read photos, look up exact dimensions, edit models and slice. Expect a question or two when a choice matters, such as the printer model or which settings to keep.
@@ -94,7 +115,7 @@ This server provides the slicing, tuning, knowledge and mesh tools. Web search, 
 
 ## What's new in fatia-mcp
 
-See the [changelog](https://github.com/anthonydaros/fatia-mcp/blob/main/CHANGELOG.md) for versioned changes. This fork no longer contacts or controls a printer: the printer status, control, upload, camera, X2D native-helper and Bambu Connect tools were removed, and 21 slicing, tuning, knowledge, STL/3MF and Blender tools remain.
+See the [changelog](https://github.com/anthonydaros/fatia-mcp/blob/main/CHANGELOG.md) for versioned changes. This fork no longer contacts or controls a printer: the printer status, control, upload, camera, X2D native-helper and Bambu Connect tools were removed, and 27 slicing, tuning, knowledge, STL/3MF and Blender tools remain.
 
 </details>
 

@@ -28,6 +28,7 @@ export declare const SLICER_TYPES: readonly ["bambustudio", "prusaslicer", "cura
 export type SlicerType = typeof SLICER_TYPES[number];
 export declare function normalizeSlicerType(rawSlicerType: string): SlicerType;
 export declare function isBambuCompatibleSlicer(slicerType: SlicerType): boolean;
+export declare function configuredBambuProfileDirs(): string[];
 export interface BambuSliceOptions {
     uptodate?: boolean;
     repetitions?: number;

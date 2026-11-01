@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.45] – 2026-11-01
+
+- Detect model-content changes including triangle painting; reject spoofed unit attributes and unavailable plate selections. Leave whole-project cost totals unknown when plate coverage is incomplete, while retaining measured subset costs.
+
+- Add six workflow tools: profile inventory, 3MF comparison, bounded slicing scenarios, transformed object extraction, cost estimates and physical fit-test coupons. Preserve all existing tools and printer-free operation.
+- Explain preflight findings with observed evidence and next actions. Report and persist eligible preparation alternatives; allow explicit measured round selection without bypassing blockers or cancellation.
+- Pin the expanded 27-tool surface and test safe archive handling, finite geometry, unknown estimates, budget/cancellation behavior, and installed MCP initialization.
+
 ## [1.1.44] – 2026-11-01
 
 ### Fatia MCP fork

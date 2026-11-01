@@ -333,10 +333,13 @@ export async function preflightCheck(args, deps) {
                 if (names.some(n => n.startsWith("studio.")))
                     names.push("studio.installed_version"); // both versions must show
                 names.push(...names.flatMap(n => EVIDENCE_ALSO[n] ?? []));
+                const observed = Object.fromEntries([...new Set(names)].filter(n => known(facts, n)).map(n => [n, show(facts[n])]));
                 findings.push({
                     rule_id: r.id, severity: r.severity, confidence: r.confidence, stage: r.stage, title: r.title, problem: r.problem,
-                    evidence: Object.fromEntries([...new Set(names)].filter(n => known(facts, n)).map(n => [n, show(facts[n])])),
+                    evidence: observed,
                     fix: { settings: r.solution.settings, steps: r.solution.steps, message: r.solution.message },
+                    explanation: { problem: r.problem, condition: r.detect.when, observed, basis: r.detect.when_text, confidence: r.confidence },
+                    next_action: { settings: r.solution.settings, steps: r.solution.steps, message: r.solution.message, approval: approvalFor(r) },
                     approval: approvalFor(r),
                     ...(version.get(r.id) === "unknown" ? { version_note: `valida para bambu_studio ${r.applies_to?.bambu_studio}; a versao instalada do Studio e desconhecida` } : {}),
                     topic: r.topic, src: r.src,

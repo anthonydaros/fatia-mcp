@@ -4,6 +4,16 @@
 import { getKb, leaves } from "../knowledge/loader.js";
 import { printerId } from "../knowledge/tools.js";
 import { declarationImpact, factsRead, partContextFacts, skippedByUndeclared, suggestDeclarations } from "./part-context.js";
+/** Eligibility for explicitly selecting a measured candidate. Unknown facts stay visible in the report. */
+export function selectionIssues(round) {
+    return [
+        ...(!round.measure || !round.judged || (!round.write && round.measure.reused_from !== "baseline") ? ["not_measured"] : []),
+        ...(round.error ? ["round_error"] : []),
+        ...(round.measure?.gcode_complete === false ? ["incomplete_gcode"] : []),
+        ...(round.judged?.blockers.length ? ["known_blocker"] : []),
+        ...(Object.values(round.measure?.reach ?? {}).some(value => value === false) ? ["settings_not_reached_slice"] : []),
+    ];
+}
 const WEAK = new Set(["hipotese", "nao verificado"]);
 const STRENGTH = ["preset", "oficial", "bug conhecido", "teste de revisor", "relato", "hipotese", "nao verificado"];
 const SEVERITY = ["blocker", "warning", "tip"];
@@ -305,6 +315,24 @@ export function buildReport(run) {
         caveats,
         ready_means: READY_MEANS,
         stop: stopOut,
+        selection: { requested_round: run.input.selectRound ?? null, error: run.selectionError ?? null, scope: "round IDs identify candidates in this run; a new run remeasures them" },
+        alternatives: run.rounds.filter(r => r.measure && r.judged).map(r => {
+            const artifact = run.alternativeArtifacts?.[r.round];
+            const issues = [...selectionIssues(r), ...(artifact?.blockers?.length ? ["preflight_blocker"] : []), ...(artifact?.error ? ["artifact_error"] : []), ...(run.stop.reason === "cancelled" ? ["cancelled"] : [])];
+            const selected = !!run.delivered && r === run.best;
+            return {
+                round_id: r.round, settings_hash: r.hash, gcode_complete: r.measure.gcode_complete ?? null, selected, eligible: issues.length === 0, ineligible_reasons: issues,
+                settings: { ...run.base, ...Object.fromEntries(r.delta.changes.map(c => [c.key, c.value])) },
+                object_overrides: r.delta.overrides,
+                changes: changeViews(run, r, r, r.write),
+                estimates: { print_time_s: r.measure.facts["plate.time_s"] ?? null, weight_g: r.measure.facts["plate.weight_g"] ?? null, basis: "slicer estimate, not physical print measurement" },
+                metrics: metricRows(run, r),
+                blockers: [...r.judged.blockers, ...(artifact?.blockers ?? [])],
+                blockers_unknown: r.judged.blockers_unknown, preflight_unchecked: artifact?.unchecked ?? null,
+                triggers: { true: r.judged.triggers_true, unknown: r.judged.triggers_unknown },
+                artifact: { available: !!artifact?.path, path: artifact?.path ?? null, sliced: false, error: artifact?.error ?? null, reason: artifact?.path ? null : "No persistent project was delivered for this candidate." },
+            };
+        }),
         delivered: run.delivered ? {
             path: run.delivered.path, round: run.best?.round ?? null, why_this_round: run.bestWhy ?? null, sliced: false,
             opened_in_studio: !!run.delivered.opened, open_error: run.delivered.open_error ?? null,

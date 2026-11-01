@@ -112,7 +112,7 @@ type NameIndex = Map<string, IndexedProfile> & { malformed?: string[] };
  * abstract bases like `fdm_machine_common` and `fdm_bbl_3dp_001_common`,
  * because those are the parents we'll walk to.
  */
-async function buildNameIndex(
+export async function buildNameIndex(
   profilesRoot: string,
   vendor: string,
   userProfileRoots: string[] = []
@@ -171,7 +171,7 @@ async function buildNameIndex(
  *   - Unknown name (broken `inherits` reference).
  *   - Cycles (A -> B -> A).
  */
-function flattenByName(
+export function flattenByName(
   leafName: string,
   index: NameIndex,
   visiting = new Set<string>()

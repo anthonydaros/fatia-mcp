@@ -32,6 +32,12 @@ export declare const PREPARE_TOOLS: readonly [{
                     };
                 };
             };
+            readonly select_round: {
+                readonly type: "integer";
+                readonly minimum: 0;
+                readonly maximum: 49;
+                readonly description: "Deliver this measured tuning round (0-based), if eligible, instead of the default best round. Round IDs refer to this run; unavailable, failed or blocked rounds are rejected. Alternatives remain unsliced projects for review.";
+            };
             readonly max_slices: {
                 readonly type: "integer";
                 readonly minimum: 2;
@@ -111,6 +117,7 @@ export interface PrepareArgs {
     layout: LayoutInput;
     model?: string;
     partContext?: unknown;
+    selectRound?: number;
     maxSlices: number;
     maxMinutes: number;
     outputDir?: string;

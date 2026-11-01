@@ -24,7 +24,7 @@ import { collectFacts } from "./facts.js";
 import { failedLayout, runLayoutStage } from "./layout-stage.js";
 import { meshFactsFromProject, meshFactsFromStl } from "./mesh-facts.js";
 import { parsePartContext } from "./part-context.js";
-import { buildReport } from "./prepare-report.js";
+import { buildReport, selectionIssues } from "./prepare-report.js";
 import { writeTunedProject } from "./project-writer.js";
 export const STRONG_CONFIDENCES = ["preset", "oficial", "bug conhecido"];
 const sha256 = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
@@ -121,6 +121,10 @@ function defaultName(source) {
 export async function prepareProject(input, deps) {
     const now = deps.now ?? Date.now;
     const started = now();
+    if (input.selectRound !== undefined && (!Number.isInteger(input.selectRound) || input.selectRound < 0 || input.selectRound > 49))
+        throw new Error("select_round must be an integer from 0 to 49.");
+    if (input.selectRound !== undefined && input.dryRun)
+        throw new Error("select_round requires measured preparation, not dry_run.");
     const source = path.resolve(input.path);
     if (!/\.(3mf|stl)$/i.test(source))
         throw new Error("prepare_print_project accepts a .3mf project or an .stl file.");
@@ -258,7 +262,7 @@ export async function prepareProject(input, deps) {
                     const out = await deps.slice(writeSource === source ? p0.path : layout.file, input.signal, plateIndex);
                     lastSliceMs = now() - t;
                     const collected = await collect(out);
-                    const measure = measureOf(collected, out.ms ?? lastSliceMs, {});
+                    const measure = { ...measureOf(collected, out.ms ?? lastSliceMs, {}), gcode_complete: out.gcode.complete };
                     baseline = { measure, blockers: factBlockers(collected.facts, input.model).hits };
                     measured.set(baselineHash, { measure, collected });
                 }
@@ -334,7 +338,7 @@ export async function prepareProject(input, deps) {
                     collected = await collect(out);
                     const config = await readConfig(file);
                     const reach = Object.fromEntries(rec.write.changed_keys.map(c => [c.key, out.block ? checkBlockValue(config, out.block, c.key, c.scope).ok : null]));
-                    rec.measure = measureOf(collected, out.ms ?? lastSliceMs, reach);
+                    rec.measure = { ...measureOf(collected, out.ms ?? lastSliceMs, reach), gcode_complete: out.gcode.complete };
                 }
                 const next = nextRound(deps.tuning.actions, plan.state, collected.facts, engineOptions(collected.unavailable));
                 const blockers = factBlockers(collected.facts, input.model);
@@ -382,6 +386,21 @@ export async function prepareProject(input, deps) {
                 ? `rodada ${best.round}, a última medida`
                 : `rodada ${best.round}, não a última medida (${last.round}): ${best.judged.triggers_true.length === last.judged.triggers_true.length ? "mesmo número de gatilhos verdadeiros, mas melhor em bloqueadores, no que sobra do problema medido ou no tempo de impressão" : `menos gatilhos verdadeiros (${best.judged.triggers_true.length}) que a rodada ${last.round} (${last.judged.triggers_true.length})`}`;
         }
+        let selectionError;
+        if (input.selectRound !== undefined && stop.reason !== "cancelled") {
+            const selected = good.find(r => r.round === input.selectRound);
+            const issues = selected ? selectionIssues(selected) : ["round_unavailable"];
+            if (issues.length) {
+                selectionError = `select_round ${input.selectRound} is not eligible: ${issues.join(", ")}.`;
+                stop = { reason: "error", detail: selectionError };
+                best = undefined;
+            }
+            else {
+                best = selected;
+                bestWhy = `rodada ${best.round}, selecionada explicitamente por select_round`;
+            }
+        }
+        const alternativeArtifacts = {};
         const outputDir = path.resolve(input.outputDir);
         let delivered;
         let preflightRun = { checked: source, blockers: [] };
@@ -428,6 +447,11 @@ export async function prepareProject(input, deps) {
                 await fs.rm(delivered.path, { force: true });
                 delivered = undefined;
             }
+            for (const artifact of Object.values(alternativeArtifacts)) {
+                if (artifact.path)
+                    await fs.rm(artifact.path, { force: true });
+                delete artifact.path;
+            }
         };
         await cancelDelivery();
         // 5. The source is untouched; the deliverable has no structure/volume blocker; then it is opened for the person to review and slice.
@@ -435,9 +459,9 @@ export async function prepareProject(input, deps) {
         if (after !== before)
             warnings.push(`${source} mudou enquanto o laço rodava (o SHA-256 difere); o projeto entregue não foi aberto.`);
         const check = delivered?.path ?? source;
+        const context = { ...(declared.kind ? { object_kind: declared.kind } : {}), ...(declared.mold_kind === "rigid" || declared.mold_kind === "silicone" ? { mold_kind: declared.mold_kind } : {}) };
         if (stop.reason !== "cancelled")
             try {
-                const context = { ...(declared.kind ? { object_kind: declared.kind } : {}), ...(declared.mold_kind === "rigid" || declared.mold_kind === "silicone" ? { mold_kind: declared.mold_kind } : {}) };
                 const result = await deps.preflight({ file_path: check, bambu_model: input.model, plate_index: plateIndex, min_severity: "blocker", max_findings: 50, context });
                 const findings = (Array.isArray(result.findings) ? result.findings : []);
                 preflightRun = { checked: check, blockers: findings.filter(f => f.severity === "blocker"), unchecked: result.unchecked };
@@ -445,6 +469,41 @@ export async function prepareProject(input, deps) {
             catch (error) {
                 preflightRun = { checked: check, blockers: [], error: error.message };
                 warnings.push(`O preflight_check não conseguiu julgar ${path.basename(check)} (${preflightRun.error}); os bloqueadores de estrutura e volume não foram conferidos.`);
+            }
+        if (delivered && best && input.selectRound !== undefined && preflightRun.blockers.length) {
+            alternativeArtifacts[best.round] = { blockers: preflightRun.blockers, unchecked: preflightRun.unchecked };
+            await fs.rm(delivered.path, { force: true });
+            delivered = undefined;
+            selectionError = `select_round ${input.selectRound} is not eligible: final preflight found blockers.`;
+            stop = { reason: "error", detail: selectionError };
+            best = undefined;
+        }
+        await cancelDelivery();
+        // Keep measured alternatives as new unsliced projects; scratch is deleted in finally.
+        if (delivered && !aborted() && after === before)
+            for (const candidate of good) {
+                if (aborted())
+                    break;
+                if (candidate === best) {
+                    alternativeArtifacts[candidate.round] = { path: delivered.path, blockers: preflightRun.blockers, unchecked: preflightRun.unchecked };
+                    continue;
+                }
+                if (selectionIssues(candidate).length)
+                    continue;
+                try {
+                    const checked = await deps.preflight({ file_path: candidate.write?.path ?? p0.path, bambu_model: input.model, plate_index: plateIndex, min_severity: "blocker", max_findings: 50, context });
+                    const blockers = (Array.isArray(checked.findings) ? checked.findings : []).filter((f) => f.severity === "blocker");
+                    alternativeArtifacts[candidate.round] = { blockers, unchecked: checked.unchecked };
+                    if (blockers.length || aborted())
+                        continue;
+                    const filename = `${path.basename(outputName, ".3mf")}_round-${candidate.round}.3mf`;
+                    const saved = await write(path.join(outputDir, filename), candidate.delta);
+                    alternativeArtifacts[candidate.round].path = saved.path;
+                    addWarnings(saved.warnings);
+                }
+                catch (error) {
+                    alternativeArtifacts[candidate.round] = { error: error.message };
+                }
             }
         await cancelDelivery();
         if (delivered && input.openInStudio && after === before && !aborted()) {
@@ -461,7 +520,7 @@ export async function prepareProject(input, deps) {
             input, tuning: deps.tuning, printerPreset: deps.printerPreset, declared, source: { path: source, sha256_before: before, sha256_after: after }, p0, base,
             baseline, baselineError, rounds, items, stop, slices: { loop: loopSlices, retarget: retargetSlices, verification: verificationSlices, max: input.maxSlices },
             minutes: Math.round(((now() - started) / 60000) * 100) / 100, best: input.dryRun ? undefined : best, bestWhy, pending, delivered, preflight: preflightRun, mesh, installed, warnings,
-            layout, allPlates, plate: { index: plateIndex, why: plateWhy, kind: plateKind },
+            alternativeArtifacts, selectionError, layout, allPlates, plate: { index: plateIndex, why: plateWhy, kind: plateKind },
         });
     }
     finally {

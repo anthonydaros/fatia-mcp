@@ -162,7 +162,7 @@ function isPathLikeExecutable(slicerPath: string): boolean {
   );
 }
 
-function configuredBambuProfileDirs(): string[] {
+export function configuredBambuProfileDirs(): string[] {
   const override = process.env.BAMBU_SLICER_PROFILE_DIRS;
   if (override !== undefined) {
     return override.split(path.delimiter).filter(Boolean).map(dir => path.resolve(dir));

@@ -29,6 +29,7 @@ export const PREPARE_TOOLS = [
             ...Object.fromEntries(PART_BOOLEANS.map(key => [key, { type: "boolean" }])),
           },
         },
+        select_round: { type: "integer", minimum: 0, maximum: 49, description: "Deliver this measured tuning round (0-based), if eligible, instead of the default best round. Round IDs refer to this run; unavailable, failed or blocked rounds are rejected. Alternatives remain unsliced projects for review." },
         max_slices: { type: "integer", minimum: 2, maximum: 50, description: "Most CLI slices in all (retarget, baseline, tuned rounds and final verification). Default 12." },
         max_minutes: { type: "number", minimum: 1, maximum: 240, description: "Wall-clock budget in minutes. Default 20." },
         output_dir: { type: "string", description: "Folder for the new project. Default: ~/.fatia-mcp/outputs (or FATIA_OUTPUT_DIR)." },
@@ -55,6 +56,7 @@ export interface PrepareArgs {
   layout: LayoutInput;
   model?: string;
   partContext?: unknown;
+  selectRound?: number;
   maxSlices: number;
   maxMinutes: number;
   outputDir?: string;
@@ -106,6 +108,7 @@ export function parsePrepareArgs(args: Record<string, unknown> | undefined): Pre
     },
     model: text("bambu_model", a.bambu_model),
     partContext: a.part_context,
+    ...(a.select_round === undefined ? {} : { selectRound: integer("select_round", a.select_round, 0, 49, 0) }),
     maxSlices: integer("max_slices", a.max_slices, 2, 50, 12),
     maxMinutes,
     outputDir: text("output_dir", a.output_dir),

@@ -40,7 +40,7 @@ import { profileJsonFiles } from './profile-files.js';
  * abstract bases like `fdm_machine_common` and `fdm_bbl_3dp_001_common`,
  * because those are the parents we'll walk to.
  */
-async function buildNameIndex(profilesRoot, vendor, userProfileRoots = []) {
+export async function buildNameIndex(profilesRoot, vendor, userProfileRoots = []) {
     const index = new Map();
     index.malformed = [];
     const subdirs = ["machine", "process", "filament"];
@@ -94,7 +94,7 @@ async function buildNameIndex(profilesRoot, vendor, userProfileRoots = []) {
  *   - Unknown name (broken `inherits` reference).
  *   - Cycles (A -> B -> A).
  */
-function flattenByName(leafName, index, visiting = new Set()) {
+export function flattenByName(leafName, index, visiting = new Set()) {
     if (visiting.has(leafName)) {
         throw new Error(`Profile inheritance cycle detected (inherits/include): ${[...visiting, leafName].join(" -> ")}`);
     }

@@ -22,6 +22,11 @@ import { getTuning } from "./tuning/loader.js";
 import { prepareProject } from "./tuning/prepare.js";
 import { studioAllPlatesSlicer, studioSlicer } from "./tuning/prepare-slice.js";
 import { PREPARE_TOOLS, parsePrepareArgs } from "./tuning/prepare-tool.js";
+import { PROFILE_TOOLS, listSlicerProfiles } from "./workflows/profiles.js";
+import { COMPARE_PROJECT_TOOLS, compareProjects } from "./workflows/compare-projects.js";
+import { GEOMETRY_TOOLS, extractObjects, createFitTest } from "./workflows/geometry.js";
+import { COST_TOOLS, estimatePrintCost } from "./workflows/cost.js";
+import { SCENARIO_TOOLS, compareSliceScenarios } from "./workflows/scenarios.js";
 import { studioRetargeter } from "./tuning/retarget.js";
 dotenv.config();
 // os.tmpdir(), not process.cwd() — a packaged Claude Desktop extension is
@@ -824,6 +829,7 @@ class BambuPrinterMCPServer {
                 },
                 annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true }
             },
+            ...PROFILE_TOOLS, ...COMPARE_PROJECT_TOOLS, ...GEOMETRY_TOOLS, ...COST_TOOLS, ...SCENARIO_TOOLS,
             ...KNOWLEDGE_TOOLS.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, required: "required" in tool.inputSchema ? [...tool.inputSchema.required] : [] } })),
             ...PREPARE_TOOLS.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, required: [...tool.inputSchema.required] } })),
             {
@@ -1185,6 +1191,36 @@ class BambuPrinterMCPServer {
                     case "preflight_check":
                         result = await preflightCheck(args ?? {}, this.preflightDeps(extra.signal));
                         break;
+                    case "list_slicer_profiles": {
+                        const { slicerPath } = resolveSlicerConfig({ slicer_type: "bambustudio" });
+                        result = await listSlicerProfiles(args ?? {}, { slicerPath });
+                        break;
+                    }
+                    case "compare_projects":
+                        result = await compareProjects(args ?? {});
+                        break;
+                    case "extract_3mf_objects":
+                        result = await extractObjects(args ?? {}, OUTPUT_DIR, extra.signal);
+                        break;
+                    case "create_fit_test":
+                        result = await createFitTest(args ?? {}, OUTPUT_DIR, extra.signal);
+                        break;
+                    case "estimate_print_cost":
+                        result = await estimatePrintCost(args ?? {});
+                        break;
+                    case "compare_slice_scenarios": {
+                        const model = await this.resolveBambuModel(args?.bambu_model);
+                        const { slicerPath } = resolveSlicerConfig({ slicer_type: "bambustudio" });
+                        const printerPreset = BAMBU_MODEL_PRESETS[model](DEFAULT_NOZZLE_DIAMETER);
+                        result = await compareSliceScenarios(args ?? {}, {
+                            printerPreset, tempDir: TEMP_DIR, outputDir: OUTPUT_DIR, signal: extra.signal,
+                            slice: studioSlicer({ manipulator: this.stlManipulator, slicerPath, printerPreset,
+                                modelCode: FILAMENT_MODEL_CODES[model], plateIndex: Number(args?.plate_index ?? 0),
+                                bambuOptions: { bedType: resolveBambuStudioCliBedType(undefined), nozzleType: resolveNozzleType(undefined), nozzleVolumeType: resolveNozzleVolumeType(undefined) },
+                            }),
+                        });
+                        break;
+                    }
                     case "prepare_print_project": {
                         const parsed = parsePrepareArgs(args);
                         const { slicerPath } = resolveSlicerConfig({ slicer_type: "bambustudio" });
