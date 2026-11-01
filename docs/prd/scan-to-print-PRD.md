@@ -6,6 +6,8 @@
 
 **Repository baseline.** Branch `cursor/scan-to-print-prd-f892` on top of release 1.1.26 (commit `c732b70`). Facts about the existing MCP server cite files in this repository. This is the historical research baseline, not the current support matrix. By release 1.1.39, X2D also has a pinned Linux native route and H2D Pro is selectable across tools and slicer profiles. Use the current README and setup guide for supported routes; the baseline-specific counts and gaps below need revalidation before implementing this proposal.
 
+**Note, 2026-11-01 (this local fork).** The fork this file sits in no longer contacts or controls a printer: the print, upload, printer-status, camera and Bambu Connect tools and `src/printers/`, `src/safety/` print-file and printer-state code described below were removed. Every statement below about printing, printer control or those source files describes the repository at the baseline above and is kept only as historical research; it does not describe the current code.
+
 ---
 
 ## 0. The decision in one page
