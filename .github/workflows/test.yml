@@ -23,8 +23,27 @@ jobs:
           node-version: "24"
           package-manager-cache: false
       - run: npm ci
+      - name: Diagnose Windows PowerShell input
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import { execFile } from 'node:child_process';
+          for (const closeInput of [false, true]) {
+            const start = Date.now();
+            await new Promise(resolve => {
+              const child = execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(Get-Item -LiteralPath $env:SLICER_EXE).VersionInfo.ProductVersion'],
+                { timeout: 15000, windowsHide: true, env: { ...process.env, SLICER_EXE: process.execPath } }, (error, stdout, stderr) => {
+                  console.log(JSON.stringify({ closeInput, elapsed: Date.now() - start, error: error && { code: error.code, signal: error.signal, killed: error.killed }, stdout, stderr }));
+                  resolve();
+                });
+              if (closeInput) child.stdin.end();
+            });
+          }
+          process.exitCode = 1;
+          JS
       - run: npm test
         if: runner.os != 'Windows'
-      # Concurrent package installs can stall a cold PowerShell version probe on Windows runners.
+      # Temporary sequential run while investigating the native version probe.
       - run: npm test -- --test-concurrency=1
         if: runner.os == 'Windows'
