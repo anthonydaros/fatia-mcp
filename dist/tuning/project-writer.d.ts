@@ -36,6 +36,14 @@ export interface WriteOptions {
     objectOverrides?: ObjectOverrides;
     /** Required for an STL, a 3MF without project settings, or a project made for another printer. See studioRetargeter. */
     retarget?: Retargeter;
+    /**
+     * `source` is a copy of the user's project that this run already retargeted and laid out (the layout stage): then the retarget is not run again, the
+     * diffs and the retarget summary refer to the user's original at `path`, and it is that file whose SHA-256 is taken before and after.
+     */
+    origin?: {
+        path: string;
+        retarget: RetargetSummary;
+    };
 }
 export interface DiffEntry {
     key: string;

@@ -498,3 +498,27 @@ test("CONFIG_BLOCK: read the block, line the project's lists up with the extrude
   assert.equal(checkBlockValue(config, block, "brim_type", "process").ok, null, "a key the block lacks is unverified, not ok");
   assert.equal(checkBlockValue({ ...config, outer_wall_speed: ["1", "2", "3", "4"] }, block, "outer_wall_speed", "process").ok, null, "a list that does not line up is unverified");
 });
+
+test("origin: a laid-out copy of P0 is the source, but the diffs, the retarget summary and the hash checks stay against the user's original", async t => {
+  const original = await project(t, { config: studioJson(baseConfig({ printer_settings_id: "Bambu Lab H2D 0.4 nozzle", sparse_infill_pattern: "gyroid" })) });
+  const laid = await project(t, { sliced: false }); // already for the X2D: what the layout stage writes from P0
+  const summary = { applied: true, reason: "printer-differs", printer_ids: { before: { printer: "Bambu Lab H2D 0.4 nozzle", process: null, filaments: [] }, after: { printer: X2D, process: null, filaments: [] } }, kept: ["k"], not_kept: [], filament_map: [], changed_keys: [] };
+  const never = () => { throw new Error("a laid-out source is never retargeted again"); };
+  const r = await writeTunedProject({
+    source: laid.file, output: path.join(laid.dir, "out", "tuned.3mf"), target: { printerPreset: X2D }, retarget: never,
+    changes: [{ key: "wall_loops", value: "5", scope: "process" }], origin: { path: original.file, retarget: summary },
+  });
+  assert.deepEqual(r.sha256_of_source_before_and_after, { before: sha(original.bytes), after: sha(original.bytes) }, "the user's file is the one hashed");
+  assert.equal(r.retarget, summary, "the retarget summary of the first P0 write");
+  const keys = Object.fromEntries(r.combined_diff.map(d => [d.key, d]));
+  assert.deepEqual([keys.printer_settings_id.from, keys.printer_settings_id.to], ["Bambu Lab H2D 0.4 nozzle", X2D], "the combined diff goes from the user's original");
+  assert.deepEqual([keys.sparse_infill_pattern.from, keys.sparse_infill_pattern.to], ["gyroid", "grid"]);
+  assert.deepEqual([keys.wall_loops.from, keys.wall_loops.to], ["2", "5"]);
+  assert.deepEqual(r.changed_keys.map(c => [c.key, c.from, c.to]), [["wall_loops", "2", "5"]], "the tuning diff is against the laid-out source (P0)");
+  assert.equal((await configOf(r.path)).wall_loops, "5");
+  // without origin the same call diffs against the laid-out copy and says nothing of the retarget
+  const plain = await writeTunedProject({ source: laid.file, output: path.join(laid.dir, "out", "plain.3mf"), target: { printerPreset: X2D }, changes: [{ key: "wall_loops", value: "5", scope: "process" }] });
+  assert.deepEqual(plain.combined_diff.map(d => d.key), ["wall_loops", "different_settings_to_system"], "only the tuning: the printer change is not in it");
+  assert.equal(plain.retarget.applied, false);
+  await assert.rejects(writeTunedProject({ source: laid.file, output: path.join(laid.dir, "out", "x.3mf"), target: { printerPreset: X2D }, origin: { path: path.join(laid.dir, "missing.3mf"), retarget: summary } }), /ENOENT|missing/);
+});

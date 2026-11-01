@@ -113,16 +113,23 @@ export async function writeTunedProject(o) {
     const warnings = [];
     const sourcePath = path.resolve(o.source);
     const sourceBytes = await readBoundedPrintFile(sourcePath);
-    const before = sha256(sourceBytes);
+    const originPath = o.origin && path.resolve(o.origin.path);
+    const originBytes = originPath ? await readBoundedPrintFile(originPath) : undefined;
+    const before = sha256(originBytes ?? sourceBytes);
     const isStl = /\.stl$/i.test(sourcePath);
     // 1. The source project's own settings, if it has any.
     const sourceZip = isStl ? undefined : await loadSafe3mfArchive(sourceBytes);
     const originalText = sourceZip && (await text(sourceZip, CONFIG));
     const original = originalText === undefined ? undefined : parseConfig(originalText);
+    if (o.origin && original === undefined)
+        throw new Error("A laid-out source must carry its project settings.");
+    // What the diffs are against: the user's own file when `source` is a working copy of its P0.
+    const originText = originBytes ? await text(await loadSafe3mfArchive(originBytes), CONFIG) : originalText;
+    const diffBase = originText === undefined ? undefined : parseConfig(originText);
     // 2. P0: the project for the target printer. A baseline (STL, or a 3MF with no settings) is the exported project whole; a project made
     //    for another printer keeps its own entries and takes only the exported settings.
     const baseline = original === undefined;
-    const differs = !baseline && original.printer_settings_id !== o.target.printerPreset;
+    const differs = !o.origin && !baseline && original.printer_settings_id !== o.target.printerPreset;
     let outcome;
     if (baseline || differs) {
         if (!o.retarget)
@@ -268,10 +275,12 @@ export async function writeTunedProject(o) {
         await fs.rm(finalPath, { force: true });
         throw error;
     }
-    const after = sha256(await readBoundedPrintFile(sourcePath));
+    const after = sha256(await readBoundedPrintFile(originPath ?? sourcePath));
     if (after !== before)
+        throw new Error(`${originPath ?? sourcePath} changed while the project was written.`);
+    if (originPath && sha256(await readBoundedPrintFile(sourcePath)) !== sha256(sourceBytes))
         throw new Error(`${sourcePath} changed while the project was written.`);
-    const summary = {
+    const summary = o.origin?.retarget ?? {
         applied: !!outcome,
         reason: baseline ? "baseline" : differs ? "printer-differs" : "same-printer",
         printer_ids: { before: original ? ids(original) : null, after: ids(p0) },
@@ -287,7 +296,7 @@ export async function writeTunedProject(o) {
         unchanged_keys: unchanged,
         object_overrides: objectEdits,
         retarget: summary,
-        combined_diff: diff(original ?? p0, final),
+        combined_diff: diff(diffBase ?? p0, final),
         dropped_entries: [...dropped],
         rewritten_entries: [...rewritten.keys()],
         warnings,

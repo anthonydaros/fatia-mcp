@@ -52,6 +52,11 @@ export interface WriteOptions {
   objectOverrides?: ObjectOverrides;
   /** Required for an STL, a 3MF without project settings, or a project made for another printer. See studioRetargeter. */
   retarget?: Retargeter;
+  /**
+   * `source` is a copy of the user's project that this run already retargeted and laid out (the layout stage): then the retarget is not run again, the
+   * diffs and the retarget summary refer to the user's original at `path`, and it is that file whose SHA-256 is taken before and after.
+   */
+  origin?: { path: string; retarget: RetargetSummary };
 }
 
 export interface DiffEntry { key: string; from: SettingValue | null; to: SettingValue | null }
@@ -174,18 +179,24 @@ export async function writeTunedProject(o: WriteOptions): Promise<WriteResult> {
   const warnings: string[] = [];
   const sourcePath = path.resolve(o.source);
   const sourceBytes = await readBoundedPrintFile(sourcePath);
-  const before = sha256(sourceBytes);
+  const originPath = o.origin && path.resolve(o.origin.path);
+  const originBytes = originPath ? await readBoundedPrintFile(originPath) : undefined;
+  const before = sha256(originBytes ?? sourceBytes);
   const isStl = /\.stl$/i.test(sourcePath);
 
   // 1. The source project's own settings, if it has any.
   const sourceZip = isStl ? undefined : await loadSafe3mfArchive(sourceBytes);
   const originalText = sourceZip && (await text(sourceZip, CONFIG));
   const original = originalText === undefined ? undefined : parseConfig(originalText);
+  if (o.origin && original === undefined) throw new Error("A laid-out source must carry its project settings.");
+  // What the diffs are against: the user's own file when `source` is a working copy of its P0.
+  const originText = originBytes ? await text(await loadSafe3mfArchive(originBytes), CONFIG) : originalText;
+  const diffBase = originText === undefined ? undefined : parseConfig(originText);
 
   // 2. P0: the project for the target printer. A baseline (STL, or a 3MF with no settings) is the exported project whole; a project made
   //    for another printer keeps its own entries and takes only the exported settings.
   const baseline = original === undefined;
-  const differs = !baseline && original.printer_settings_id !== o.target.printerPreset;
+  const differs = !o.origin && !baseline && original.printer_settings_id !== o.target.printerPreset;
   let outcome: RetargetOutcome | undefined;
   if (baseline || differs) {
     if (!o.retarget) throw new Error(`${path.basename(sourcePath)} needs a retargeter: ${baseline ? "it carries no project settings" : `it was made for ${String(original.printer_settings_id)}, not ${o.target.printerPreset}`}.`);
@@ -303,10 +314,11 @@ export async function writeTunedProject(o: WriteOptions): Promise<WriteResult> {
     await fs.rm(finalPath, { force: true });
     throw error;
   }
-  const after = sha256(await readBoundedPrintFile(sourcePath));
-  if (after !== before) throw new Error(`${sourcePath} changed while the project was written.`);
+  const after = sha256(await readBoundedPrintFile(originPath ?? sourcePath));
+  if (after !== before) throw new Error(`${originPath ?? sourcePath} changed while the project was written.`);
+  if (originPath && sha256(await readBoundedPrintFile(sourcePath)) !== sha256(sourceBytes)) throw new Error(`${sourcePath} changed while the project was written.`);
 
-  const summary: RetargetSummary = {
+  const summary: RetargetSummary = o.origin?.retarget ?? {
     applied: !!outcome,
     reason: baseline ? "baseline" : differs ? "printer-differs" : "same-printer",
     printer_ids: { before: original ? ids(original) : null, after: ids(p0) },
@@ -322,7 +334,7 @@ export async function writeTunedProject(o: WriteOptions): Promise<WriteResult> {
     unchanged_keys: unchanged,
     object_overrides: objectEdits,
     retarget: summary,
-    combined_diff: diff(original ?? p0, final),
+    combined_diff: diff(diffBase ?? p0, final),
     dropped_entries: [...dropped],
     rewritten_entries: [...rewritten.keys()],
     warnings,
