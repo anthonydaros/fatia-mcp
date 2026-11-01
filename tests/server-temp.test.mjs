@@ -55,7 +55,7 @@ test("independent server instances cannot overwrite each other's default model o
 async function startServer(t, cwd, transportKind, tempDirectory) {
   const env = {
     ...process.env, MCP_TRANSPORT: transportKind, TEMP_DIR: tempDirectory,
-    BAMBU_MODEL: "", BAMBU_PRINTER_MODEL: "", BAMBU_SERIAL: "TEST", BAMBU_TOKEN: "TEST",
+    BAMBU_MODEL: "", BAMBU_PRINTER_MODEL: "",
   };
   const client = new Client({ name: "temp-cleanup-test", version: "1" });
   t.after(() => client.close());

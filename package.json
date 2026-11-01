@@ -1,7 +1,7 @@
 {
   "name": "bambu-printer-mcp",
   "version": "1.1.43",
-  "description": "MCP server for Bambu Lab 3D printers with STL manipulation, slicing, and print management",
+  "description": "MCP server that prepares models for Bambu Studio: STL and 3MF tools, CLI slicing, 3MF tuning, a knowledge base and a Blender bridge. It never contacts or controls a printer.",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
@@ -16,28 +16,19 @@
     "test": "npm run build && node --test tests/*.test.mjs tests/**/*.test.mjs",
     "package:mcpb": "npm run build && node scripts/package-mcpb.mjs",
     "version": "node scripts/sync-manifest-version.mjs",
-    "postinstall": "node scripts/install-patches.mjs",
-    "build:native": "sh scripts/build-bambu-native.sh",
     "kb:check": "node scripts/validate-knowledge.mjs",
     "kb:build": "node scripts/build-knowledge.mjs"
   },
   "bin": {
-    "bambu-printer-mcp": "dist/index.js",
-    "bambu-printer-mcp-native-setup": "scripts/setup-bambu-native.mjs"
+    "bambu-printer-mcp": "dist/index.js"
   },
   "files": [
     "dist",
     "src",
     "knowledge",
-    "patches",
-    "scripts/install-patches.mjs",
     "README.md",
     "CONTRIBUTORS.md",
-    "LICENSE",
-    "native/*.cpp",
-    "native/*.h",
-    "scripts/build-bambu-native.sh",
-    "scripts/setup-bambu-native.mjs"
+    "LICENSE"
   ],
   "keywords": [
     "mcp",
@@ -52,12 +43,8 @@
   "license": "GPL-2.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "bambu-node": "3.22.21",
-    "basic-ftp": "^6.2.3",
     "dotenv": "^16.3.1",
     "jszip": "^3.10.2",
-    "mqtt": "^5.16.1",
-    "patch-package": "8.0.1",
     "three": "^0.173.0",
     "xml2js": "^0.6.2"
   },

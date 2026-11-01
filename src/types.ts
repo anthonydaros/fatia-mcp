@@ -1,9 +1,3 @@
-export type BambuFTP = {
-  readDir: (path: string) => Promise<string[]>;
-  sendFile: (sourcePath: string, destinationPath: string, progressCallback?: (progress: number) => void) => Promise<void>;
-  removeFile: (path: string) => Promise<void>;
-};
-
 export interface SectionBounds {
     minX: number; minY: number; minZ: number;
     maxX: number; maxY: number; maxZ: number;
@@ -25,10 +19,6 @@ export interface ThreeMFBuildItem {
     transform?: string;
 }
 
-export interface AMSFilamentMapping {
-    [filamentId: string]: number;
-}
-
 export interface BambuSlicerConfig {
     layer_height?: number;
     first_layer_height?: number;
@@ -46,7 +36,6 @@ export interface BambuSlicerConfig {
     bed_temperature?: number;
     filament_type?: string[];
     flow_ratio?: number[];
-    ams_mapping?: AMSFilamentMapping;
     [key: string]: any;
 }
 
@@ -55,35 +44,6 @@ export interface ThreeMFData {
     objects: ThreeMFObject[];
     build: { items: ThreeMFBuildItem[] };
     slicerConfig?: Partial<BambuSlicerConfig>;
-}
-
-export interface CollarCharmRole {
-    role: 'inner' | 'outer';
-    objectIndex: number;
-    name: string;
-    area: number;
-    filamentPosition: number;
-}
-
-export interface CollarCharmAnalysis {
-    plateIndex: number;
-    usedFilamentPositions: number[];
-    amsSlots: number[];
-    roles: CollarCharmRole[];
-}
-
-export interface ThreeMFFilamentRequirement {
-    filamentPosition: number;
-    filamentId: number;
-    tray_info_idx: string | null;
-    type: string | null;
-    color: string | null;
-}
-
-export interface ThreeMFAmsRequirements {
-    plateIndex: number;
-    usedFilamentPositions: number[];
-    filaments: ThreeMFFilamentRequirement[];
 }
 
 export interface ThreeMFPlateObject {

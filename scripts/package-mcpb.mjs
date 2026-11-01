@@ -52,21 +52,15 @@ export function packageMcpb({ root = ROOT, outputPath = path.join(root, "bambu-p
   const staging = fs.mkdtempSync(path.join(os.tmpdir(), "bambu-mcpb-package-"));
   try {
     // Never pack the working tree: .gitignore is not read by mcpb, and local
-    // printer credentials, certificates, and models can live beside the source.
-    for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "knowledge", "patches", "LICENSE", "README.md"]) {
+    // credentials, certificates, and models can live beside the source.
+    for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "knowledge", "LICENSE", "README.md"]) {
       copyReleaseInput(path.join(root, name), path.join(staging, name));
     }
-    fs.mkdirSync(path.join(staging, "scripts"));
-    copyReleaseInput(path.join(root, "scripts/install-patches.mjs"), path.join(staging, "scripts/install-patches.mjs"));
-    fs.mkdirSync(path.join(staging, "native"));
-    copyReleaseInput(path.join(root, "native/bambu-native-print.cpp"), path.join(staging, "native/bambu-native-print.cpp"));
-    copyReleaseInput(path.join(root, "scripts/build-bambu-native.sh"), path.join(staging, "scripts/build-bambu-native.sh"));
-    copyReleaseInput(path.join(root, "scripts/setup-bambu-native.mjs"), path.join(staging, "scripts/setup-bambu-native.mjs"));
     for (const name of ["CONTRIBUTORS", "CONTRIBUTORS.md"]) {
       if (fs.existsSync(path.join(root, name))) copyReleaseInput(path.join(root, name), path.join(staging, name));
     }
     if (!quiet) console.log("Installing production dependencies in an isolated extension directory...");
-    // The normal postinstall applies patches; developer node_modules is untouched.
+    // Developer node_modules is untouched.
     runNpm(["ci", "--omit=dev", "--no-audit", "--no-fund"], staging);
     const cli = ["exec", "--yes", `--package=@anthropic-ai/mcpb@${MCPB_VERSION}`, "--", "mcpb"];
     runNpm([...cli, "validate", "manifest.json"], staging);

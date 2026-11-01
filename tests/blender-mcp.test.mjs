@@ -37,7 +37,7 @@ async function start(t, mode = "normal", overrides = {}) {
     args: [path.join(root, "dist/index.js")],
     cwd: directory,
     env: {
-      ...process.env, MCP_TRANSPORT: "stdio", BAMBU_MODEL: "", BAMBU_TOKEN: "printer-secret-do-not-forward",
+      ...process.env, MCP_TRANSPORT: "stdio", BAMBU_MODEL: "", SERVER_SECRET_TOKEN: "server-secret-do-not-forward",
       BLENDER_MCP_COMMAND: process.execPath,
       BLENDER_MCP_ARGS: JSON.stringify([fixture, mode, logPath]),
       BLENDER_MCP_BRIDGE_COMMAND: "", BLENDER_MCP_TIMEOUT_MS: "5000",
@@ -67,7 +67,7 @@ test("Blender status performs MCP initialization and paginated discovery, then c
   assert.deepEqual(status.tools.map((tool) => tool.name), ["get_scene_info", "execute_blender_code"]);
   const events = peer.events();
   assert.deepEqual(events.filter((event) => event.method).map((event) => event.method), ["initialize", "notifications/initialized", "tools/list", "tools/list"]);
-  assert.equal(events[0].printerTokenPresent, false);
+  assert.equal(events[0].serverSecretPresent, false);
   assert.equal(events.at(-1).event, "closed");
 });
 
@@ -79,7 +79,7 @@ test("Blender child receives DISABLE_TELEMETRY but no other unrelated server var
     const spawned = peer.events()[0];
     assert.equal(spawned.disableTelemetry, expected, "only a DISABLE_TELEMETRY set in the parent is forwarded");
     assert.equal(spawned.secretTokenPresent, false);
-    assert.equal(spawned.printerTokenPresent, false);
+    assert.equal(spawned.serverSecretPresent, false);
   }
 });
 
@@ -108,7 +108,7 @@ test("Blender tool failures preserve isError; protocol failures redact peer/conf
       const peer = await start(t, mode);
       const result = await peer.call("blender_mcp_call", { tool_name: "execute_blender_code", arguments: { code: "pass" } });
       assert.equal(result.isError, true);
-      assert.doesNotMatch(errorText(result), /secret-should-not-leak|printer-secret-do-not-forward/);
+      assert.doesNotMatch(errorText(result), /secret-should-not-leak|server-secret-do-not-forward/);
       if (mode === "tool-error") assert.deepEqual(result._meta, { details: "kept" });
       assert.equal(peer.events().at(-1).event, "closed");
     });

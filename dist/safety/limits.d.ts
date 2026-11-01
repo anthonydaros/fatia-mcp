@@ -1,4 +1,4 @@
-/** Independent hardware ceilings. Editable slicer profiles never raise these limits.
+/** Printable volume (X, Y, Z in mm) per model; preflight_check judges an STL or OBJ against it.
  * Manufacturer references (verified 2026-09-27):
  * P1P: https://public-cdn.bambulab.com/store/bambulab-P1P-tech-specs.pdf
  * P1S: https://cdn1.bambulab.com/documentation/quick-start-59b0cefdc0fc4/P1S/English%20version-Quick%20Start%20Guide%20for%20P1S.pdf
@@ -12,24 +12,8 @@
  * H2S: https://bambulab.com/it/support/buying-guide
  * P2S: https://blog.bambulab.com/the-icon-redefined-meet-the-p2s-a-completely-reengineered-version-of-the-ultra-productive-p1-series/
  * X2D: https://csm.bblcdn.com/hub/7c58718aaa2e40edab56efb87419a96a.pdf
- * X1-family bed caps use 110 C: 120 C requires verified 110 V supply, unavailable here.
- * A zero chamber cap means no supported active chamber heater, not ambient temperature.
  */
 export declare const MACHINE_LIMITS: Readonly<Record<string, {
-    nozzle: number;
-    bed: number;
-    chamber: number;
     volume: readonly number[];
 }>>;
-/** Printers with two physical nozzles. Bambu Studio numbers the right/main nozzle 0
- * (MAIN_EXTRUDER_ID) and the left/deputy nozzle 1 (DEPUTY_EXTRUDER_ID), and reports one
- * virtual external-spool slot per nozzle: 255 (VIRTUAL_TRAY_MAIN_ID) and 254
- * (VIRTUAL_TRAY_DEPUTY_ID). The single-nozzle H2S is deliberately absent. */
-export declare const DUAL_NOZZLE_MODELS: ReadonlySet<string>;
-export declare function isDualNozzleModel(model: unknown): boolean;
 export declare function normalizeModel(value: unknown): string | undefined;
-export declare function normalizeMaterial(value: unknown): string | undefined;
-export declare function validateTemperature(component: 'nozzle' | 'bed' | 'chamber', value: unknown, model: string, materials?: string[]): number;
-/** Inspector-only exception: the caller must have verified the bounded startup
- * purge form and that no layer/deposition has begun. Never use for manual heat. */
-export declare function validateStartupPurgeTemperature(value: unknown, model: string, materials: string[]): number;

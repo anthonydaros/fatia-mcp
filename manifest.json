@@ -3,7 +3,7 @@
     "name": "bambu-printer-mcp",
     "display_name": "Bambu Printer MCP",
     "version": "1.1.43",
-    "description": "Drive Bambu Lab 3D printers from Claude -- upload and slice models, start and monitor prints, and manage AMS filament, over MQTT and FTPS on your local network.",
+    "description": "Prepare models for Bambu Studio from Claude -- STL and 3MF tools, CLI slicing, 3MF tuning, a print-settings knowledge base and a Blender bridge. It never contacts or controls a printer.",
     "author": {
         "name": "David Montgomery"
     },
@@ -34,9 +34,6 @@
             ],
             "env": {
                 "MCP_TRANSPORT": "stdio",
-                "PRINTER_HOST": "${user_config.printer_host}",
-                "BAMBU_SERIAL": "${user_config.bambu_serial}",
-                "BAMBU_TOKEN": "${user_config.bambu_token}",
                 "BAMBU_MODEL": "${user_config.bambu_model}",
                 "SLICER_PATH": "${user_config.slicer_path}",
                 "BLENDER_MCP_COMMAND": "${user_config.blender_mcp_command}",
@@ -45,35 +42,16 @@
         }
     },
     "user_config": {
-        "printer_host": {
-            "type": "string",
-            "title": "Printer IP address",
-            "description": "LAN IP address of your Bambu Lab printer.",
-            "required": true
-        },
-        "bambu_serial": {
-            "type": "string",
-            "title": "Printer serial number",
-            "description": "Serial number shown on the printer's touchscreen or in Bambu Studio device settings.",
-            "required": true
-        },
-        "bambu_token": {
-            "type": "string",
-            "title": "LAN access code",
-            "description": "Access Code shown on the printer's network settings screen.",
-            "required": true,
-            "sensitive": true
-        },
         "bambu_model": {
             "type": "string",
             "title": "Printer model",
-            "description": "Required for safe G-code generation. One of: p1s, p1p, p2s, x1c, x1e, a1, a1mini, h2d, h2s, h2c, x2d. X2D supports status and slicing; direct printing is not yet supported.",
+            "description": "Selects the machine profile to slice for; G-code for the wrong model can damage the printer when it is printed. One of: p1s, p1p, p2s, x1c, x1e, a1, a1mini, h2d, h2dpro, h2s, h2c, x2d.",
             "required": true
         },
         "blender_mcp_command": {
             "type": "string",
             "title": "Blender MCP executable (optional)",
-            "description": "Executable for your Blender MCP server, for example the full path to uvx. Leave empty to use printer tools without Blender.",
+            "description": "Executable for your Blender MCP server, for example the full path to uvx. Leave empty to use the other tools without Blender.",
             "required": false
         },
         "blender_mcp_args": {

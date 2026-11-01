@@ -15,14 +15,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 test("MCPB archive preserves runtime and licenses without local secrets or pruning developer dependencies", { timeout: 180_000 }, async (t) => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "bambu-mcpb-test-"));
   t.after(() => fs.rmSync(fixture, { recursive: true, force: true }));
-  for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "knowledge", "patches", "native", "LICENSE", "README.md"]) {
+  for (const name of ["package.json", "package-lock.json", "manifest.json", "dist", "src", "knowledge", "LICENSE", "README.md"]) {
     fs.cpSync(path.join(ROOT, name), path.join(fixture, name), { recursive: true });
   }
-  fs.mkdirSync(path.join(fixture, "scripts"));
-  fs.copyFileSync(path.join(ROOT, "scripts/install-patches.mjs"), path.join(fixture, "scripts/install-patches.mjs"));
-  fs.copyFileSync(path.join(ROOT, "scripts/build-bambu-native.sh"), path.join(fixture, "scripts/build-bambu-native.sh"));
-  fs.copyFileSync(path.join(ROOT, "scripts/setup-bambu-native.mjs"), path.join(fixture, "scripts/setup-bambu-native.mjs"));
-  for (const name of ["native/local-secret.txt", "bambu certs/embedded-key.pem", "bambu-mcp-config.json", "temp/private-model.stl", ".env.production", "unrelated.txt", "node_modules/typescript/developer-marker"]) {
+  for (const name of ["native/local-secret.txt", "patches/local-secret.txt", "scripts/local-secret.txt", "bambu certs/embedded-key.pem", "bambu-mcp-config.json", "temp/private-model.stl", ".env.production", "unrelated.txt", "node_modules/typescript/developer-marker"]) {
     const destination = path.join(fixture, name);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.writeFileSync(destination, "PRIVATE_PACKAGING_SENTINEL");
@@ -34,13 +30,14 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
   packageMcpb({ root: fixture, outputPath, quiet: true });
 
   const archive = await JSZip.loadAsync(fs.readFileSync(outputPath));
-  for (const name of ["manifest.json", "package.json", "dist/index.js", "src/index.ts", "knowledge/rules.json", "knowledge/manifest.json", "knowledge/tuning/tuning.json", "knowledge/tuning/no_action.json", "knowledge/tuning/tuning-facts.json", "patches/bambu-node+3.22.21.patch", "scripts/install-patches.mjs", "scripts/build-bambu-native.sh", "scripts/setup-bambu-native.mjs", "native/bambu-native-print.cpp", "LICENSE", "README.md", "CONTRIBUTORS.md", "node_modules/mqtt/LICENSE.md", "node_modules/bambu-node/LICENSE", "node_modules/three/LICENSE", "node_modules/basic-ftp/LICENSE.txt"]) {
+  for (const name of ["manifest.json", "package.json", "dist/index.js", "src/index.ts", "knowledge/rules.json", "knowledge/manifest.json", "knowledge/tuning/tuning.json", "knowledge/tuning/no_action.json", "knowledge/tuning/tuning-facts.json", "LICENSE", "README.md", "CONTRIBUTORS.md", "node_modules/three/LICENSE"]) {
     assert.ok(archive.file(name), `missing release file: ${name}`);
   }
   for (const name of Object.keys(archive.files)) {
+    assert.doesNotMatch(name, /^node_modules\/(?:mqtt|basic-ftp|bambu-node|patch-package)\//, "no printer transport ships in the extension");
     assert.doesNotMatch(name, /^tests\//, "test fixtures (eval.json, golden.json) stay out of the archive");
     assert.doesNotMatch(name, /studio-control|launch-bambu|call-bambu|cgevent|LOCAL-X2D|local-x2d/);
-    assert.doesNotMatch(name, /^(?:bambu certs\/|bambu-mcp-config\.json|temp\/|native\/(?!bambu-native-print\.cpp$)|\.env|unrelated\.txt|node_modules\/typescript\/)/);
+    assert.doesNotMatch(name, /^(?:bambu certs\/|bambu-mcp-config\.json|temp\/|native\/|patches\/|scripts\/|\.env|unrelated\.txt|node_modules\/typescript\/)/);
   }
   assert.equal(fs.readFileSync(path.join(fixture, "node_modules/typescript/developer-marker"), "utf8"), "PRIVATE_PACKAGING_SENTINEL");
   assert.equal(fs.readFileSync(path.join(fixture, "package.json"), "utf8"), beforePackage);
@@ -62,10 +59,7 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
     args: [path.join(installed, manifest.server.entry_point)],
     cwd: launchDirectory,
     env: {
-      PATH: process.env.PATH || "", MCP_TRANSPORT: "stdio", PRINTER_HOST: "127.0.0.1",
-      BAMBU_MODEL: "p1s", BAMBU_SERIAL: "", BAMBU_TOKEN: "", TEMP_DIR: "",
-      BAMBU_CLIENT_CERT: path.join(fixture, "no-client-cert"),
-      BAMBU_CLIENT_KEY: path.join(fixture, "no-client-key"),
+      PATH: process.env.PATH || "", MCP_TRANSPORT: "stdio", BAMBU_MODEL: "p1s", TEMP_DIR: "",
     },
     stderr: "pipe",
   });
@@ -73,7 +67,9 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
   try {
     await client.connect(transport);
     assert.equal(client.getServerVersion()?.name, "bambu-printer-mcp");
-    assert.ok((await client.listTools()).tools.some((tool) => tool.name === "print_3mf"));
+    const installedTools = (await client.listTools()).tools.map((tool) => tool.name);
+    assert.ok(installedTools.includes("slice_stl") && installedTools.includes("prepare_print_project"));
+    assert.ok(!installedTools.includes("print_3mf"), "the extension never prints");
     const consulted = JSON.parse((await client.callTool({ name: "consult_knowledge", arguments: { query: "z hop" } })).content[0].text);
     assert.equal(consulted.kb.integrity, "ok", "the installed extension finds and verifies its knowledge folder");
     assert.equal(consulted.results[0].id, "bambu.travel.zhop-types");
