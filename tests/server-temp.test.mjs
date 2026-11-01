@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import fs from "node:fs/promises";
 import net from "node:net";
+import JSZip from "jszip";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +14,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-test("independent server instances cannot overwrite each other's default model output", async (t) => {
+test("independent server instances preserve durable output after closing and clean their scratch", async (t) => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "bambu-server-test-"));
   const inputPath = path.join(cwd, `${path.basename(cwd)}.stl`);
   await fs.copyFile(path.join(root, "test/sample_cube.stl"), inputPath);
@@ -32,7 +33,7 @@ test("independent server instances cannot overwrite each other's default model o
     clients.push(client);
     await client.connect(new StdioClientTransport({
       command: process.execPath, args: [path.join(root, "dist/index.js")], cwd,
-      env: { ...process.env, MCP_TRANSPORT: "stdio", TEMP_DIR: "" }, stderr: "pipe",
+      env: { ...process.env, HOME: cwd, USERPROFILE: cwd, FATIA_OUTPUT_DIR: "", MCP_TRANSPORT: "stdio", TEMP_DIR: "" }, stderr: "pipe",
     }));
   }
   const args = { stl_path: inputPath, scale_x: 1 };
@@ -48,13 +49,14 @@ test("independent server instances cannot overwrite each other's default model o
   assert.notDeepEqual(await fs.readFile(outputs[1]), before);
   for (const client of clients) await client.close();
   for (const output of outputs) {
-    await assert.rejects(fs.stat(path.dirname(output)), { code: "ENOENT" }, "closing a server must remove its private output root");
+    assert.ok(output.startsWith(path.join(cwd, '.fatia-mcp', 'outputs') + path.sep));
+    assert.ok((await fs.stat(output)).isFile(), "closing the server must preserve delivered models");
   }
 });
 
 async function startServer(t, cwd, transportKind, tempDirectory) {
   const env = {
-    ...process.env, MCP_TRANSPORT: transportKind, TEMP_DIR: tempDirectory,
+    ...process.env, FATIA_OUTPUT_DIR: path.join(cwd, "outputs"), MCP_TRANSPORT: transportKind, TEMP_DIR: tempDirectory,
     BAMBU_MODEL: "", BAMBU_PRINTER_MODEL: "",
   };
   const client = new Client({ name: "temp-cleanup-test", version: "1" });
@@ -123,15 +125,21 @@ for (const [transportKind, signal] of [
       const result = await server.client.callTool({ name: "scale_stl", arguments: { stl_path: inputPath, scale_x: 2 } });
       assert.notEqual(result.isError, true, JSON.stringify(result));
       const output = result.content[0].text;
-      const temporaryRoot = path.dirname(output);
       const contents = await fs.readFile(output);
-      t.after(() => explicit ? undefined : fs.rm(temporaryRoot, { recursive: true, force: true }));
+      const zip = new JSZip();
+      zip.file('3D/3dmodel.model', '<model><resources/><build/></model>');
+      zip.file('Metadata/project_settings.config', '{"wall_loops":"2"}');
+      const project = path.join(cwd, 'settings.3mf');
+      await fs.writeFile(project, await zip.generateAsync({ type: 'nodebuffer' }));
+      const inspected = await server.client.callTool({ name: 'get_slice_settings', arguments: { source_path: project } });
+      assert.notEqual(inspected.isError, true, JSON.stringify(inspected));
+      const temporaryRoot = path.dirname(path.dirname(JSON.parse(inspected.content[0].text).extracted_settings_path));
       await server.stop(signal);
+      assert.deepEqual(await fs.readFile(output), contents, 'delivered output survives either scratch policy');
       if (explicit) {
-        assert.deepEqual(await fs.readFile(output), contents);
         assert.equal(await fs.readFile(path.join(tempDirectory, "keep.txt"), "utf8"), "user-owned content");
       } else {
-        await assert.rejects(fs.stat(temporaryRoot), { code: "ENOENT" }, "server shutdown must remove its private model output root");
+        await assert.rejects(fs.stat(temporaryRoot), { code: "ENOENT" }, "server shutdown must remove its private scratch root");
       }
     }
   });

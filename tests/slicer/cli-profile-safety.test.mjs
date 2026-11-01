@@ -1,4 +1,6 @@
-import { test } from 'node:test';
+import { test as nodeTest } from 'node:test';
+// These integration fixtures launch executable shebang scripts; native Windows cannot run them.
+const test = process.platform === 'win32' ? nodeTest.skip : nodeTest;
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -68,6 +70,21 @@ for (const customProcess of [false, true]) {
     }
   });
 }
+
+test('relative scratch, model and override paths reach the CLI as absolute paths', { skip: process.platform === 'win32' }, async t => {
+  const f = await fixture(t);
+  const m = new STLManipulator(path.relative(process.cwd(), path.join(f.root, 'relative-out')));
+  const output = await m.sliceSTL(path.relative(process.cwd(), f.stl), 'bambustudio', f.executable,
+    path.relative(process.cwd(), f.processFile), undefined, 'Bambu Lab SAFETY 0.4 nozzle',
+    { loadFilaments: path.relative(process.cwd(), f.filament) });
+  const args = await f.args();
+  assert.ok(path.isAbsolute(output));
+  assert.ok(path.isAbsolute(args[args.indexOf('--outputdir') + 1]));
+  assert.ok(path.isAbsolute(args.at(-1)));
+  for (const flag of ['--load-settings', '--load-filaments']) {
+    assert.ok(args[args.indexOf(flag) + 1].split(';').every(p => path.isAbsolute(p)), flag);
+  }
+});
 
 test(`BambuStudio rejects an omitted machine selection before execution`, async t => {
   const f = await fixture(t);

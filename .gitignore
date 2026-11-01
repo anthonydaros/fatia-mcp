@@ -37,3 +37,6 @@ result.json
 !/docs/TUNING-FACTS.md
 !/docs/TUNING.md
 !/docs/prd/scan-to-print-PRD.md
+
+# Isolated execution and review scratch
+.superpowers/

@@ -36,7 +36,7 @@ export declare const PREPARE_TOOLS: readonly [{
                 readonly type: "integer";
                 readonly minimum: 2;
                 readonly maximum: 50;
-                readonly description: "Most CLI slices in all (baseline and tuned rounds). Default 12.";
+                readonly description: "Most CLI slices in all (retarget, baseline, tuned rounds and final verification). Default 12.";
             };
             readonly max_minutes: {
                 readonly type: "number";
@@ -46,7 +46,7 @@ export declare const PREPARE_TOOLS: readonly [{
             };
             readonly output_dir: {
                 readonly type: "string";
-                readonly description: "Folder for the new project. Default: prepared/ under the server's TEMP_DIR.";
+                readonly description: "Folder for the new project. Default: ~/.fatia-mcp/outputs (or FATIA_OUTPUT_DIR).";
             };
             readonly output_name: {
                 readonly type: "string";

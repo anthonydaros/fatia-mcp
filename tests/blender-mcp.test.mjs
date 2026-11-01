@@ -259,7 +259,7 @@ test("Blender publishes without replacing output created after preflight", async
   assert.equal(fs.readFileSync(output, "utf8"), "created after preflight");
 });
 
-test("Legacy Blender bridge reports process completion honestly and rejects explicit error payloads", async (t) => {
+test("Legacy Blender bridge reports process completion honestly and rejects explicit error payloads", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   for (const stdout of ['', '{"status":"error","message":"secret-should-not-leak"}']) {
     await t.test(stdout ? "error payload" : "empty successful output", async (t) => {
       const peer = await start(t, "normal", { BLENDER_MCP_COMMAND: "", MCP_ALLOW_BRIDGE_COMMAND_ARG: "1" });

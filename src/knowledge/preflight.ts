@@ -1,7 +1,11 @@
 // preflight_check: runs the knowledge-base rules that the file's own data can decide and says what it could not check.
 // Tiers 1 and 2: the settings and structure of a 3MF, the box and triangle count of its objects (or of an STL/OBJ) against the
-// printer, and a sliced file's time and weight. G-code analysis, mesh analysis and Blender checks are listed as unchecked.
+// printer, and a sliced file's time and weight. Opt-in bounded G-code and mesh analysis add measured facts; Blender checks remain unchecked.
 import fs from "node:fs/promises";
+import { GCODE_SCAN_FACTS, scanGcodeFile, scanPlateGcode, type ScanEvidence } from "../tuning/gcode-scan.js";
+import { MESH_FACTS, REPO_MESH_FACTS, meshFactsFromProject, meshFactsFromStl } from "../tuning/mesh-facts.js";
+import { scanHints } from "../tuning/slice-facts.js";
+import type { Settings } from "../tuning/types.js";
 import path from "node:path";
 import { MAX_PRINT_FILE_BYTES } from "../safety/archive.js";
 import { normalizeModel } from "../safety/limits.js";
@@ -15,6 +19,7 @@ import type { Condition, Confidence, FactContext, FactProvider, FactValue, Facts
 import { appliesTo, matchVersion, parseVersionPredicate, type VersionStatus } from "./version.js";
 
 export interface PreflightDeps {
+  signal?: AbortSignal;
   /** BAMBU_MODEL, used when the call names no model. */
   defaultModel?: string;
   validModels: readonly string[];
@@ -30,7 +35,8 @@ export interface PreflightDeps {
 
 /** Tiers still to come append their providers here. */
 const PROVIDERS: readonly FactProvider[] = [settingsProvider, structureProvider, sliceProvider];
-const supplied = (fact: string) => PROVIDERS.some(p => p.provides(fact));
+const ANALYZABLE = new Set<string>([...GCODE_SCAN_FACTS, ...MESH_FACTS, ...REPO_MESH_FACTS.map(f => f.name)]);
+const supplied = (fact: string) => PROVIDERS.some(p => p.provides(fact)) || ANALYZABLE.has(fact);
 
 /**
  * The cheapest input a fact needs: its provider's tier, else by area (G-code 3, mesh analysis 4, Blender 5),
@@ -49,7 +55,7 @@ const SEVERITY: Record<Severity, number> = { blocker: 0, warning: 1, tip: 2 };
 /** Strong sources first (CONTRACT order); equal strength keeps the rule id order. */
 const STRENGTH: Record<string, number> = { oficial: 0, preset: 0, "bug conhecido": 0, "teste de revisor": 1, relato: 2, hipotese: 3, "nao verificado": 4 };
 const MESH_EXTENSIONS = new Set([".stl", ".obj", ".step", ".stp"]);
-const GCODE_PENDING = "precisa de analise de G-code (nao implementado)";
+const GCODE_PENDING = "ative checks.gcode para analisar o G-code";
 const VERSION_REVIEW_STEPS = [
   "Compare por codigo as chaves dos perfis do Studio entre as duas versoes e liste as que mudaram.",
   "Refatie pecas de referencia na versao nova e compare com os resultados anteriores.",
@@ -162,13 +168,16 @@ interface Row { rule_id: string; severity: Severity; confidence: Confidence; [ke
 const order = (a: Row, b: Row) =>
   SEVERITY[a.severity] - SEVERITY[b.severity] || STRENGTH[a.confidence] - STRENGTH[b.confidence] || (a.rule_id < b.rule_id ? -1 : a.rule_id > b.rule_id ? 1 : 0);
 
-interface Why { kind: "3mf" | "mesh" | "gcode"; model: string; sliced: boolean; project?: ProjectFiles; checks: Options["checks"] }
+interface Why { kind: "3mf" | "mesh" | "gcode"; model: string; sliced: boolean; project?: ProjectFiles; checks: Options["checks"]; analysis: Record<string, ScanEvidence> }
 /** Why a fact could not be supplied: names the tier or input that is missing. */
 function whyUnknown(name: string, c: Why): string {
   const tier = factTier(name);
   if (DECLARED[name]) return `pergunte ao usuario: context.${DECLARED[name]}`;
+  if (c.analysis[name]) return c.analysis[name].notes || "a análise não forneceu uma medição conclusiva";
+  if (tier === 3 && c.checks.gcode) return "o G-code não forneceu uma medição completa deste fato";
+  if (tier === 4 && c.checks.mesh === "fast") return "a análise rápida de malha não conseguiu medir este fato";
   if (tier === 3) return c.kind === "gcode" || c.sliced || c.checks.gcode ? GCODE_PENDING : "precisa de G-code: fatie e rode de novo";
-  if (tier === 4) return c.checks.mesh === "fast" ? "checks.mesh=fast pedido, mas a analise de malha ainda nao esta implementada" : "precisa de analise de malha (nao implementado)";
+  if (tier === 4) return c.checks.mesh === "fast" ? "checks.mesh=fast pedido, mas a analise de malha ainda nao esta implementada" : "ative checks.mesh=fast para analisar a malha";
   if (tier === 5) return c.checks.blender ? "checks.blender pedido, mas a sonda do Blender ainda nao esta implementada" : "precisa do Blender MCP (checks.blender)";
   if (UNCONFIRMED_FACTS.has(name)) return `chave do 3MF ainda nao confirmada numa X2D real: ${name}`;
   if (!supplied(name)) return `fato ainda nao implementado: ${name}`;
@@ -211,6 +220,7 @@ function versionReview(info: Record<string, unknown>, rules: Rule[]) {
 }
 
 export async function preflightCheck(args: Record<string, unknown>, deps: PreflightDeps): Promise<Record<string, unknown>> {
+  deps.signal?.throwIfAborted();
   const options = parseArgs(args);
   const kb = getKb();
   const { full, kind } = await inspectFile(options.filePath);
@@ -222,7 +232,11 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
   const sliced = project?.sliceInfo?.plate !== undefined;
   const plates = [].concat(project?.modelSettings?.plate ?? []).length;
   if (plates > 0 && options.plateIndex >= plates) throw new Error(`plate_index ${options.plateIndex} is out of range: the 3MF has ${plates} plate(s), numbered from 0.`);
-  const why: Why = { kind, model, sliced, project, checks: options.checks };
+  const analysisEvidence: Record<string, ScanEvidence> = {};
+  const analysis: Record<string, unknown> = {};
+  const analysisErrors: string[] = [];
+  let gcodeComplete = false;
+  const why: Why = { kind, model, sliced, project, checks: options.checks, analysis: analysisEvidence };
 
   // 1. Which rules can speak for this file. Every rule lands in exactly one bucket (see `accounting` below).
   const hidden = { other_printers: 0, ignored: 0, below_min_severity: 0, over_max_findings: 0 };
@@ -257,6 +271,30 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
     const names = [...wanted].filter(n => provider.provides(n));
     if (names.length && (project || !provider.needs.includes("3mf"))) Object.assign(facts, await provider.collect(context, names));
   }
+
+  if (options.checks.mesh === "fast" && (project || /\.stl$/i.test(full))) {
+    const meshOptions = { settings: project?.config as Settings | undefined, signal: deps.signal, constants: { maxRays: 20_000, rayWork: 3_000_000 } };
+    const mesh = project ? await meshFactsFromProject(project, options.plateIndex, meshOptions) : await meshFactsFromStl(full, meshOptions);
+    Object.assign(facts, mesh.facts);
+    Object.assign(analysisEvidence, mesh.evidence);
+    analysis.mesh = { facts: mesh.facts, evidence: mesh.evidence, blind: mesh.blind, stats: mesh.stats };
+  }
+  if (options.checks.gcode && (kind === "gcode" || project?.names?.includes(`Metadata/plate_${options.plateIndex + 1}.gcode`))) {
+    try {
+      const scan = kind === "gcode"
+        ? await scanGcodeFile(full, { signal: deps.signal })
+        : await scanPlateGcode(full, options.plateIndex, { signal: deps.signal, ...scanHints(project?.sliceInfo, options.plateIndex) });
+      // A partial file cannot prove an absence or decide a rule from incomplete counts.
+      gcodeComplete = scan.complete;
+      if (scan.complete) Object.assign(facts, scan.facts);
+      Object.assign(analysisEvidence, scan.evidence);
+      analysis.gcode = { facts: scan.facts, evidence: scan.evidence, complete: scan.complete, blind: scan.blind, stats: scan.stats };
+    } catch (error) {
+      if (deps.signal?.aborted) throw error;
+      analysisErrors.push((error as Error).message.slice(0, 300));
+    }
+  }
+  deps.signal?.throwIfAborted();
 
   // 3. Evaluate. true fires, false is silent (counted), unknown goes to unchecked with the reason of its most demanding missing fact.
   const worstMissing = (names: string[]) => names.filter(n => !known(facts, n)).sort((a, b) => factTier(b) - factTier(a))[0];
@@ -321,7 +359,8 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
   const uncheckedTotal = sortedReasons.reduce((n, [, count]) => n + count, 0);
   const next: string[] = [];
   if (findings.length) next.push("Mostre os achados por severidade (bloqueadores primeiro), com a etiqueta de confianca, e peca aprovacao antes de mudar qualquer ajuste.");
-  if (kind !== "3mf" || !sliced) next.push(`slice_stl com bambu_model ${model}${kind === "3mf" ? "" : " (ou envie o 3MF do projeto)"} e rode preflight_check de novo no resultado.`);
+  if (kind === "gcode") next.push(options.checks.gcode ? "Confira as medições e o arquivo no Bambu Studio antes de imprimir pela GUI." : "Rode preflight_check com checks.gcode true para analisar este G-code.");
+  else if (kind !== "3mf" || !sliced) next.push(`slice_stl com bambu_model ${model}${kind === "3mf" ? "" : " (ou envie o 3MF do projeto)"} e rode preflight_check de novo no resultado.`);
   else next.push("open_in_slicer para o usuario conferir o Preview; a impressao e feita pelo Bambu Studio.");
   if (hidden.below_min_severity) next.push(`${hidden.below_min_severity} item(ns) abaixo de min_severity ocultos: so mostre com min_severity "tip" se o usuario pedir.`);
 
@@ -336,7 +375,8 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
       sliced,
       plate: options.plateIndex,
     },
-    stage_reached: project?.config ? ["pre-slice", "project-settings"] : kind === "gcode" ? [] : ["pre-slice"],
+    stage_reached: [...(project?.config ? ["pre-slice", "project-settings"] : kind === "gcode" ? [] : ["pre-slice"]), ...(gcodeComplete ? ["post-slice-gcode"] : [])],
+    analysis: { ...analysis, errors: analysisErrors },
     findings,
     checklist,
     unchecked: { total: uncheckedTotal, by_reason: Object.fromEntries(sortedReasons) },

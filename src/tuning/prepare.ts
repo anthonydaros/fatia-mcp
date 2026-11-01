@@ -162,7 +162,7 @@ export interface RunData {
   /** Every item the engine wrote, in order, per "s\0key" (settings) or "o\0key" (per-object setting). */
   items: Map<string, TuningItem[]>;
   stop: { reason: StopReason; detail: string };
-  slices: { loop: number; retarget: number; max: number };
+  slices: { loop: number; retarget: number; verification: number; max: number };
   minutes: number;
   best?: RoundRecord;
   bestWhy?: string;
@@ -303,8 +303,9 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
     });
     const aborted = () => input.signal?.aborted === true;
     let loopSlices = 0;
+    let verificationSlices = 0;
     let lastSliceMs = 0;
-    const used = () => loopSlices + retargetSlices;
+    const used = () => loopSlices + retargetSlices + verificationSlices;
     let step = 0;
     const progress = (message: string) => input.onProgress?.({ step: ++step, slices: used(), max: input.maxSlices, message: `${message} (${used()} of ${input.maxSlices} slices used)` });
     const budgetStop = (): StopReason | undefined =>
@@ -520,13 +521,29 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
     let allPlates: RunData["allPlates"];
     const deliveredPlates = layout.status === "applied" ? (layout.plates_after ?? 1) : plates;
     if (delivered && deps.sliceAll && deliveredPlates > 1 && !input.dryRun && stop.reason !== "cancelled" && stop.reason !== "error") {
-      progress("Slicing every plate of the delivered project to check the others");
-      const t0 = now();
-      try { allPlates = { measures: await deps.sliceAll(delivered.path, input.signal), ms: now() - t0 }; } catch (error) {
-        allPlates = { measures: [], ms: now() - t0, error: (error as Error).message.slice(0, 300) };
-        warnings.push(`Não foi possível fatiar todas as mesas do projeto entregue para conferir (${allPlates.error}).`);
+      const why = budgetStop();
+      if (why) {
+        allPlates = { measures: [], ms: 0, error: `Final verification was not run: ${why}.` };
+      } else {
+        progress("Slicing every plate of the delivered project to check the others");
+        const t0 = now();
+        verificationSlices++;
+        try { allPlates = { measures: await deps.sliceAll(delivered.path, input.signal), ms: now() - t0 }; } catch (error) {
+          allPlates = { measures: [], ms: now() - t0, error: (error as Error).message.slice(0, 300) };
+          warnings.push(`Não foi possível fatiar todas as mesas do projeto entregue para conferir (${allPlates.error}).`);
+        }
       }
     }
+
+    const cancelDelivery = async () => {
+      if (!aborted()) return;
+      stop = { reason: "cancelled", detail: "Cancelado durante a verificação ou entrega final." };
+      if (delivered) {
+        await fs.rm(delivered.path, { force: true });
+        delivered = undefined;
+      }
+    };
+    await cancelDelivery();
 
     // 5. The source is untouched; the deliverable has no structure/volume blocker; then it is opened for the person to review and slice.
     const after = sha256(await readBoundedPrintFile(source));
@@ -541,16 +558,18 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
       preflightRun = { checked: check, blockers: [], error: (error as Error).message };
       warnings.push(`O preflight_check não conseguiu julgar ${path.basename(check)} (${preflightRun.error}); os bloqueadores de estrutura e volume não foram conferidos.`);
     }
-    if (delivered && input.openInStudio && after === before) {
+    await cancelDelivery();
+    if (delivered && input.openInStudio && after === before && !aborted()) {
       try { delivered.opened = (await deps.openInStudio(delivered.path)) as Record<string, unknown>; } catch (error) {
         delivered.open_error = (error as Error).message;
         warnings.push(`Não foi possível abrir o projeto no Bambu Studio (${delivered.open_error}); abra ${delivered.path} você mesmo.`);
       }
     }
 
+    await cancelDelivery();
     return buildReport({
       input, tuning: deps.tuning, printerPreset: deps.printerPreset, declared, source: { path: source, sha256_before: before, sha256_after: after }, p0, base,
-      baseline, baselineError, rounds, items, stop, slices: { loop: loopSlices, retarget: retargetSlices, max: input.maxSlices },
+      baseline, baselineError, rounds, items, stop, slices: { loop: loopSlices, retarget: retargetSlices, verification: verificationSlices, max: input.maxSlices },
       minutes: Math.round(((now() - started) / 60_000) * 100) / 100, best: input.dryRun ? undefined : best, bestWhy, pending, delivered, preflight: preflightRun, mesh, installed, warnings,
       layout, allPlates, plate: { index: plateIndex, why: plateWhy, kind: plateKind },
     });

@@ -77,7 +77,7 @@ shared nozzle area. Saved project positions and explicit process positions
 are preserved. This does not guarantee a collision-free layout: inspect the
 slicer preview for the actual model and tower geometry.
 
-[Sebastian's contribution](https://github.com/DMontgomery40/bambu-printer-mcp/pull/18)
+[Sebastian's contribution](https://github.com/anthonydaros/fatia-mcp/pull/18)
 includes real Windows BambuStudio `02.08.02.60` bisection and a successful
 four-colour X2D slice. This is slicing evidence, not a physical-print test.
 

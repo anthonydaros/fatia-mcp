@@ -1,5 +1,6 @@
 import type { MeshInfo } from "./types.js";
 export interface PreflightDeps {
+    signal?: AbortSignal;
     /** BAMBU_MODEL, used when the call names no model. */
     defaultModel?: string;
     validModels: readonly string[];

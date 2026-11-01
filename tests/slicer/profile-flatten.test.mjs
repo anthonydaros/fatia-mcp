@@ -74,7 +74,7 @@ test("flattenForCli errors clearly when profilesRoot is wrong", async () => {
   );
 });
 
-test("STLManipulator flattening uses the active slicer_path profile root", async (t) => {
+test("STLManipulator flattening uses the active slicer_path profile root", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   if (process.platform === "win32") {
     t.skip("fake BambuStudio executable is a POSIX shell shim");
     return;

@@ -47,13 +47,13 @@ jobs:
         run: node --test tests/mcpb-packaging.test.mjs
 
       - name: Verify packed bundle is a valid archive
-        run: unzip -t bambu-printer-mcp.mcpb > /dev/null
+        run: unzip -t fatia-mcp.mcpb > /dev/null
 
       - name: Upload as workflow artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: bambu-printer-mcpb
-          path: bambu-printer-mcp.mcpb
+          name: fatia-mcpb
+          path: fatia-mcp.mcpb
           if-no-files-found: error
 
       - name: Attach to GitHub Release
@@ -61,5 +61,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" --generate-notes bambu-printer-mcp.mcpb \
-            || { echo "Release already exists — replacing asset"; gh release upload "$TAG" bambu-printer-mcp.mcpb --clobber; }
+          gh release create "$TAG" --generate-notes fatia-mcp.mcpb \
+            || { echo "Release already exists — replacing asset"; gh release upload "$TAG" fatia-mcp.mcpb --clobber; }

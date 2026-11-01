@@ -13,9 +13,12 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const npmCli = process.env.npm_execpath || fs.realpathSync(path.join(path.dirname(process.execPath), process.platform === "win32" ? "node_modules/npm/bin/npm-cli.js" : "npm"));
 
 function npm(args, cwd) {
+  const env = { ...process.env, npm_config_ignore_scripts: "false" };
+  delete env.npm_config_allow_scripts;
+  delete env.NPM_CONFIG_ALLOW_SCRIPTS;
   return execFileSync(process.execPath, [npmCli, ...args], {
     cwd, encoding: "utf8", timeout: 120_000, maxBuffer: 8 * 1024 * 1024,
-    env: { ...process.env, npm_config_ignore_scripts: "false" },
+    env,
   });
 }
 
@@ -60,13 +63,13 @@ test("published tarball installs and starts in local, global, and npm-exec layou
 
   await t.test("local dependency install", async () => {
     npm(["install", "--prefix", local, "--no-audit", "--no-fund", tarball], fixture);
-    await assertInstalledServer(path.join(local, "node_modules/bambu-printer-mcp"), execCwd);
+    await assertInstalledServer(path.join(local, "node_modules/@anthonydaros/fatia-mcp"), execCwd);
   });
 
   await t.test("global install with dependencies nested under the package", async () => {
     npm(["install", "--global", "--prefix", global, "--no-audit", "--no-fund", tarball], fixture);
     const globalModules = npm(["root", "--global", "--prefix", global], fixture).trim();
-    await assertInstalledServer(path.join(globalModules, "bambu-printer-mcp"), execCwd);
+    await assertInstalledServer(path.join(globalModules, "@anthonydaros/fatia-mcp"), execCwd);
   });
 
   await t.test("npm exec installs its cached package", async () => {
@@ -76,7 +79,7 @@ test("published tarball installs and starts in local, global, and npm-exec layou
     assert.ok(execPath, output);
     const bin = execPath.split(path.delimiter).find((entry) => entry.startsWith(cache) && path.basename(entry) === ".bin");
     assert.ok(bin, "npm exec must use the isolated cache installation");
-    await assertInstalledServer(path.join(path.dirname(bin), "bambu-printer-mcp"), execCwd);
+    await assertInstalledServer(path.join(path.dirname(bin), "@anthonydaros/fatia-mcp"), execCwd);
   });
   assert.equal(fs.readFileSync(path.join(execCwd, "user-config.json"), "utf8"), "DO_NOT_CHANGE");
 });

@@ -1,14 +1,16 @@
-# bambu-printer-mcp
+# Fatia MCP
 
-[![npm version](https://img.shields.io/npm/v/bambu-printer-mcp.svg)](https://www.npmjs.com/package/bambu-printer-mcp)
 [![License: GPL-2.0](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
 [![Tested with Node.js 24](https://img.shields.io/badge/tested%20with-Node.js%2024-green.svg)](https://nodejs.org/en/download/)
-[![GitHub stars](https://img.shields.io/github/stars/DMontgomery40/bambu-printer-mcp.svg?style=social&label=Star)](https://github.com/DMontgomery40/bambu-printer-mcp)
-[![Downloads](https://img.shields.io/npm/dm/bambu-printer-mcp.svg)](https://www.npmjs.com/package/bambu-printer-mcp)
+[![GitHub stars](https://img.shields.io/github/stars/anthonydaros/fatia-mcp.svg?style=social&label=Star)](https://github.com/anthonydaros/fatia-mcp)
 
+
+A fork maintained by [Anthony Daros](https://github.com/anthonydaros), based on [David Montgomery's bambu-printer-mcp](https://github.com/DMontgomery40/bambu-printer-mcp), under GPL-2.0.
 
 An MCP server that prepares models for Bambu Studio, for Claude Desktop, Claude Code, or any MCP-compatible client: it edits STL files, slices with the Bambu Studio CLI, tunes project 3MFs, answers print-settings questions from a shipped knowledge base, opens files in Bambu Studio and bridges to Blender.
+
+Delivered models and slices persist in `~/.fatia-mcp/outputs` (override with `FATIA_OUTPUT_DIR`; `prepare_print_project` also accepts `output_dir`). Each edit has its own name, and saving a template never replaces an existing file. Working files remain temporary.
 
 **It never prints and never talks to a printer.** There is no MQTT, FTPS, camera, cloud or Bambu Connect code in this fork, and no printer address, serial number or access code to configure. You review the sliced result in the Bambu Studio GUI and press print there.
 
@@ -21,14 +23,15 @@ Built with help from our [contributors](./CONTRIBUTORS.md). This is a stripped-d
 Tell your agent your printer's **model**, if you know it, then copy and paste this:
 
 ```text
-Install bambu-printer-mcp in the agent/harness I'm using now.
+Install Fatia MCP from https://github.com/anthonydaros/fatia-mcp in the agent/harness I'm using now.
 
-Read https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md
+Read https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SETUP.md
 for the current setup instructions and supported workflows.
 
 Detect my OS and harness, then use its native MCP configuration or installer.
-Preserve my existing servers and settings. Prefer the published npm package
-(npx -y bambu-printer-mcp, stdio); use Node.js 24 if a runtime is needed.
+Preserve my existing servers and settings. Use this fork's GitHub release MCPB
+or clone this repository, run npm ci and npm run build, then configure
+node /absolute/path/to/fatia-mcp/dist/index.js (stdio). Use Node.js 24.
 
 Ask me for my printer model (BAMBU_MODEL) and never guess it: it selects the
 machine profile to slice for. This server does not connect to a printer, so
@@ -46,13 +49,13 @@ with check_updates false. Do not slice or change anything as a setup test.
 Tell me what worked and whether I need to restart or reload the harness.
 ```
 
-[Setup reference](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md) · [Optional code mode](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md#optional-code-mode)
+[Setup reference](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SETUP.md) · [Optional code mode](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SETUP.md#optional-code-mode)
 
 ## What to ask your agent
 
 Ask for the result you want, not the steps. Current models plan across tools: they search the web, read photos, look up exact dimensions, edit models and slice. Expect a question or two when a choice matters, such as the printer model or which settings to keep.
 
-This server provides the slicing, tuning, knowledge and mesh tools. Web search, photos and Blender edits come from your agent and its other connections, such as a [Blender MCP server](#blender-mcp). Slicing uses the Bambu Studio CLI with your installed presets; see the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
+This server provides the slicing, tuning, knowledge and mesh tools. Web search, photos and Blender edits come from your agent and its other connections, such as a [Blender MCP server](#blender-mcp). Slicing uses the Bambu Studio CLI with your installed presets; see the [slicing guide](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SLICING.md).
 
 ### Start from anything
 
@@ -79,19 +82,19 @@ This server provides the slicing, tuning, knowledge and mesh tools. Web search, 
 |---|---|
 | Connect this MCP to my agent | [Copy the setup request](#set-up-with-your-agent) |
 | See what my agent can do with it | [What to ask your agent](#what-to-ask-your-agent) |
-| Troubleshoot setup or configure it manually | [Installation and environment variables](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SETUP.md) |
-| Prepare a file or troubleshoot slicing | [Slicing guide and model routing](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md) |
+| Troubleshoot setup or configure it manually | [Installation and environment variables](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SETUP.md) |
+| Prepare a file or troubleshoot slicing | [Slicing guide and model routing](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SLICING.md) |
 | Edit an STL through Blender | [Blender MCP setup](#blender-mcp) |
-| See release changes or contributor credit | [Changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/CHANGELOG.md), [releases](https://github.com/DMontgomery40/bambu-printer-mcp/releases), and [contributors](./CONTRIBUTORS.md) |
+| See release changes or contributor credit | [Changelog](https://github.com/anthonydaros/fatia-mcp/blob/main/CHANGELOG.md), [releases](https://github.com/anthonydaros/fatia-mcp/releases), and [contributors](./CONTRIBUTORS.md) |
 
 </details>
 
 <details>
-<summary><strong>What's new in bambu-printer-mcp</strong></summary>
+<summary><strong>What's new in fatia-mcp</strong></summary>
 
-## What's new in bambu-printer-mcp
+## What's new in fatia-mcp
 
-See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/CHANGELOG.md) for versioned changes. This fork no longer contacts or controls a printer: the printer status, control, upload, camera, X2D native-helper and Bambu Connect tools were removed, and 21 slicing, tuning, knowledge, STL/3MF and Blender tools remain.
+See the [changelog](https://github.com/anthonydaros/fatia-mcp/blob/main/CHANGELOG.md) for versioned changes. This fork no longer contacts or controls a printer: the printer status, control, upload, camera, X2D native-helper and Bambu Connect tools were removed, and 21 slicing, tuning, knowledge, STL/3MF and Blender tools remain.
 
 </details>
 
@@ -123,7 +126,7 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 
 ## Description
 
-`bambu-printer-mcp` is a Model Context Protocol server that prepares models for Bambu Studio. A straightforward workflow is: **check the file with `preflight_check`, slice it (or let `prepare_print_project` tune and slice it), open the result in Bambu Studio with `open_in_slicer`, review it there and print from the GUI**. See the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md) for the supported routes.
+`fatia-mcp` is a Model Context Protocol server that prepares models for Bambu Studio. A straightforward workflow is: **check the file with `preflight_check`, slice it (or let `prepare_print_project` tune and slice it), open the result in Bambu Studio with `open_in_slicer`, review it there and print from the GUI**. See the [slicing guide](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SLICING.md) for the supported routes.
 
 **What this is not.** This package does not connect to a printer, upload files to one, start or control a print, or read its camera or AMS. It also does not include adapters for OctoPrint, Klipper (Moonraker), Duet, Repetier, Prusa Connect, or Creality Cloud. If you need printer control or multi-printer support, use the parent project [mcp-3D-printer-server](https://github.com/DMontgomery40/mcp-3D-printer-server) instead.
 
@@ -137,7 +140,7 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 ## Features
 
 - STL manipulation: scale, rotate, extend base, merge vertices, center at origin, lay flat, and inspect model info
-- Slice through the Bambu Studio CLI with automatic BBL inheritance/include resolution, per-slot filament colours, and fallback prime-tower placement for multi-nozzle printers. Missing dependencies stop the slice; custom settings and saved project tower positions are preserved. The exact machine preset for the chosen model and nozzle is required; see the [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
+- Slice through the Bambu Studio CLI with automatic BBL inheritance/include resolution, per-slot filament colours, and fallback prime-tower placement for multi-nozzle printers. Missing dependencies stop the slice; custom settings and saved project tower positions are preserved. The exact machine preset for the chosen model and nozzle is required; see the [slicing guide](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SLICING.md).
 - Slice for the X2D with its own installed Bambu Studio preset (`BAMBU_MODEL=x2d`)
 - Slice directly from a named template via `slice_with_template`; inspect, enumerate and save templates with `get_slice_settings`, `list_templates` and `save_template`
 - Open a model or project in the Bambu Studio GUI with `open_in_slicer`
@@ -276,7 +279,7 @@ List object IDs from a sliced 3MF plate. Use this before `slice_stl` with `skip_
 
 ### Slicing Tools
 
-> **Note:** the CLI-driven slicing tools below (`slice_stl`, `slice_with_template`) are sensitive to profile drift. Review every result in the Bambu Studio GUI before you print it. See [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md).
+> **Note:** the CLI-driven slicing tools below (`slice_stl`, `slice_with_template`) are sensitive to profile drift. Review every result in the Bambu Studio GUI before you print it. See [slicing guide](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SLICING.md).
 
 #### slicer_info
 
@@ -306,7 +309,7 @@ The base is built from the source documents with `npm run kb:build` (copies, val
 
 #### preflight_check
 
-Check a part before slicing. It reads the project settings and structure of a `.3mf` (also a `.gcode.3mf`) and evaluates the rules of the knowledge base that those settings can decide, plus the cheap geometry facts: the box and triangle count of the objects on the chosen plate (or of an `.stl` or `.obj`) against the targeted printer's volume, which decides the build-volume, prime-tower layer-height and cut blockers. Read-only: it never slices, edits a file or prints, and it makes no network request. An `.stl`, `.obj`, `.step` or `.gcode` has no settings, so its settings rules are reported as unchecked (a `.step` and a `.gcode` have no box either); G-code analysis, mesh analysis and Blender checks are not implemented yet and `checks.mesh`, `checks.gcode` and `checks.blender` only add that to `unchecked`. A 3MF exported from the GUI as G-code carries no geometry, so its box facts stay unknown. Keys the guide has not confirmed on a real X2D (which nozzle an object uses, the AMS type, cut objects) are never guessed: the rules that need them are reported as unchecked.
+Check a part before slicing. It reads the project settings and structure of a `.3mf` (also a `.gcode.3mf`) and evaluates the rules of the knowledge base that those settings can decide, plus the cheap geometry facts: the box and triangle count of the objects on the chosen plate (or of an `.stl` or `.obj`) against the targeted printer's volume, which decides the build-volume, prime-tower layer-height and cut blockers. Read-only: it never slices, edits a file or prints, and it makes no network request. An `.stl`, `.obj`, `.step` or `.gcode` has no settings, so its settings rules are reported as unchecked (a `.step` and a `.gcode` have no box either); Opt in with `checks.gcode: true` to scan plain G-code or the selected sliced 3MF plate, and `checks.mesh: "fast"` to analyze STL/3MF geometry. Results include measured facts and evidence in `analysis`; incomplete G-code and unavailable geometry stay unknown. Blender checks remain unchecked. A 3MF exported from the GUI as G-code carries no geometry, so its box facts stay unknown. Keys the guide has not confirmed on a real X2D (which nozzle an object uses, the AMS type, cut objects) are never guessed: the rules that need them are reported as unchecked.
 
 The result has `findings` (rules that fired, blockers first, then by strength of source; each with its confidence tag, the fact values that triggered it, a proposed `fix` and its `approval`), `checklist` (manual checks, and rules the source gave no threshold for, with the current values of the facts they read), `unchecked` (a count per reason, for rules of every severity: the missing fact, the tier that is not implemented, or a Studio version outside the rule's `applies_to`), `hidden` (rules for other printers, ignored ids, fired or checklist items below `min_severity`, findings over `max_findings`), `accounting` (`candidates` = `findings` + `checklist` + `not_fired` + `unchecked` + `hidden`: no rule of the base is left out) and `version_review`. `untrusted_reference` is always `true`: rule text and the file's own values are third-party data.
 
@@ -396,7 +399,7 @@ The result is JSON. `output_path` is the output file. For a sliced 3MF, `plates`
 
 ```json
 {
-  "output_path": "/tmp/bambu-printer-mcp-ab12/slice-Xy7Kq2/model_sliced.3mf",
+  "output_path": "/tmp/fatia-mcp-ab12/slice-Xy7Kq2/model_sliced.3mf",
   "plates": [
     {
       "index": 1,

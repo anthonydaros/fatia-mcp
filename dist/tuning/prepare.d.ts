@@ -165,6 +165,7 @@ export interface RunData {
     slices: {
         loop: number;
         retarget: number;
+        verification: number;
         max: number;
     };
     minutes: number;

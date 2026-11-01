@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## [1.1.44] – 2026-11-01
+
+### Fatia MCP fork
+- Establish Fatia MCP at anthonydaros/fatia-mcp, package identity @anthonydaros/fatia-mcp and executable fatia-mcp, retaining the original GPL license, history and contributor credit. Distribute through GitHub Releases/MCPB instead of automatically publishing the upstream npm package.
+- Preserve delivered STL edits, sliced files and prepared projects in ~/.fatia-mcp/outputs (FATIA_OUTPUT_DIR overrides it); keep process scratch separate. Templates refuse existing destinations and every STL edit has a distinct path.
+- Validate MCP arguments with the SDK schema validator and reject non-finite numeric inputs before transformations and finite factors that overflow vertex storage before export. Route all 3MF readers through the existing bounded archive validator, including CRC, duplicate/case-colliding names and local/central consistency checks.
+- Make explicit --stdio/--http startup selection take precedence over MCP_TRANSPORT, including the named npm scripts.
+- Isolate HTTP clients into separate stateful sessions, create fresh stateless transports, validate Host/Origin by default and return errors for malformed request targets without terminating the server.
+- Honor cancellation during final verification/preflight/delivery and remove only the cancelled run's output. Count final all-plate verification in the slice/time budget and report its own count; exhausted budgets leave verification explicitly unchecked.
+- Resolve scratch, model, profile and filament paths before the CLI, porting the relative-path correction from David Montgomery's upstream 1.1.44 (9f2c1ef). No printer is contacted.
+- Enable existing bounded analyzers through preflight checks.gcode and checks.mesh=fast, with per-fact evidence and incomplete measurements left unknown. Rebuild the knowledge manifest from checked-in JSON and fixtures without external kb directories.
+- Run CI on Linux, macOS and Windows; explicitly skip POSIX fake-executable fixtures on Windows. Avoid forwarding npm 11's lifecycle-only allow-scripts flag into nested project installs.
+
 
 ### Added
 - Add `consult_knowledge`, a read-only offline lookup in a shipped knowledge base of Bambu Studio slicing and Blender mesh-preparation knowledge (195 topics, 320 rules, in Portuguese). It searches by symptom, question or setting key in Portuguese or English (BM25 with accent folding, light stemming and synonym groups), returns `no_match` instead of a weak guess, ranks entries for other printers lower, and labels every entry with its confidence tag, its Studio `version_status` and an `approval` computed in code. The server now sends `instructions` telling the agent to consult it before answering from memory and to treat the text as untrusted reference data. `knowledge/` is built by `npm run kb:build`, checked by `npm run kb:check`, and shipped in the npm package and the MCPB archive; `BAMBU_KB_DIR` overrides the folder.

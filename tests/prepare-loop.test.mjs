@@ -128,7 +128,7 @@ test("the baseline is sliced first and untouched, round 0 is the tuned candidate
   assert.equal(h.calls[1].cfg.top_shell_layers, "5", "round 0 carries the pre-slice tuning");
   assert.equal(r.stop.reason, "done");
   assert.deepEqual(history(r), [0]);
-  assert.deepEqual(r.stop.slices_used, { loop: 2, retarget: 0, total: 2, max: 12 });
+  assert.deepEqual(r.stop.slices_used, { loop: 2, retarget: 0, verification: 0, total: 2, max: 12 });
   assert.equal(r.delivered.round, 0);
   assert.equal(r.delivered.sliced, false);
   const cfg = await readCfg(r.delivered.path);
@@ -240,6 +240,50 @@ const TWO_PLATES = MODEL_SETTINGS.replace("</config>", `  <plate>
 </config>`);
 const measure = (plate, crossing, extra = {}) => ({ plate, time_s: 3600 * plate, weight_g: 10, crossing, warnings: [], ...extra });
 
+test('cancelling during the final all-plate check removes only this run delivery and never opens Studio', async t => {
+  const env = await setup(t, { modelSettings: TWO_PLATES });
+  await fs.mkdir(env.out); const sentinel = path.join(env.out, 'keep.3mf'); await fs.writeFile(sentinel, 'existing');
+  const controller = new AbortController();
+  const h = harness(env, { actions: [], script: [crossing(0)],
+    sliceAll: async () => { controller.abort(); throw new Error('cancelled'); },
+    input: { signal: controller.signal, openInStudio: true } });
+  const r = await h.run();
+  assert.equal(r.stop.reason, 'cancelled'); assert.equal(r.verdict, 'not_ready'); assert.equal(r.delivered, null);
+  assert.deepEqual(h.opened, []); assert.deepEqual(await fs.readdir(env.out), ['keep.3mf']);
+  assert.equal(await fs.readFile(sentinel, 'utf8'), 'existing');
+});
+
+test('cancelling in final preflight prevents delivery and GUI opening', async t => {
+  const env = await setup(t), controller = new AbortController();
+  const h = harness(env, { actions: [], script: [crossing(0)],
+    preflight: async () => { controller.abort(); return { findings: [] }; },
+    input: { signal: controller.signal, openInStudio: true } });
+  const r = await h.run();
+  assert.equal(r.stop.reason, 'cancelled'); assert.equal(r.delivered, null); assert.deepEqual(h.opened, []);
+});
+
+test('final all-plate verification obeys the slice budget and reports its own count', async t => {
+  for (const maxSlices of [2, 3]) {
+    const env = await setup(t, { modelSettings: TWO_PLATES }); let finalCalls = 0;
+    const h = harness(env, { actions: [definite('tune.def', { wall_loops: '3' })], script: [crossing(0), crossing(0)],
+      sliceAll: async () => { finalCalls++; return [measure(1, 0), measure(2, 0)]; }, input: { maxSlices } });
+    const r = await h.run();
+    assert.equal(finalCalls, maxSlices === 3 ? 1 : 0);
+    assert.equal(r.stop.slices_used.verification, finalCalls);
+    assert.equal(r.stop.slices_used.total, h.calls.length + finalCalls);
+    assert.ok(r.stop.slices_used.total <= maxSlices);
+    if (maxSlices === 2) assert.ok(r.caveats.some(c => c.code === 'all_plates_unchecked'));
+  }
+});
+
+test('final all-plate verification obeys the remaining time budget', async t => {
+  const env = await setup(t, { modelSettings: TWO_PLATES }); let clock = 0, finalCalls = 0;
+  const h = harness(env, { actions: [definite('tune.def', { wall_loops: '3' })], now: () => clock,
+    script: [() => { clock += 1000; return crossing(0); }, () => { clock += 58_000; return crossing(0); }],
+    sliceAll: async () => { finalCalls++; return [measure(1, 0), measure(2, 0)]; }, input: { maxMinutes: 1 } });
+  const r = await h.run(); assert.equal(finalCalls, 0); assert.equal(r.verification_all_plates.checked, false);
+});
+
 test("a project with several plates gets one slice of every plate at the end; a plate that still has crossing travels is a caveat, never ready", async t => {
   const env = await setup(t, { modelSettings: TWO_PLATES });
   let sliced;
@@ -292,7 +336,7 @@ test("the slice budget stops the loop with the next step planned but not run", a
   const r = await h.run();
   assert.equal(h.calls.length, 3, "baseline + rounds 1 and 2");
   assert.equal(r.stop.reason, "budget_slices");
-  assert.deepEqual(r.stop.slices_used, { loop: 3, retarget: 0, total: 3, max: 3 });
+  assert.deepEqual(r.stop.slices_used, { loop: 3, retarget: 0, verification: 0, total: 3, max: 3 });
   assert.deepEqual(r.pending_next_round.map(p => p.key), ["wall_loops"]);
   assert.equal(r.verdict, "ready_with_caveats");
   assert.ok(r.caveats.some(c => c.code === "budget"));
@@ -448,7 +492,7 @@ test("the retarget's real slices count against max_slices", async t => {
   const r = await h.run();
   assert.deepEqual(h.calls.map(c => c.file), ["p0.3mf"], "the retarget slice and the baseline use the budget; round 0 is not sliced");
   assert.equal(r.stop.reason, "budget_slices");
-  assert.deepEqual(r.stop.slices_used, { loop: 1, retarget: 1, total: 2, max: 2 });
+  assert.deepEqual(r.stop.slices_used, { loop: 1, retarget: 1, verification: 0, total: 2, max: 2 });
 });
 
 test("preflight_check judges the deliverable: its blockers make the verdict not_ready, an error makes it a caveat", async t => {
@@ -703,7 +747,7 @@ test("through the server: registered, named in the instructions, strict about it
 
     const typo = await client.callTool({ name: "prepare_print_project", arguments: { file_path: env.source } });
     assert.equal(typo.isError, true);
-    assert.match(typo.content[0].text, /Unknown argument "file_path"/);
+    assert.match(typo.content[0].text, /Invalid arguments.*required property/);
     const missing = await client.callTool({ name: "prepare_print_project", arguments: { path: path.join(env.dir, "nope.3mf"), dry_run: true } });
     assert.equal(missing.isError, true);
 
@@ -806,7 +850,7 @@ test("layout stage in the loop: scattered 9 plates become 3, measured, then the 
   assert.ok(progress.some(m => /Layout: slicing candidate fewest/.test(m)) && progress.some(m => /Checking the layout/.test(m)), "the call reports the layout stage");
 
   // The loop: its own budget is separate; the baseline slices the laid-out project, on the longest plate (plate 2 = index 1).
-  assert.deepEqual(r.stop.slices_used, { loop: 2, retarget: 0, total: 2, max: 12 });
+  assert.deepEqual(r.stop.slices_used, { loop: 2, retarget: 0, verification: 1, total: 3, max: 12 });
   assert.deepEqual(h.calls.map(c => [c.file, c.plate]), [["layout-fewest.3mf", 1], ["round-0.3mf", 1]]);
   assert.deepEqual([r.part.plate_index, r.layout.measured_plate.number], [1, 2]);
   assert.match(r.part.plate_why, /longest predicted time/);

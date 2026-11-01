@@ -32,15 +32,19 @@ function runNpm(args, cwd) {
     path.dirname(process.execPath),
     process.platform === "win32" ? "node_modules/npm/bin/npm-cli.js" : "npm"
   ));
+  // npm 11 forwards a global allow-scripts policy through lifecycle env, where local installs reject it.
+  const env = { ...process.env };
+  delete env.npm_config_allow_scripts;
+  delete env.NPM_CONFIG_ALLOW_SCRIPTS;
   const result = spawnSync(process.execPath, [npmCli, ...args], {
-    cwd, encoding: "utf8", timeout: 120_000, maxBuffer: 16 * 1024 * 1024,
+    env, cwd, encoding: "utf8", timeout: 120_000, maxBuffer: 16 * 1024 * 1024,
   });
   if (result.error || result.status !== 0) {
     throw new Error(`npm ${args.join(" ")} failed: ${result.error?.message || result.signal || result.status}\n${(result.stderr || result.stdout || "").slice(-12000)}`);
   }
 }
 
-export function packageMcpb({ root = ROOT, outputPath = path.join(root, "bambu-printer-mcp.mcpb"), quiet = false } = {}) {
+export function packageMcpb({ root = ROOT, outputPath = path.join(root, "fatia-mcp.mcpb"), quiet = false } = {}) {
   root = path.resolve(root);
   outputPath = path.resolve(outputPath);
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));

@@ -24,13 +24,13 @@
     "tuning/tuning-facts.json": "5634d82de5ec151762980a0d2c2c16b060b38f4ae3b5398270b813222ce879ca"
   },
   "sources": {
-    "rules.json": "kb/out",
-    "facts.json": "kb/out",
-    "bambu.topics.json": "kb/out",
-    "blender.topics.json": "kb/out",
+    "rules.json": "knowledge",
+    "facts.json": "knowledge",
+    "bambu.topics.json": "knowledge",
+    "blender.topics.json": "knowledge",
     "synonyms.json": "authored in this repo",
-    "tuning/tuning.json": "kb/tuning/out",
-    "tuning/no_action.json": "kb/tuning/out",
-    "tuning/tuning-facts.json": "kb/tuning/out"
+    "tuning/tuning.json": "knowledge/tuning",
+    "tuning/no_action.json": "knowledge/tuning",
+    "tuning/tuning-facts.json": "knowledge/tuning"
   }
 }

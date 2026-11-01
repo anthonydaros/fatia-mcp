@@ -1,25 +1,24 @@
-# bambu-printer-mcp
+# Fatia MCP
 
 This file is the repository's shared source of truth for local agents, GitHub Codex review, and scheduled maintenance. Read it before changing or reviewing code. CLAUDE.md and .claude/agents.md defer to these rules.
 
 ## Release and review
 
-- Every update to main requires an npm patch version bump and publication, including code, documentation, and configuration. Run `npm version patch` once for the release, and include its package.json, package-lock.json, and manifest.json changes in the same integration to main.
-- Before opening or updating a PR, run Matt Pocock's `code-review` skill against the main merge base. Resolve substantive standards and spec findings locally; keep its issue-tracker note as ignored agent scratch rather than adding another required public template.
-- Run the local `code-review` gate before pushing PR updates so problems are caught before spending on GitHub Actions. Use a PR to main, include `@codex review` in change commit messages, and request `@codex review` on the PR. After each update, wait at least five minutes and for Codex review plus CI to complete on the current head. Inspect inline findings as well as summary comments, fix actionable findings, and repeat. Local review supplements GitHub review and CI; it does not disable or replace either. A stale review or passing local test does not authorize ignoring current CI failures.
-- Prioritize substantive defects and regressions in supported workflows. Document and defer obscure edge cases, speculative hardening, and cosmetic objections instead of extending a sound release into an endless review loop.
-- Never add AI or agent attribution anywhere in Git or GitHub: no `Co-Authored-By` trailers for Claude, Codex, or other assistants, no "Generated with" footers, and no agent session links in commits, PR titles or bodies, review replies, issue comments, or release notes.
-- Preserve original authorship when integrating contributor PRs. Credit code, issue reports, hardware evidence, and useful superseded proposals in CONTRIBUTORS.md. Clearly distinguish merged changes, superseded proposals, and deferred work.
-- The main-branch Publish Package workflow runs the checks and `npm publish` using trusted publishing. Verify that workflow and the exact npm version before claiming publication; do not publish an unmerged release ahead of review.
-- Create a `v<version>` tag on the final merged release commit and a GitHub Release. The tag workflow builds and uploads the `.mcpb` extension. Verify npm, package/manifest versions, the release asset, and fresh installed startup before declaring the release complete. Never move a published tag.
-- After merging and verifying the release, switch back to main and delete the merged temporary integration branch locally and from origin.
-- Changes to src/, scripts/, or slicing behavior need a present-tense CHANGELOG.md entry under `## Unreleased` while preparing the release. Run `npm version patch` only after accumulating the release notes: its version hook promotes that heading to the new version and date. If review adds notes after the bump, place them in that release's section. Released changes must never remain under `Unreleased` on main. Use that version's entries in GitHub release notes, with contributor credit and validation limits. Supply multiline notes via a body file.
+- This is the independently maintained Fatia MCP fork at anthonydaros/fatia-mcp. Preserve GPL-2.0, original authorship, history, and contributor credit. The original repository is `upstream`; this fork is `origin`.
+- Initial distribution is GitHub Releases and `fatia-mcp.mcpb`; package identity is `@anthonydaros/fatia-mcp`, executable `fatia-mcp`. Do not publish to npm unless the user explicitly requests it.
+- Use a codex/ branch and a reviewed PR for changes to an existing main. Initial creation of this new fork may publish the reviewed local history directly to its empty main; complete local independent review and verify current-head CI before tagging a release.
+- Run the installed ponytail-review skill against the full change and obtain an independent read-only regression/security review before integration. Resolve substantive findings locally. Request GitHub Codex review when it is available; local review does not replace required CI.
+- CI must pass on the current head for Linux, macOS, and Windows. POSIX-only fake-executable cases explicitly skip on Windows; report those skips separately from native-platform evidence.
+- Prioritize substantive defects and supported workflows; defer speculative hardening, cosmetics and removal of legacy exported methods.
+- Never add AI attribution, Co-Authored-By trailers for assistants, generated-by footers, or agent session links to commits, PRs, comments or release notes.
+- Keep present-tense CHANGELOG.md notes under `## Unreleased` during work. Run `npm version patch --no-git-tag-version` once for the release; its hook promotes those notes and synchronizes package.json, package-lock.json and manifest.json. Commit these together with synchronized dist/.
+- Tag the final release commit `v<version>` without moving an existing published tag. Verify the GitHub release, MCPB asset and fresh installed initialization before declaring release completion. Preserve validation limits in the release notes.
 
 ## Build and test
 
 - `npm run build` must finish with zero TypeScript errors before committing. Keep tracked dist/ output synchronized with source.
 - `node --test tests/behavior.test.mjs` must pass all current tests before pushing. Do not rely on an old fixed test count.
-- `npm test` builds and runs the full suite, including the exact tool list, slicer safety, the tuning loop, the knowledge base, Blender MCP, real npm installation layouts, and desktop packaging. It must pass before release; CI uses Node.js 24 on Linux.
+- `npm test` builds and runs the full suite, including the exact tool list, slicer safety, the tuning loop, the knowledge base, Blender MCP, real npm installation layouts, and desktop packaging. It must pass before release; CI uses Node.js 24 on Linux, macOS and Windows.
 - Tests use compiled dist/ files, so build before focused test commands. Optional tests against an installed BambuStudio profile tree may skip when that tree or model is unavailable; report those skips separately from failures.
 - For installation changes, test the actual tarball in local-hoisted, global, and npm-exec layouts and start the installed server. For desktop changes, inspect and initialize the extracted MCPB archive.
 - Do not launch the Bambu Studio GUI or mutate the user's live Blender scene during routine tests. Mock the slicer boundary and use isolated headless Blender. Set BAMBU_MODEL explicitly to an empty string in tests of missing-model behavior so dotenv cannot supply a real configuration.
@@ -31,7 +30,7 @@ This file is the repository's shared source of truth for local agents, GitHub Co
 - Keep runtime diagnostics on stderr so stdout carries only MCP protocol messages.
 - MCP transports: stdio by default and streamable-http.
 - Package only intended runtime, source, licenses, and contributor files. Build MCPB in isolated staging without pruning the developer checkout. Never package credentials, local configuration, or private models.
-- Use a private OS temporary directory per server instance and distinct generated profile paths for differing content.
+- Use a private OS temporary directory per process and distinct generated profile paths for differing content. Deliver artifacts to ~/.fatia-mcp/outputs (or FATIA_OUTPUT_DIR); output_dir overrides prepare_print_project only. Shutdown removes scratch, never delivered files.
 
 ## Slicer safety
 

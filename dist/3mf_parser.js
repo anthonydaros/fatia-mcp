@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+import { readSafe3mfArchive } from './safety/archive.js';
 import { parseStringPromise } from 'xml2js';
 import * as fs from 'fs/promises';
 import { createHash } from 'node:crypto';
@@ -186,8 +186,7 @@ async function parse3DModelConfig(zip) {
 export async function parse3MF(filePath) {
     console.error(`Parsing 3MF file: ${filePath}`);
     try {
-        const data = await fs.readFile(filePath);
-        const zip = await JSZip.loadAsync(data);
+        const { zip } = await readSafe3mfArchive(filePath);
         // List files for debugging
         // const fileList = Object.keys(zip.files);
         // console.error('Files in 3MF:', fileList);
@@ -209,8 +208,7 @@ export async function parse3MF(filePath) {
     }
 }
 export async function extractBambuTemplateSettings(filePath, outputDir) {
-    const data = await fs.readFile(filePath);
-    const zip = await JSZip.loadAsync(data);
+    const { zip } = await readSafe3mfArchive(filePath);
     const potentialFiles = [
         'Metadata/project_settings.config',
         'Metadata/Slic3r_PE.config',
@@ -256,7 +254,7 @@ export function sliceResultsFrom(config) {
 }
 /** Per-plate time, weight, filament use and slicer warnings that Bambu Studio records in a sliced 3MF. */
 export async function readSliceResults(filePath) {
-    const zip = await JSZip.loadAsync(await fs.readFile(filePath));
+    const { zip } = await readSafe3mfArchive(filePath);
     const sliceInfo = zip.file('Metadata/slice_info.config');
     if (!sliceInfo)
         throw new Error(`Sliced 3MF has no Metadata/slice_info.config: ${filePath}`);
@@ -264,8 +262,7 @@ export async function readSliceResults(filePath) {
     return sliceResultsFrom(parsed?.config);
 }
 export async function analyze3MFPlateObjects(filePath, plateIndex = 0) {
-    const data = await fs.readFile(filePath);
-    const zip = await JSZip.loadAsync(data);
+    const { zip } = await readSafe3mfArchive(filePath);
     const plateName = `Metadata/plate_${plateIndex + 1}.json`;
     const plateFile = zip.file(plateName);
     if (!plateFile) {

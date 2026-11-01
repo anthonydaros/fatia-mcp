@@ -197,7 +197,7 @@ test("slicing model safety: schema requires bambu_model, rejects missing/invalid
   assert.equal(badModelResult.isError, true, "slice_stl with invalid model must error");
   const badModelError = badModelResult.content?.[0]?.text || "";
   assert.ok(
-    badModelError.includes("Invalid bambu_model"),
+    badModelError.includes("bambu_model"),
     `Error must reject invalid model, got: ${badModelError}`
   );
 
@@ -327,7 +327,8 @@ test("sliceSTL allows slicer executables resolved from PATH", async (t) => {
   const manipulator = new STLManipulator(tempRoot);
   const outputPath = await manipulator.sliceSTL(SAMPLE_STL, "prusaslicer", commandName);
 
-  assert.equal(outputPath, path.join(tempRoot, "sample_cube.gcode"));
+  assert.equal(path.dirname(outputPath), tempRoot);
+  assert.match(path.basename(outputPath), /sample_cube\.gcode$/);
   assert.equal(fs.readFileSync(outputPath, "utf8"), "G1 X0\n");
 });
 
@@ -443,7 +444,7 @@ fs.writeFileSync(outputPath, Buffer.from(${JSON.stringify(slicedBase64)}, "base6
   return { tempDir, fakeSlicerPath, argsOutPath, profilesRoot };
 }
 
-test("slice_with_template prefers named template settings over BAMBU_SLICER_PROFILE default", async (t) => {
+test("slice_with_template prefers named template settings over BAMBU_SLICER_PROFILE default", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const fakeSlicer = await createFakeBambuSlicer();
   const templateDir = path.join(fakeSlicer.tempDir, "templates");
   fs.mkdirSync(templateDir, { recursive: true });
@@ -482,7 +483,7 @@ test("slice_with_template prefers named template settings over BAMBU_SLICER_PROF
 
   assert.equal(result.isError, undefined);
   const sliced = JSON.parse(result.content[0].text);
-  assert.match(path.basename(path.dirname(sliced.output_path)), /^slice-/);
+  assert.match(path.basename(path.dirname(sliced.output_path)), /^result-/);
   assert.equal(path.basename(sliced.output_path), "sample_cube_sliced.3mf");
   assert.deepEqual(sliced.plates, [{
     index: 1, prediction_s: 3600, weight_g: 12.5,
@@ -498,7 +499,7 @@ test("slice_with_template prefers named template settings over BAMBU_SLICER_PROF
   assert.ok(!settingsValue.includes(defaultProfilePath), "server-level BAMBU_SLICER_PROFILE must not override a named template");
 });
 
-test("template machine settings never replace the selected machine preset", async (t) => {
+test("template machine settings never replace the selected machine preset", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const fakeSlicer = await createFakeBambuSlicer();
   fs.writeFileSync(path.join(fakeSlicer.profilesRoot, "BBL", "machine", "Bambu Lab P1S 0.4 nozzle.json"), JSON.stringify({
     name: "Bambu Lab P1S 0.4 nozzle", printer_model: "Bambu Lab P1S", nozzle_diameter: ["0.4"],
@@ -563,7 +564,7 @@ test("template machine settings never replace the selected machine preset", asyn
   }
 });
 
-test("slice_stl writes the installed nozzle type into the machine preset so printing can match the printer", async (t) => {
+test("slice_stl writes the installed nozzle type into the machine preset so printing can match the printer", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const fakeSlicer = await createFakeBambuSlicer();
   fs.writeFileSync(path.join(fakeSlicer.profilesRoot, "BBL", "machine", "Bambu Lab P1S 0.4 nozzle.json"), JSON.stringify({
     name: "Bambu Lab P1S 0.4 nozzle", nozzle_diameter: ["0.4"], nozzle_type: ["stainless_steel"],
@@ -603,7 +604,7 @@ test("slice_stl writes the installed nozzle type into the machine preset so prin
   fs.rmSync(fakeSlicer.argsOutPath);
   result = await slice({ nozzle_type: "diamond" });
   assert.equal(result.isError, true);
-  assert.match(JSON.stringify(result.content), /Invalid nozzle type/);
+  assert.match(JSON.stringify(result.content), /nozzle_type/);
   assert.equal(fs.existsSync(fakeSlicer.argsOutPath), false, "the slicer must not run");
   // BAMBU_NOZZLE_TYPE supplies the default.
   result = await (await connect({ BAMBU_NOZZLE_TYPE: "hardened-steel" }))({});
@@ -611,7 +612,7 @@ test("slice_stl writes the installed nozzle type into the machine preset so prin
   assert.deepEqual(machine().nozzle_type, ["hardened_steel"]);
 });
 
-test("slice_stl slices for the installed nozzle flow type and refuses one the preset lacks", async (t) => {
+test("slice_stl slices for the installed nozzle flow type and refuses one the preset lacks", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const fakeSlicer = await createFakeBambuSlicer();
   const writeMachine = (variants) => fs.writeFileSync(path.join(fakeSlicer.profilesRoot, "BBL", "machine", "Bambu Lab P1S 0.4 nozzle.json"), JSON.stringify({
     name: "Bambu Lab P1S 0.4 nozzle", nozzle_diameter: ["0.4"], extruder_type: ["Direct Drive"], extruder_variant_list: [variants],
@@ -652,7 +653,7 @@ test("slice_stl slices for the installed nozzle flow type and refuses one the pr
   fs.rmSync(fakeSlicer.argsOutPath);
   result = await slice({ nozzle_volume_type: "turbo" });
   assert.equal(result.isError, true);
-  assert.match(JSON.stringify(result.content), /Invalid nozzle volume type/);
+  assert.match(JSON.stringify(result.content), /nozzle_volume_type/);
   assert.equal(fs.existsSync(fakeSlicer.argsOutPath), false, "the slicer must not run");
   // BAMBU_NOZZLE_VOLUME_TYPE supplies the default.
   result = await (await connect({ BAMBU_NOZZLE_VOLUME_TYPE: "High Flow" }))({});
@@ -667,7 +668,7 @@ test("slice_stl slices for the installed nozzle flow type and refuses one the pr
   assert.equal(fs.existsSync(fakeSlicer.argsOutPath), false, "the slicer must not run");
 });
 
-test("template_name resolves by source type for slicer profiles versus 3MF sources", async (t) => {
+test("template_name resolves by source type for slicer profiles versus 3MF sources", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const fakeSlicer = await createFakeBambuSlicer();
   const templateDir = path.join(fakeSlicer.tempDir, "templates");
   fs.mkdirSync(templateDir, { recursive: true });
@@ -839,7 +840,7 @@ test("per-call executable selectors are rejected before any process can start", 
   }
 });
 
-test("legacy bridge opt-in does not authorize slicer executables", async (t) => {
+test("legacy bridge opt-in does not authorize slicer executables", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bambu-legacy-bridge-gate-"));
   const executable = path.join(tempDir, "unexpected-executable");
   const markerPath = path.join(tempDir, "executed");
@@ -920,7 +921,7 @@ test("legacy bridge opt-in does not authorize slicer executables", async (t) => 
   );
 });
 
-test("empty slicer_path preserves env fallback without executable opt-in", async (t) => {
+test("empty slicer_path preserves env fallback without executable opt-in", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const fakeSlicer = await createFakeBambuSlicer();
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -968,7 +969,7 @@ test("stdio transport: initialize, list tools, call success + structured failure
   t.after(async () => { await closeTransport(transport); });
 
   await client.connect(transport);
-  assert.equal(client.getServerVersion()?.name, "bambu-printer-mcp");
+  assert.equal(client.getServerVersion()?.name, "fatia-mcp");
 
   const listToolsResult = await client.listTools();
   assertCommonToolPresence(listToolsResult);
@@ -1024,7 +1025,7 @@ test("streamable-http transport: initialize, list tools, call success + origin r
   await waitForHttpServerReady(endpoint);
   await client.connect(transport);
 
-  assert.equal(client.getServerVersion()?.name, "bambu-printer-mcp");
+  assert.equal(client.getServerVersion()?.name, "fatia-mcp");
 
   const listToolsResult = await client.listTools();
   assertCommonToolPresence(listToolsResult);
@@ -1202,7 +1203,7 @@ test("tool schema invariant: input schemas use Codex-compatible root objects", a
   }
 });
 
-test("H2D Pro slicing selects its exact installed preset and refuses an H2D substitute", async (t) => {
+test("H2D Pro slicing selects its exact installed preset and refuses an H2D substitute", { skip: process.platform === "win32" && "POSIX executable fixture" }, async (t) => {
   const fixture = await createFakeBambuSlicer();
   t.after(() => fs.rmSync(fixture.tempDir, { recursive: true, force: true }));
   const preset = "Bambu Lab H2D Pro 0.4 nozzle";

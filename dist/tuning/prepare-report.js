@@ -276,7 +276,7 @@ export function buildReport(run) {
     };
     const stopOut = {
         reason: run.stop.reason, text: STOP_TEXT[run.stop.reason], detail: run.stop.detail, rounds_measured: run.rounds.filter(r => r.measure).length,
-        slices_used: { loop: run.slices.loop, retarget: run.slices.retarget, total: run.slices.loop + run.slices.retarget, max: run.slices.max },
+        slices_used: { loop: run.slices.loop, retarget: run.slices.retarget, verification: run.slices.verification, total: run.slices.loop + run.slices.retarget + run.slices.verification, max: run.slices.max },
         minutes_used: run.minutes, max_minutes: run.input.maxMinutes,
     };
     const history = run.rounds.map(r => ({

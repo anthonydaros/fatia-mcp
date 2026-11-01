@@ -8,6 +8,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { EventEmitter } from 'events';
 import * as crypto from 'crypto';
+import { readSafe3mfArchive, readBoundedPrintFile } from '../safety/archive.js';
 import { execFile } from 'child_process';
 import { flattenForCli, detectProfilesRoot, resolveBblMachineProfile } from '../slicer/profile-flatten.js';
 import { profileJsonFiles } from '../slicer/profile-files.js';
@@ -164,7 +165,7 @@ function isPathLikeExecutable(slicerPath: string): boolean {
 function configuredBambuProfileDirs(): string[] {
   const override = process.env.BAMBU_SLICER_PROFILE_DIRS;
   if (override !== undefined) {
-    return override.split(path.delimiter).filter(Boolean);
+    return override.split(path.delimiter).filter(Boolean).map(dir => path.resolve(dir));
   }
 
   const home = os.homedir();
@@ -295,7 +296,7 @@ export class STLManipulator extends EventEmitter {
 
   constructor(tempDir: string = path.join(process.cwd(), 'temp')) {
     super();
-    this.tempDir = tempDir;
+    this.tempDir = path.resolve(tempDir);
     // Ensure temp directory exists
     if (!fs.existsSync(this.tempDir)) {
       fs.mkdirSync(this.tempDir, { recursive: true });
@@ -312,7 +313,7 @@ export class STLManipulator extends EventEmitter {
   private getAvailableProfileRoots(): string[] {
     const selectedRoot = process.env.BAMBU_PROFILES_ROOT;
     return [
-      ...(selectedRoot ? [path.join(selectedRoot, 'BBL')] : []),
+      ...(selectedRoot ? [path.resolve(selectedRoot, 'BBL')] : []),
       ...configuredBambuProfileDirs(),
       ...BAMBU_PROFILE_ROOTS,
     ].filter((root) => fs.existsSync(root));
@@ -762,7 +763,7 @@ export class STLManipulator extends EventEmitter {
       if (progressCallback) progressCallback(10, "Loading STL file...");
       
       // Read the STL file
-      const stlData = await readFileAsync(stlFilePath);
+      const stlData = await readBoundedPrintFile(stlFilePath);
       
       if (progressCallback) progressCallback(30, "Parsing STL data...");
       
@@ -773,6 +774,10 @@ export class STLManipulator extends EventEmitter {
         stlData.byteOffset + stlData.byteLength
       ) as ArrayBuffer;
       const geometry = loader.parse(rawArrayBuffer);
+      const positions = geometry.getAttribute('position');
+      if (!positions?.count || positions.array.some(value => !Number.isFinite(value))) {
+        throw new Error('STL vertices must be finite numbers and the mesh must not be empty');
+      }
       
       // Create a mesh from the geometry
       const material = new THREE.MeshStandardMaterial();
@@ -798,6 +803,10 @@ export class STLManipulator extends EventEmitter {
                        outputFilePath: string, 
                        progressCallback?: ProgressCallback): Promise<string> {
     try {
+      const positions = geometry.getAttribute('position');
+      if (!positions?.count || positions.array.some(value => !Number.isFinite(value))) {
+        throw new Error('STL vertices must be finite numbers after transformation');
+      }
       if (progressCallback) progressCallback(80, "Exporting to STL...");
       
       // Create mesh for export
@@ -809,7 +818,7 @@ export class STLManipulator extends EventEmitter {
       const stlString = exporter.parse(mesh);
       
       // Write the STL to file
-      await writeFileAsync(outputFilePath, stlString);
+      await writeFileAsync(outputFilePath, stlString, { flag: 'wx' });
       
       if (progressCallback) progressCallback(100, "STL saved successfully");
       
@@ -888,9 +897,7 @@ export class STLManipulator extends EventEmitter {
     objects: Array<{ name: string; vertexCount: number; faceCount: number; boundingBox: BoundingBox; item: number; objectId: string }>;
     items: Array<{ objectId: string; printable: boolean }>;
   }> {
-    const JSZip = (await import('jszip')).default;
-    const data = fs.readFileSync(filePath);
-    const zip = await JSZip.loadAsync(data);
+    const { zip } = await readSafe3mfArchive(filePath);
 
     const models = new Map<string, Map<string, Model3MFObject>>();
     const loadModel = async (name: string) => {
@@ -975,6 +982,10 @@ export class STLManipulator extends EventEmitter {
     this.activeOperations.set(operationId, true);
     
     try {
+      const factors = typeof scaleFactors === 'number' ? [scaleFactors, scaleFactors, scaleFactors] : scaleFactors;
+      if (factors.length !== 3 || !factors.every(value => typeof value === 'number' && Number.isFinite(value) && value !== 0)) {
+        throw new Error('Scale factors must be three finite, nonzero numbers');
+      }
       if (progressCallback) progressCallback(0, "Starting scaling operation...");
       
       // Load the STL file
@@ -1005,7 +1016,7 @@ export class STLManipulator extends EventEmitter {
       
       // Generate output file path
       const outputFileName = path.basename(stlFilePath, '.stl') + '_scaled.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
       
       // Save the modified STL
       await this.saveSTL(geometry, outputFilePath, progressCallback);
@@ -1043,6 +1054,9 @@ export class STLManipulator extends EventEmitter {
     this.activeOperations.set(operationId, true);
     
     try {
+      if (rotationAngles.length !== 3 || !rotationAngles.every(value => typeof value === 'number' && Number.isFinite(value))) {
+        throw new Error('Rotation angles must be three finite numbers');
+      }
       if (progressCallback) progressCallback(0, "Starting rotation operation...");
       
       // Load the STL file
@@ -1079,7 +1093,7 @@ export class STLManipulator extends EventEmitter {
       
       // Generate output file path
       const outputFileName = path.basename(stlFilePath, '.stl') + '_rotated.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
       
       // Save the modified STL
       await this.saveSTL(geometry, outputFilePath, progressCallback);
@@ -1139,7 +1153,7 @@ export class STLManipulator extends EventEmitter {
       
       // Generate output file path
       const outputFileName = path.basename(stlFilePath, '.stl') + '_translated.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
       
       // Save the modified STL
       await this.saveSTL(geometry, outputFilePath, progressCallback);
@@ -1295,7 +1309,7 @@ export class STLManipulator extends EventEmitter {
       
       // Write the SVG to file
       const outputFileName = path.basename(stlFilePath, '.stl') + '_visualization.svg';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
       
       await writeFileAsync(outputFilePath, svgContent);
       
@@ -1479,7 +1493,7 @@ export class STLManipulator extends EventEmitter {
       
       // Generate output file path
       const outputFileName = path.basename(stlFilePath, '.stl') + '_modified.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
       
       // Save the modified STL
       await this.saveSTL(geometry, outputFilePath, progressCallback);
@@ -1564,7 +1578,7 @@ export class STLManipulator extends EventEmitter {
       
       // Generate output file path
       const outputFileName = path.basename(stlFilePath, '.stl') + '_extended.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
       
       if (progressCallback) progressCallback(90, "Saving extended STL...");
       
@@ -1629,7 +1643,7 @@ export class STLManipulator extends EventEmitter {
     }
 
     const outputFileName = path.basename(stlFilePath, '.stl') + '.gcode';
-    let outputFilePath = path.join(this.tempDir, outputFileName);
+    let outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
 
     let args: string[] = [];
     let resultPath: string | undefined;
@@ -1710,7 +1724,7 @@ export class STLManipulator extends EventEmitter {
               '--export-3mf', path.basename(bambuOutputPath),
             ];
             if (cliBundle.settingsArg) {
-              args.push('--load-settings', cliBundle.settingsArg);
+              args.push('--load-settings', cliBundle.settingsArg.split(';').map(entry => path.resolve(entry)).join(';'));
             }
             // Always allow newer-version 3MF files (the CLI rejects them by default)
             args.push('--allow-newer-file');
@@ -1732,12 +1746,12 @@ export class STLManipulator extends EventEmitter {
             if (bambuOptions?.cloneObjects) args.push('--clone-objects', bambuOptions.cloneObjects);
             if (bambuOptions?.skipObjects) args.push('--skip-objects', bambuOptions.skipObjects);
             if (cliBundle.filamentPaths.length > 0) {
-              args.push('--load-filaments', cliBundle.filamentPaths.join(';'));
+              args.push('--load-filaments', cliBundle.filamentPaths.map(entry => path.resolve(entry)).join(';'));
               args.push('--load-defaultfila');
             }
             if (bambuOptions?.loadFilamentIds) args.push('--load-filament-ids', bambuOptions.loadFilamentIds);
 
-            args.push(stlFilePath);
+            args.push(path.resolve(stlFilePath));
             // Override outputFilePath for bambustudio since it produces 3MF, not gcode
             outputFilePath = bambuOutputPath;
           }
@@ -1922,6 +1936,7 @@ export class STLManipulator extends EventEmitter {
     this.activeOperations.set(operationId, true);
 
     try {
+      if (typeof tolerance !== 'number' || !Number.isFinite(tolerance) || tolerance <= 0) throw new Error('Tolerance must be a positive finite number');
       if (progressCallback) progressCallback(0, "Starting vertex merging...");
       
       const { geometry } = await this.loadSTL(stlFilePath, progressCallback); // 10-50% progress
@@ -1941,7 +1956,7 @@ export class STLManipulator extends EventEmitter {
       if (!this.activeOperations.get(operationId)) throw new Error("Operation cancelled");
 
       const outputFileName = path.basename(stlFilePath, '.stl') + '_merged.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
 
       await this.saveSTL(mergedGeometry, outputFilePath, progressCallback); // 80-100% progress
 
@@ -1993,7 +2008,7 @@ export class STLManipulator extends EventEmitter {
       if (!this.activeOperations.get(operationId)) throw new Error("Operation cancelled");
 
       const outputFileName = path.basename(stlFilePath, '.stl') + '_centered.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
 
       await this.saveSTL(geometry, outputFilePath, progressCallback); // 80-100% progress
 
@@ -2149,7 +2164,7 @@ export class STLManipulator extends EventEmitter {
       if (!this.activeOperations.get(operationId)) throw new Error("Operation cancelled");
 
       const outputFileName = path.basename(stlFilePath, '.stl') + '_flat.stl';
-      const outputFilePath = path.join(this.tempDir, outputFileName);
+      const outputFilePath = path.join(this.tempDir, `${crypto.randomUUID()}-${outputFileName}`);
 
       await this.saveSTL(geometry, outputFilePath, progressCallback); // 90-100% progress
 

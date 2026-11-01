@@ -9,7 +9,7 @@
  * the target-compatible preset with the same base name.
  */
 import fs from 'node:fs/promises';
-import JSZip from 'jszip';
+import { readSafe3mfArchive } from '../safety/archive.js';
 
 type Config = Record<string, unknown>;
 
@@ -56,7 +56,8 @@ export interface ProjectSettingsTarget {
 
 export async function readProjectConfig(filePath: string): Promise<Config | undefined> {
   if (!filePath.toLowerCase().endsWith('.3mf')) return undefined;
-  const file = (await JSZip.loadAsync(await fs.readFile(filePath))).file('Metadata/project_settings.config');
+  const { zip } = await readSafe3mfArchive(filePath);
+  const file = zip.file('Metadata/project_settings.config');
   // Geometry-only 3MFs carry no settings.
   if (!file) return undefined;
   const config: unknown = JSON.parse(await file.async('string'));

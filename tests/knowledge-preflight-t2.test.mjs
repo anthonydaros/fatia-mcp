@@ -368,7 +368,7 @@ test("plate.time_s and plate.weight_g come from slice_info.config for the chosen
 
   const sliced = await run(file, { min_severity: "tip" });
   assert.equal(sliced.file.sliced, true);
-  assert.ok(sliced.unchecked.by_reason["precisa de analise de G-code (nao implementado)"] >= 1, reasons(sliced));
+  assert.ok(sliced.unchecked.by_reason["ative checks.gcode para analisar o G-code"] >= 1, reasons(sliced));
   const checklist = sliced.checklist.find((c) => c.rule_id === "bambu.versions.estimate-or-speeds-changed-after-sync");
   assert.deepEqual(checklist.current_values, { "plate.time_s": 3600 }, "the manual check shows the estimate to compare");
   const fresh = await run(unsliced, { min_severity: "tip" });
@@ -427,7 +427,7 @@ test("accounting on the sample project (an H2D MakerWorld file) for the X2D, pla
     assert.ok(!seen.has("fato ainda nao implementado: mesh.size_x_mm"));
   }
   // The three tier phrases the plan asks for are all there, plus the user-declared and unconfirmed-key reasons.
-  for (const phrase of ["precisa de G-code", "precisa do Blender MCP", "precisa de analise de malha", "pergunte ao usuario: context.object_kind", "chave do 3MF ainda nao confirmada numa X2D real"]) {
+  for (const phrase of ["precisa de G-code", "precisa do Blender MCP", "ative checks.mesh=fast", "pergunte ao usuario: context.object_kind", "chave do 3MF ainda nao confirmada numa X2D real"]) {
     assert.ok([...seen].some((r) => r.includes(phrase)), phrase);
   }
   const one = await facts(SAMPLE, ["mesh.size_x_mm", "mesh.size_y_mm", "mesh.height_mm", "mesh.triangle_count"], { plateIndex: 0 });

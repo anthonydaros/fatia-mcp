@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
   ErrorCode,
-  McpError
+  McpError,
+  type Tool
 } from "@modelcontextprotocol/sdk/types.js";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -42,7 +44,22 @@ dotenv.config();
 // cwd-relative default here can throw at module load via the mkdirSync
 // below and kill the server before it ever opens the stdio transport.
 const AUTOMATIC_TEMP_DIR = process.env.TEMP_DIR ? undefined : fs.mkdtempSync(path.join(os.tmpdir(), "bambu-printer-mcp-"));
-const TEMP_DIR = process.env.TEMP_DIR || AUTOMATIC_TEMP_DIR!;
+const TEMP_DIR = process.env.TEMP_DIR ? path.resolve(process.env.TEMP_DIR) : AUTOMATIC_TEMP_DIR!;
+const OUTPUT_DIR = path.resolve(process.env.FATIA_OUTPUT_DIR || path.join(os.homedir(), ".fatia-mcp", "outputs"));
+const MODEL_OUTPUT_TOOLS = new Set(["extend_stl_base", "scale_stl", "rotate_stl", "merge_vertices", "center_model", "lay_flat"]);
+
+async function retainArtifact(source: string): Promise<string> {
+  await fs.promises.mkdir(OUTPUT_DIR, { recursive: true });
+  const directory = await fs.promises.mkdtemp(path.join(OUTPUT_DIR, "result-"));
+  const output = path.join(directory, path.basename(source));
+  try {
+    await fs.promises.copyFile(source, output, fs.constants.COPYFILE_EXCL);
+    return output;
+  } catch (error) {
+    await fs.promises.rm(directory, { recursive: true, force: true });
+    throw error;
+  }
+}
 if (AUTOMATIC_TEMP_DIR) {
   // The exit event also covers startup failures and normal event-loop exit.
   // Only the directory created above belongs to us; explicit TEMP_DIR is retained.
@@ -340,7 +357,8 @@ async function resolveTemplateFirstSlicerProfilePath(
 }
 
 function readRuntimeConfig(): RuntimeConfig {
-  const rawTransport = process.env.MCP_TRANSPORT?.trim().toLowerCase();
+  const rawTransport = process.argv.includes("--http") ? "http"
+    : process.argv.includes("--stdio") ? "stdio" : process.env.MCP_TRANSPORT?.trim().toLowerCase();
   const transport =
     rawTransport === "streamable-http" || rawTransport === "http"
       ? "streamable-http"
@@ -525,7 +543,7 @@ if (!fs.existsSync(TEMP_DIR)) {
 
 const SERVER_INSTRUCTIONS = [
   "Prepare parts for Bambu Studio and Blender. The user prints from the Bambu Studio GUI: do not start a print.",
-  "When the user sends, names or exports a part (STL, 3MF, .gcode.3mf, a Blender object), call preflight_check FIRST, before slice_stl, open_in_slicer or blender_mcp_edit_model. After slice_stl, call it again on the output. Report blockers first, then warnings; show tips only if asked.",
+  "When the user sends, names or exports a part (STL, 3MF, .gcode.3mf, a Blender object), call preflight_check FIRST, before slice_stl, open_in_slicer or blender_mcp_edit_model. After slice_stl, call it again on the output with checks.gcode true. Report blockers first, then warnings; show tips only if asked.",
   "For questions about slicing settings, print defects or Blender mesh preparation, call consult_knowledge before answering from memory and cite the topic ids you used.",
   "Every knowledge entry and every finding carries a confidence tag: preset, oficial and bug conhecido are strong; relato, hipotese and nao verificado are weak, so say when you rely on one and never present it as certain.",
   "Findings and knowledge-base fixes are proposals: describe them and ask before changing anything, unless the finding's approval says it may be applied automatically.",
@@ -557,7 +575,7 @@ class BambuPrinterMCPServer {
   private readonly blender = new BlenderMcpBridge();
   private stlManipulator: STLManipulator;
   private readonly runtimeConfig: RuntimeConfig;
-  private httpRuntime?: { transport: StreamableHTTPServerTransport; httpServer: HttpServer };
+  private httpRuntime?: { httpServer: HttpServer; peers: Set<BambuPrinterMCPServer> };
   private shuttingDown = false;
   private readonly confirmationTimeoutMs = parseConfirmationTimeout(process.env.BAMBU_CONFIRMATION_TIMEOUT_MS);
 
@@ -565,7 +583,7 @@ class BambuPrinterMCPServer {
     this.runtimeConfig = readRuntimeConfig();
     this.server = new Server(
       {
-        name: "bambu-printer-mcp",
+        name: "fatia-mcp",
         version: JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version
       },
       {
@@ -592,9 +610,9 @@ class BambuPrinterMCPServer {
     this.setupToolHandlers();
   }
 
-  private preflightDeps(): Parameters<typeof preflightCheck>[1] {
+  private preflightDeps(signal?: AbortSignal): Parameters<typeof preflightCheck>[1] {
     return {
-      defaultModel: DEFAULT_BAMBU_MODEL, validModels: VALID_BAMBU_MODELS, studioVersion, studioInfo,
+      signal, defaultModel: DEFAULT_BAMBU_MODEL, validModels: VALID_BAMBU_MODELS, studioVersion, studioInfo,
       meshInfo: filePath => this.stlManipulator.getSTLInfo(filePath),
       askModel: () => this.resolveBambuModel(undefined),
     };
@@ -894,7 +912,7 @@ class BambuPrinterMCPServer {
 
     const destinationPath = path.join(resolvedTemplateDir, `${baseName}${extension}`);
     fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
-    fs.copyFileSync(sourcePath, destinationPath);
+    fs.copyFileSync(sourcePath, destinationPath, fs.constants.COPYFILE_EXCL);
 
     const sourceType: TemplateSourceType =
       extension === ".3mf" ? "3mf" : extension === ".json" ? "json" : "config";
@@ -910,9 +928,7 @@ class BambuPrinterMCPServer {
   }
 
   setupToolHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools: [
+    const tools: Tool[] = [
           {
             name: "list_3mf_plate_objects",
             description: "List object IDs from a sliced 3MF plate. Use these IDs with slice_stl's skip_objects.",
@@ -1002,8 +1018,8 @@ class BambuPrinterMCPServer {
             },
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true }
           },
-          ...KNOWLEDGE_TOOLS,
-          ...PREPARE_TOOLS,
+          ...KNOWLEDGE_TOOLS.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, required: "required" in tool.inputSchema ? [...tool.inputSchema.required] : [] } })),
+          ...PREPARE_TOOLS.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, required: [...tool.inputSchema.required] } })),
           {
             name: "list_templates",
             description: "List saved slicing templates from the local template registry directory.",
@@ -1270,9 +1286,14 @@ class BambuPrinterMCPServer {
               additionalProperties: false
             }
           }
-        ]
-      };
-    });
+        ];
+    const schemaValidator = new AjvJsonSchemaValidator();
+    const validators = new Map(tools.map(tool => [tool.name, schemaValidator.getValidator({
+      ...tool.inputSchema,
+      // A missing model is resolved from the environment or elicited before slicing.
+      required: tool.inputSchema.required?.filter(key => key !== "bambu_model" || !["slice_stl", "slice_with_template"].includes(tool.name)),
+    })]));
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const { name, arguments: args } = request.params;
@@ -1289,6 +1310,14 @@ class BambuPrinterMCPServer {
       const explicitTemplatePath = String(args?.template_3mf_path || DEFAULT_TEMPLATE_3MF_PATH);
 
       try {
+        const values: unknown[] = [args];
+        while (values.length) {
+          const value = values.pop();
+          if (typeof value === "number" && !Number.isFinite(value)) throw new Error("Arguments must contain only finite numbers.");
+          if (value && typeof value === "object") for (const child of Object.values(value)) values.push(child);
+        }
+        const validation = validators.get(name)?.(args ?? {});
+        if (validation && !validation.valid) throw new Error(`Invalid arguments for ${name}: ${validation.errorMessage}`);
         let result;
 
         switch (name) {
@@ -1373,7 +1402,7 @@ class BambuPrinterMCPServer {
             break;
 
           case "preflight_check":
-            result = await preflightCheck(args ?? {}, this.preflightDeps());
+            result = await preflightCheck(args ?? {}, this.preflightDeps(extra.signal));
             break;
 
           case "prepare_print_project": {
@@ -1384,7 +1413,7 @@ class BambuPrinterMCPServer {
             const modelCode = FILAMENT_MODEL_CODES[model];
             const manipulator = this.stlManipulator;
             result = await prepareProject({
-              ...parsed, model, outputDir: parsed.outputDir ?? path.join(TEMP_DIR, "prepared"), signal: extra.signal,
+              ...parsed, model, outputDir: parsed.outputDir ?? OUTPUT_DIR, signal: extra.signal,
               onProgress: progressToken === undefined ? undefined : p => {
                 progressNotifications = progressNotifications
                   .then(() => extra.sendNotification({ method: "notifications/progress", params: { progressToken, progress: p.step, message: p.message } }))
@@ -1402,7 +1431,7 @@ class BambuPrinterMCPServer {
                 bambuOptions: { bedType: resolveBambuStudioCliBedType(undefined), nozzleType: resolveNozzleType(undefined), nozzleVolumeType: resolveNozzleVolumeType(undefined) },
               }),
               installedStudio: studioVersion,
-              preflight: a => preflightCheck(a, this.preflightDeps()),
+              preflight: a => preflightCheck(a, this.preflightDeps(extra.signal)),
               openInStudio: file => openInSlicer(file, slicerPath),
             });
             break;
@@ -1603,6 +1632,10 @@ class BambuPrinterMCPServer {
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
 
+        if (MODEL_OUTPUT_TOOLS.has(name) && typeof result === "string") result = await retainArtifact(result);
+        if ((name === "slice_stl" || name === "slice_with_template") && result && typeof result === "object" && "output_path" in result) {
+          result.output_path = await retainArtifact(result.output_path as string);
+        }
         await progressNotifications;
         const text = typeof result === "string" ? result : JSON.stringify(result, null, 2);
 
@@ -1642,7 +1675,7 @@ class BambuPrinterMCPServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     process.stdin.once("end", () => { void this.shutdown(); });
-    console.error("Bambu Printer MCP server running on stdio");
+    console.error("Fatia MCP server running on stdio");
   }
 
   async shutdown(exitCode = 0) {
@@ -1651,7 +1684,10 @@ class BambuPrinterMCPServer {
     try {
       // Closing the MCP transport aborts its active requests before exit cleanup.
       await this.server.close();
-      this.httpRuntime?.httpServer.close();
+      if (this.httpRuntime) {
+        await Promise.allSettled([...this.httpRuntime.peers].map(peer => peer.server.close()));
+        this.httpRuntime.httpServer.close();
+      }
     } catch (error) {
       console.error("[MCP Shutdown]", error);
     } finally {
@@ -1660,43 +1696,83 @@ class BambuPrinterMCPServer {
   }
 
   async startHttp() {
-    const { httpHost, httpPort, httpPath, statefulSession, enableJsonResponse, allowedOrigins } =
-      this.runtimeConfig;
-
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: statefulSession ? () => randomUUID() : undefined,
-      enableJsonResponse,
-    });
-
-    await this.server.connect(transport);
-
-    const httpServer = createHttpServer(
-      async (req: IncomingMessage, res: ServerResponse) => {
-        const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
-        if (url.pathname !== httpPath) {
-          res.writeHead(404);
-          res.end("Not found");
-          return;
+    const { httpHost, httpPort, httpPath, statefulSession, enableJsonResponse, allowedOrigins } = this.runtimeConfig;
+    type Session = { owner: BambuPrinterMCPServer; transport: StreamableHTTPServerTransport };
+    const sessions = new Map<string, Session>();
+    const peers = new Set<BambuPrinterMCPServer>();
+    const allowedHosts = new Set(["localhost", "127.0.0.1", "[::1]", httpHost.toLowerCase()]);
+    const httpServer = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
+      const refuse = (status: number, message: string) => {
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32600, message }, id: null }));
+      };
+      try {
+        let authority: URL;
+        try {
+          if (!req.headers.host) throw new Error("Missing Host");
+          authority = new URL(`http://${req.headers.host}`);
+          if (authority.username || authority.password || authority.pathname !== "/" || authority.search || authority.hash) throw new Error("Invalid Host");
+        } catch { refuse(400, "Malformed Host header"); return; }
+        const address = httpServer.address();
+        const port = typeof address === "object" && address ? address.port : httpPort;
+        if (!allowedHosts.has(authority.hostname.toLowerCase()) || Number(authority.port || 80) !== port) {
+          refuse(403, "Forbidden Host"); return;
         }
-
-        if (allowedOrigins.size > 0) {
-          const origin = req.headers.origin ?? "";
-          if (origin && !allowedOrigins.has(origin)) {
-            res.writeHead(403);
-            res.end("Forbidden");
-            return;
+        const origin = req.headers.origin;
+        if (origin) {
+          let accepted = false;
+          try {
+            const parsed = new URL(origin);
+            accepted = parsed.origin === origin && ["http:", "https:"].includes(parsed.protocol) &&
+              (allowedOrigins.size ? allowedOrigins.has(origin) : allowedHosts.has(parsed.hostname.toLowerCase()) && parsed.host === authority.host);
+          } catch { /* malformed and opaque origins are forbidden */ }
+          if (!accepted) { refuse(403, "Forbidden Origin"); return; }
+        }
+        // Parse an origin-form request target against a trusted base, never the supplied Host.
+        if (!req.url?.startsWith("/") || req.url.startsWith("//")) { refuse(400, "Malformed request target"); return; }
+        const url = new URL(req.url, "http://localhost");
+        if (url.pathname !== httpPath) { refuse(404, "Not found"); return; }
+        const id = req.headers["mcp-session-id"];
+        if (id !== undefined && typeof id !== "string") { refuse(400, "Invalid session ID"); return; }
+        let session = typeof id === "string" ? sessions.get(id) : undefined;
+        if (statefulSession && id && !session) { refuse(404, "Session not found"); return; }
+        if (!session) {
+          if (statefulSession && req.method !== "POST") {
+            refuse(req.method === "GET" || req.method === "DELETE" ? 400 : 405, "A session is required"); return;
           }
+          const owner = new BambuPrinterMCPServer();
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: statefulSession ? () => randomUUID() : undefined,
+            enableJsonResponse,
+            onsessioninitialized: sessionId => { sessions.set(sessionId, { owner, transport }); },
+          });
+          peers.add(owner);
+          await owner.server.connect(transport);
+          const closed = transport.onclose;
+          transport.onclose = () => {
+            if (transport.sessionId) sessions.delete(transport.sessionId);
+            peers.delete(owner);
+            closed?.();
+          };
+          res.once("close", () => {
+            if (!statefulSession || !transport.sessionId) void owner.server.close().catch(error => console.error("[HTTP close]", error));
+          });
+          session = { owner, transport };
         }
-
-        await transport.handleRequest(req, res);
+        await session.transport.handleRequest(req, res);
+      } catch (error) {
+        console.error("[HTTP request]", error);
+        if (!res.headersSent) refuse(400, "Invalid MCP request");
+        else res.end();
       }
-    );
-
-    httpServer.listen(httpPort, httpHost, () => {
-      console.error(`Bambu Printer MCP server running on http://${httpHost}:${httpPort}${httpPath}`);
     });
-
-    this.httpRuntime = { transport, httpServer };
+    this.httpRuntime = { httpServer, peers };
+    await new Promise<void>((resolve, reject) => {
+      httpServer.once("error", reject);
+      httpServer.listen(httpPort, httpHost, resolve);
+    });
+    const address = httpServer.address();
+    console.error(`Fatia MCP server running on http://${httpHost}:${typeof address === "object" && address ? address.port : httpPort}${httpPath}`);
   }
 
   async run() {

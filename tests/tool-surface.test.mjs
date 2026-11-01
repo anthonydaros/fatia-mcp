@@ -79,7 +79,7 @@ test("compiled output imports no printer transport and the package declares none
     assert.equal(lock.packages[`node_modules/${name}`], undefined, `${name} must not be in the lockfile`);
   }
   assert.equal(manifest.scripts.postinstall, undefined, "nothing runs at install time");
-  assert.deepEqual(Object.keys(manifest.bin), ["bambu-printer-mcp"]);
+  assert.deepEqual(Object.keys(manifest.bin), ["fatia-mcp"]);
   for (const name of ["native", "patches", "src/bambu-native.ts", "src/bambu-connect.ts", "src/printers"]) {
     assert.equal(fs.existsSync(path.join(root, name)), false, `${name} must not exist`);
   }

@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { readSafe3mfArchive } from './safety/archive.js';
 import { parseStringPromise } from 'xml2js';
 import { ThreeMFData, BambuSlicerConfig, ThreeMFMetadata, ThreeMFObject, ThreeMFBuildItem, ThreeMFPlateObjects } from './types.js';
 import * as fs from 'fs/promises';
@@ -188,8 +189,7 @@ export { ThreeMFData };
 export async function parse3MF(filePath: string): Promise<ThreeMFData> {
     console.error(`Parsing 3MF file: ${filePath}`);
     try {
-        const data = await fs.readFile(filePath);
-        const zip = await JSZip.loadAsync(data);
+        const { zip } = await readSafe3mfArchive(filePath);
 
         // List files for debugging
         // const fileList = Object.keys(zip.files);
@@ -219,8 +219,7 @@ export async function extractBambuTemplateSettings(
     filePath: string,
     outputDir: string
 ): Promise<string> {
-    const data = await fs.readFile(filePath);
-    const zip = await JSZip.loadAsync(data);
+    const { zip } = await readSafe3mfArchive(filePath);
     const potentialFiles = [
         'Metadata/project_settings.config',
         'Metadata/Slic3r_PE.config',
@@ -270,7 +269,7 @@ export function sliceResultsFrom(config: any) {
 
 /** Per-plate time, weight, filament use and slicer warnings that Bambu Studio records in a sliced 3MF. */
 export async function readSliceResults(filePath: string) {
-    const zip = await JSZip.loadAsync(await fs.readFile(filePath));
+    const { zip } = await readSafe3mfArchive(filePath);
     const sliceInfo = zip.file('Metadata/slice_info.config');
     if (!sliceInfo) throw new Error(`Sliced 3MF has no Metadata/slice_info.config: ${filePath}`);
     const parsed = await parseStringPromise(await sliceInfo.async('string'), { explicitArray: false, mergeAttrs: true });
@@ -281,8 +280,7 @@ export async function analyze3MFPlateObjects(
     filePath: string,
     plateIndex: number = 0
 ): Promise<ThreeMFPlateObjects> {
-    const data = await fs.readFile(filePath);
-    const zip = await JSZip.loadAsync(data);
+    const { zip } = await readSafe3mfArchive(filePath);
     const plateName = `Metadata/plate_${plateIndex + 1}.json`;
     const plateFile = zip.file(plateName);
 

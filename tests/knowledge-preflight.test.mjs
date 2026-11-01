@@ -460,18 +460,18 @@ test("plain G-code is only reported as needing G-code analysis", async (t) => {
   assert.equal(result.file.kind, "gcode");
   assert.deepEqual(result.stage_reached, []);
   assert.deepEqual(result.findings, []);
-  assert.ok(result.unchecked.by_reason["precisa de analise de G-code (nao implementado)"] > 20, JSON.stringify(result.unchecked.by_reason));
+  assert.ok(result.unchecked.by_reason["ative checks.gcode para analisar o G-code"] > 20, JSON.stringify(result.unchecked.by_reason));
 });
 
-test("requested heavier checks are accepted and reported as unchecked, not silently run", async (t) => {
+test("requested heavier checks report unavailable geometry and retain Blender as unchecked", async (t) => {
   const file = await project(t, { config: {} });
   const plain = await run(file);
-  assert.ok(plain.unchecked.by_reason["precisa de analise de malha (nao implementado)"] >= 1);
+  assert.ok(plain.unchecked.by_reason["ative checks.mesh=fast para analisar a malha"] >= 1);
   assert.ok(plain.unchecked.by_reason["precisa do Blender MCP (checks.blender)"] > 20);
   const asked = await run(file, { checks: { mesh: "fast", gcode: true, blender: true } });
-  assert.match(JSON.stringify(asked.unchecked.by_reason), /checks\.mesh=fast pedido/);
+  assert.ok(asked.analysis.mesh.blind.length > 0);
   assert.match(JSON.stringify(asked.unchecked.by_reason), /checks\.blender pedido/);
-  assert.ok(asked.unchecked.by_reason["precisa de analise de G-code (nao implementado)"] >= 1);
+  assert.ok(asked.unchecked.by_reason["o G-code não forneceu uma medição completa deste fato"] >= 1);
   assert.equal(asked.unchecked.by_reason["precisa do Blender MCP (checks.blender)"], undefined);
   await assert.rejects(run(file, { checks: { mesh: "slow" } }), /checks\.mesh/);
   await assert.rejects(run(file, { checks: { gcode: "yes" } }), /checks\.gcode/);

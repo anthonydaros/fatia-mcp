@@ -15,35 +15,19 @@ The README provides the copy-and-paste setup request. Use this reference for exa
 
 **Bambu Studio CLI slicing** requires the exact machine preset and matching BBL profile tree. See the [slicing guide](./SLICING.md).
 
-### Run without installing (npx)
+### Install this fork
 
-The fastest way to get started. No global install required:
-
-```bash
-npx bambu-printer-mcp
-```
-
-Set environment variables inline or via a `.env` file in your working directory (see [Configuration](#configuration)).
-
-### Install globally from npm
+Download `fatia-mcp.mcpb` from [GitHub Releases](https://github.com/anthonydaros/fatia-mcp/releases) for Claude Desktop, or build from source:
 
 ```bash
-npm install -g bambu-printer-mcp
-```
-
-After installation, the `bambu-printer-mcp` command is available in your PATH.
-
-### Install from source
-
-```bash
-git clone https://github.com/DMontgomery40/bambu-printer-mcp.git
-cd bambu-printer-mcp
-npm install
+git clone https://github.com/anthonydaros/fatia-mcp.git
+cd fatia-mcp
+npm ci
 npm run build
-npm link
 ```
 
-`npm link` makes the `bambu-printer-mcp` binary available globally without publishing to npm.
+Configure your MCP client to run `node /absolute/path/to/fatia-mcp/dist/index.js` with stdio. `npm link` optionally exposes the `fatia-mcp` command locally. Initial distribution is through GitHub Releases and source; the package identity is `@anthonydaros/fatia-mcp`.
+
 
 ---
 
@@ -103,7 +87,8 @@ BLENDER_MCP_TIMEOUT_MS=120000
 | `MCP_ALLOW_EXECUTABLE_ARG` | disabled | No | Enables per-call executable overrides; normally configure executables in server environment instead |
 | `BAMBU_TEMPLATE_DIR` | `~/Sync/bambu/templates` | No | Named slicing-template registry |
 | `BAMBU_TEMPLATE_3MF_PATH` | | No | Default template 3MF for slicing |
-| `TEMP_DIR` | private folder under the system temporary directory | No | Intermediate files; each server instance gets its own folder unless explicitly configured |
+| `TEMP_DIR` | private folder under the system temporary directory | No | Scratch files only; removed at process exit when automatically created. Relative paths resolve from the server working directory |
+| `FATIA_OUTPUT_DIR` | `~/.fatia-mcp/outputs` | No | Persistent delivered models and slices. Never removed on server shutdown; `prepare_print_project.output_dir` overrides it for one call |
 | `MCP_TRANSPORT` | `stdio` | No | Transport mode: `stdio` or `streamable-http` |
 | `MCP_HTTP_HOST` | `127.0.0.1` | No | HTTP bind address (HTTP transport only) |
 | `MCP_HTTP_PORT` | `3000` | No | HTTP port (HTTP transport only) |
@@ -116,13 +101,17 @@ BLENDER_MCP_TIMEOUT_MS=120000
 | `BLENDER_MCP_TIMEOUT_MS` | `120000` | No | Connection/discovery/call deadline, 100–300000 ms; interrupted edits are never retried automatically |
 | `DISABLE_TELEMETRY` | | No | Passed to the Blender MCP child process (the only variable besides `BLENDER_*` ones), so `DISABLE_TELEMETRY=1` turns off the upstream server's telemetry on any platform without an `/usr/bin/env` wrapper |
 | `BLENDER_MCP_BRIDGE_COMMAND` | | No | Legacy custom executable receiving `MCP_BLENDER_PAYLOAD`; separate from the standard MCP integration |
-| `BAMBU_CLI_FLATTEN` | automatic | No | Legacy setting; BBL profile resolution now always runs when profiles contain inheritance or includes. A false/unset value cannot bypass required machine G-code. Standalone custom files without dependencies pass through. See [slicing guide](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main/docs/SLICING.md). |
+| `BAMBU_CLI_FLATTEN` | automatic | No | Legacy setting; BBL profile resolution now always runs when profiles contain inheritance or includes. A false/unset value cannot bypass required machine G-code. Standalone custom files without dependencies pass through. See [slicing guide](https://github.com/anthonydaros/fatia-mcp/blob/main/docs/SLICING.md). |
 | `BAMBU_PROFILES_ROOT` | derived from `SLICER_PATH` | No | Override path to the selected slicer's `Resources/profiles` directory containing `BBL`. BambuStudio uses this tree exclusively for bundled profiles. Useful for non-standard installs or dev environments. |
 | `SLICER_STATE_FILE` | `~/.bambu-printer-mcp/slicers.json` | No | JSON file where `slicer_info` records the Bambu Studio app and profile versions you last approved (`acknowledge: true`), so it can report `changed_since_last_seen`. The folder is created on first write |
 
 BambuStudio CLI slicing currently fails fast for `supertack_plate` because the accepted CLI bed identifier is not verified. Slice SuperTack projects in the Bambu Studio GUI until this is confirmed.
 
 ---
+
+Delivered artifacts persist in `~/.fatia-mcp/outputs`. `FATIA_OUTPUT_DIR` selects another durable folder; `output_dir` on `prepare_print_project` selects it for one call. `TEMP_DIR` is scratch only and is resolved against the server working directory.
+
+HTTP defaults to loopback. Host headers must match a local alias or the configured bind address and port. Browser Origins must match the endpoint, or an explicit `MCP_HTTP_ALLOWED_ORIGINS` entry. Native clients without Origin remain supported. Each stateful client has its own session; stateless requests use fresh transports. This local transport is not an authenticated public hosting service.
 
 ## MCP client configuration
 
@@ -131,9 +120,9 @@ Add this server to your MCP client's config (Claude Desktop, Claude Code, Cursor
 ```json
 {
   "mcpServers": {
-    "bambu-printer": {
-      "command": "npx",
-      "args": ["-y", "bambu-printer-mcp"],
+    "fatia": {
+      "command": "node",
+      "args": ["/absolute/path/to/fatia-mcp/dist/index.js"],
       "env": {
         "BAMBU_MODEL": "p1s",
         "SLICER_TYPE": "bambustudio",
@@ -159,7 +148,7 @@ Restart your client after editing the config.
 
 ### Alternative: Claude Desktop extension (.mcpb)
 
-You can install this server into Claude Desktop without editing JSON by using the `.mcpb` extension bundle. Download `bambu-printer-mcp.mcpb` from the [latest release](https://github.com/DMontgomery40/bambu-printer-mcp/releases), double-click it, and Claude Desktop's extension wizard will register the server. You'll be prompted for your printer model, plus the optional Blender and slicer settings -- the same values as the `mcpServers` config above.
+You can install this server into Claude Desktop without editing JSON by using the `.mcpb` extension bundle. Download `fatia-mcp.mcpb` from the [latest release](https://github.com/anthonydaros/fatia-mcp/releases), double-click it, and Claude Desktop's extension wizard will register the server. You'll be prompted for your printer model, plus the optional Blender and slicer settings -- the same values as the `mcpServers` config above.
 
 For local extension development, if your Claude Desktop installation permits it:
 
@@ -174,7 +163,7 @@ npm ci
 npm run package:mcpb
 ```
 
-This produces `bambu-printer-mcp.mcpb` in the repo root using a pinned packaging tool. Packaging installs production dependencies in a temporary directory, retains licenses and source, excludes local credentials and models, and leaves your development dependencies intact.
+This produces `fatia-mcp.mcpb` in the repo root using a pinned packaging tool. Packaging installs production dependencies in a temporary directory, retains licenses and source, excludes local credentials and models, and leaves your development dependencies intact.
 
 ### Optional code mode
 

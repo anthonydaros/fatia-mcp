@@ -1,26 +1,26 @@
 {
-  "name": "bambu-printer-mcp",
-  "version": "1.1.43",
+  "name": "@anthonydaros/fatia-mcp",
+  "version": "1.1.44",
   "description": "MCP server that prepares models for Bambu Studio: STL and 3MF tools, CLI slicing, 3MF tuning, a knowledge base and a Blender bridge. It never contacts or controls a printer.",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DMontgomery40/bambu-printer-mcp.git"
+    "url": "git+https://github.com/anthonydaros/fatia-mcp.git"
   },
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
-    "start:stdio": "MCP_TRANSPORT=stdio node dist/index.js",
-    "start:http": "MCP_TRANSPORT=streamable-http node dist/index.js",
+    "start:stdio": "node dist/index.js --stdio",
+    "start:http": "node dist/index.js --http",
     "build": "tsc",
-    "test": "npm run build && node --test tests/*.test.mjs tests/**/*.test.mjs",
+    "test": "npm run build && node --test \"tests/**/*.test.mjs\"",
     "package:mcpb": "npm run build && node scripts/package-mcpb.mjs",
     "version": "node scripts/sync-manifest-version.mjs",
     "kb:check": "node scripts/validate-knowledge.mjs",
     "kb:build": "node scripts/build-knowledge.mjs"
   },
   "bin": {
-    "bambu-printer-mcp": "dist/index.js"
+    "fatia-mcp": "dist/index.js"
   },
   "files": [
     "dist",
@@ -53,5 +53,12 @@
     "@types/three": "^0.173.0",
     "@types/xml2js": "^0.4.14",
     "typescript": "^6.0.3"
+  },
+  "homepage": "https://github.com/anthonydaros/fatia-mcp",
+  "bugs": {
+    "url": "https://github.com/anthonydaros/fatia-mcp/issues"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

@@ -66,7 +66,7 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
   const client = new Client({ name: "mcpb-package-test", version: "1.0.0" });
   try {
     await client.connect(transport);
-    assert.equal(client.getServerVersion()?.name, "bambu-printer-mcp");
+    assert.equal(client.getServerVersion()?.name, "fatia-mcp");
     const installedTools = (await client.listTools()).tools.map((tool) => tool.name);
     assert.ok(installedTools.includes("slice_stl") && installedTools.includes("prepare_print_project"));
     assert.ok(!installedTools.includes("print_3mf"), "the extension never prints");

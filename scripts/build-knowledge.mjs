@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Builds knowledge/ (shipped, read at runtime) from the knowledge-base source of truth, which lives outside this repo.
-//   node scripts/build-knowledge.mjs [sourceDir] [tuningDir]     default: ../kb/out (or KB_SRC_DIR) and ../kb/tuning/out (or KB_TUNING_SRC_DIR)
+// Builds knowledge/ (shipped, read at runtime) from the canonical JSON files and evaluation fixtures in this repo.
+//   node scripts/build-knowledge.mjs [sourceDir] [tuningDir]     defaults: knowledge/ and knowledge/tuning/; explicit paths or KB_SRC_DIR/KB_TUNING_SRC_DIR import external data
 // Copies rules/facts/topics and the tuning data (tuning.json, no_action.json, tuning-facts.json into knowledge/tuning/), validates,
 // writes knowledge/manifest.json and refreshes tests/fixtures/knowledge/eval.json and tests/fixtures/tuning/eval.json.
 // knowledge/synonyms.json is authored here, not copied. The manifest holds names and hashes only, never absolute paths.
@@ -17,7 +17,7 @@ const TUNING = path.join(KNOWLEDGE, "tuning");
 const TUNING_EVAL = path.join(ROOT, "tests/fixtures/tuning/eval.json");
 const COPIED = KB_FILES.filter((n) => n !== "synonyms.json");
 
-export function buildKnowledge(source = process.env.KB_SRC_DIR || path.join(ROOT, "..", "kb", "out"), tuningSource = process.env.KB_TUNING_SRC_DIR || path.join(ROOT, "..", "kb", "tuning", "out")) {
+export function buildKnowledge(source = process.env.KB_SRC_DIR || KNOWLEDGE, tuningSource = process.env.KB_TUNING_SRC_DIR || TUNING) {
   source = path.resolve(source);
   tuningSource = path.resolve(tuningSource);
   fs.mkdirSync(TUNING, { recursive: true });
@@ -25,9 +25,9 @@ export function buildKnowledge(source = process.env.KB_SRC_DIR || path.join(ROOT
   fs.mkdirSync(path.dirname(TUNING_EVAL), { recursive: true });
   const read = (name, dir = source) => canonical(fs.readFileSync(path.join(dir, name), "utf8"));
   for (const name of COPIED) fs.writeFileSync(path.join(KNOWLEDGE, name), read(name));
-  fs.writeFileSync(EVAL, read("eval.json"));
+  fs.writeFileSync(EVAL, read("eval.json", source === KNOWLEDGE ? path.dirname(EVAL) : source));
   for (const name of TUNING_FILES) fs.writeFileSync(path.join(TUNING, name), read(name, tuningSource));
-  fs.writeFileSync(TUNING_EVAL, read("eval.json", tuningSource));
+  fs.writeFileSync(TUNING_EVAL, read("eval.json", tuningSource === TUNING ? path.dirname(TUNING_EVAL) : tuningSource));
 
   // The manifest comes after validation, which is why the manifest check is off here.
   const result = validateKnowledge(KNOWLEDGE, EVAL, { checkManifest: false });
@@ -39,7 +39,7 @@ export function buildKnowledge(source = process.env.KB_SRC_DIR || path.join(ROOT
     kb_version: createHash("sha256").update(Object.values(files).join("")).digest("hex").slice(0, 12),
     counts: result.summary,
     files,
-    sources: Object.fromEntries([...COPIED.map((n) => [n, "kb/out"]), ["synonyms.json", "authored in this repo"], ...TUNING_FILES.map((n) => [`tuning/${n}`, "kb/tuning/out"])]),
+    sources: Object.fromEntries([...COPIED.map((n) => [n, "knowledge"]), ["synonyms.json", "authored in this repo"], ...TUNING_FILES.map((n) => [`tuning/${n}`, "knowledge/tuning"])]),
   };
   fs.writeFileSync(path.join(KNOWLEDGE, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;

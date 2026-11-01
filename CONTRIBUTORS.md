@@ -1,5 +1,7 @@
 # Contributors
 
+Fatia MCP is maintained by [Anthony Daros](https://github.com/anthonydaros). It derives from [David Montgomery's bambu-printer-mcp](https://github.com/DMontgomery40/bambu-printer-mcp) and preserves its GPL license, history and contributor credits. Printer-control contributions below describe upstream history; the Fatia fork prepares files and never controls a printer.
+
 Thank you to everyone who builds, tests, reports problems, and shares real printer evidence. The project is stronger because of your work!
 
 ## Release contributions
