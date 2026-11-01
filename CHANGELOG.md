@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [1.1.46] – 2026-11-01
 
 - Add five tools for bounded orientation comparisons, evidence-based print waste, separate calibration projects, caller-supplied filament availability and mesh topology health. Preserve all 27 existing tools; the MCP surface now contains 32.
 - Keep unverified purge totals, incomplete project consumption and missing stock unknown. Preserve sources and isolate generated artifacts with cancellation cleanup.

@@ -2,7 +2,7 @@
     "manifest_version": "0.2",
     "name": "fatia-mcp",
     "display_name": "Fatia MCP",
-    "version": "1.1.45",
+    "version": "1.1.46",
     "description": "Prepare models for Bambu Studio from Claude -- STL and 3MF tools, CLI slicing, 3MF tuning, a print-settings knowledge base and a Blender bridge. It never contacts or controls a printer.",
     "author": {
         "name": "David Montgomery"
