@@ -1,6 +1,6 @@
 import { type Collected } from "./facts.js";
 import type { GcodeScan, ScanValue } from "./gcode-scan.js";
-import { type LayoutMode, type LayoutRun, type SliceAll } from "./layout-stage.js";
+import { type LayoutMode, type LayoutRun, type PlateMeasure, type SliceAll } from "./layout-stage.js";
 import { type MeshFacts } from "./mesh-facts.js";
 import { type PartContext } from "./part-context.js";
 import { type Retargeter, type SettingChange, type WriteResult } from "./project-writer.js";
@@ -102,6 +102,8 @@ export interface BlockerUnknown {
 /** What the engine said after reading this candidate's measurements. */
 export interface Judged {
     triggers_true: string[];
+    /** How much of the problem is left: the measured values of the facts the true triggers read, added up (a count of unprotected travels, for example). */
+    trigger_load: number;
     triggers_false: string[];
     triggers_unknown: string[];
     exhausted: RoundResult["exhausted"];
@@ -186,6 +188,12 @@ export interface RunData {
     installed: string | null;
     warnings: string[];
     layout: LayoutRun;
+    /** The delivered project sliced once on every plate (only when it has more than one): the loop itself judges one plate. */
+    allPlates?: {
+        measures: PlateMeasure[];
+        ms: number;
+        error?: string;
+    };
     /** The plate (0-based, in the delivered project's numbering) the loop sliced and judged, and why. */
     plate: {
         index: number;

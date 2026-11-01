@@ -14,7 +14,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { evalCondition } from "../knowledge/condition.js";
 import { openProject } from "../knowledge/facts/settings.js";
-import { getKb } from "../knowledge/loader.js";
+import { getKb, leaves } from "../knowledge/loader.js";
 import { printerId } from "../knowledge/tools.js";
 import { loadSafe3mfArchive, readBoundedPrintFile } from "../safety/archive.js";
 import { removeQuietly } from "../stl/stl-manipulator.js";
@@ -88,11 +88,26 @@ function factBlockers(facts, model) {
     return { hits, unknown, clear };
 }
 const planItems = (plan) => ("applied" in plan ? plan.applied : plan.changes);
-/** Fewest true triggers, then fewest blockers, then the shortest print time, then the later round. */
+/** Fewest true triggers, then fewest blockers, then the least problem left under the triggers, then the shortest print time, then the later round. */
 const rank = (r) => {
     const time = r.measure.facts["plate.time_s"];
-    return [r.judged.triggers_true.length, r.judged.blockers.length, typeof time === "number" ? time : Infinity, -r.round];
+    return [r.judged.triggers_true.length, r.judged.blockers.length, r.judged.trigger_load, typeof time === "number" ? time : Infinity, -r.round];
 };
+/** Sum of the numeric facts that the given true ladders read. shortcut: facts of different units are added, which is only used to order rounds that tie on the number of true triggers. */
+function triggerLoad(actions, ids, facts) {
+    const names = new Set();
+    for (const a of actions)
+        if (a.kind === "ladder" && ids.includes(a.id))
+            for (const l of leaves(a.trigger))
+                names.add(l.fact);
+    let sum = 0;
+    for (const n of names) {
+        const v = facts[n];
+        if (typeof v === "number" && Number.isFinite(v))
+            sum += v;
+    }
+    return sum;
+}
 function better(a, b) {
     const [x, y] = [rank(a), rank(b)];
     for (let i = 0; i < x.length; i++)
@@ -324,8 +339,10 @@ export async function prepareProject(input, deps) {
                 const blockers = factBlockers(collected.facts, input.model);
                 rec.engine = next;
                 rec.collected = collected;
+                const trueTriggers = next.ladders.filter(l => l.trigger === true).map(l => l.action);
                 rec.judged = {
-                    triggers_true: next.ladders.filter(l => l.trigger === true).map(l => l.action),
+                    triggers_true: trueTriggers,
+                    trigger_load: triggerLoad(deps.tuning.actions, trueTriggers, collected.facts),
                     triggers_false: next.ladders.filter(l => l.trigger === false).map(l => l.action),
                     triggers_unknown: next.unknown.map(u => u.action),
                     exhausted: next.exhausted, blind_facts: next.blind_facts, missing_facts: next.missing_facts, done: next.done, stalled: next.stalled,
@@ -362,7 +379,7 @@ export async function prepareProject(input, deps) {
         if (best) {
             bestWhy = best === last
                 ? `rodada ${best.round}, a última medida`
-                : `rodada ${best.round}, não a última medida (${last.round}): ${best.judged.triggers_true.length === last.judged.triggers_true.length ? "mesmo número de gatilhos verdadeiros, mas melhor em bloqueadores ou tempo de impressão" : `menos gatilhos verdadeiros (${best.judged.triggers_true.length}) que a rodada ${last.round} (${last.judged.triggers_true.length})`}`;
+                : `rodada ${best.round}, não a última medida (${last.round}): ${best.judged.triggers_true.length === last.judged.triggers_true.length ? "mesmo número de gatilhos verdadeiros, mas melhor em bloqueadores, no que sobra do problema medido ou no tempo de impressão" : `menos gatilhos verdadeiros (${best.judged.triggers_true.length}) que a rodada ${last.round} (${last.judged.triggers_true.length})`}`;
         }
         const outputDir = path.resolve(input.outputDir);
         let delivered;
@@ -379,6 +396,20 @@ export async function prepareProject(input, deps) {
                 const detail = `Não foi possível gravar o projeto entregue em ${outputDir}: ${error.message}`;
                 stop = { reason: "error", detail };
                 warnings.push(detail);
+            }
+        }
+        // 4b. The loop judged one plate; the project has more. One slice of every plate shows how the others came out under the final settings.
+        let allPlates;
+        const deliveredPlates = layout.status === "applied" ? (layout.plates_after ?? 1) : plates;
+        if (delivered && deps.sliceAll && deliveredPlates > 1 && !input.dryRun && stop.reason !== "cancelled" && stop.reason !== "error") {
+            progress("Slicing every plate of the delivered project to check the others");
+            const t0 = now();
+            try {
+                allPlates = { measures: await deps.sliceAll(delivered.path, input.signal), ms: now() - t0 };
+            }
+            catch (error) {
+                allPlates = { measures: [], ms: now() - t0, error: error.message.slice(0, 300) };
+                warnings.push(`Não foi possível fatiar todas as mesas do projeto entregue para conferir (${allPlates.error}).`);
             }
         }
         // 5. The source is untouched; the deliverable has no structure/volume blocker; then it is opened for the person to review and slice.
@@ -410,7 +441,7 @@ export async function prepareProject(input, deps) {
             input, tuning: deps.tuning, printerPreset: deps.printerPreset, declared, source: { path: source, sha256_before: before, sha256_after: after }, p0, base,
             baseline, baselineError, rounds, items, stop, slices: { loop: loopSlices, retarget: retargetSlices, max: input.maxSlices },
             minutes: Math.round(((now() - started) / 60000) * 100) / 100, best: input.dryRun ? undefined : best, bestWhy, pending, delivered, preflight: preflightRun, mesh, installed, warnings,
-            layout, plate: { index: plateIndex, why: plateWhy, kind: plateKind },
+            layout, allPlates, plate: { index: plateIndex, why: plateWhy, kind: plateKind },
         });
     }
     finally {

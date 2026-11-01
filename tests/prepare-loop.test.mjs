@@ -50,12 +50,12 @@ const MODEL_SETTINGS = `<?xml version="1.0" encoding="UTF-8"?>
 const SLICE_INFO = `<?xml version="1.0" encoding="UTF-8"?><config><header><header_item key="X-BBL-Client-Version" value="02.08.04.57"/></header></config>`;
 /** A model with one cube object (id 2) of `size` mm per side, the object model_settings.config puts on plate 1. */
 const cubeModel = size => `<?xml version="1.0"?><model xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources><object id="2" type="model"><mesh><vertices>${[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]].map(v => `<vertex x="${v[0] * size}" y="${v[1] * size}" z="${v[2] * size}"/>`).join("")}</vertices><triangles>${[[0, 2, 1], [0, 3, 2], [4, 5, 6], [4, 6, 7], [0, 1, 5], [0, 5, 4], [1, 2, 6], [1, 6, 5], [2, 3, 7], [2, 7, 6], [3, 0, 4], [3, 4, 7]].map(t => `<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`).join("")}</triangles></mesh></object></resources><build><item objectid="2"/></build></model>`;
-async function writeSource(file, config = baseConfig(), model = "<model/>") {
+async function writeSource(file, config = baseConfig(), model = "<model/>", modelSettings = MODEL_SETTINGS) {
   const zip = new JSZip();
   zip.file("[Content_Types].xml", "<Types/>");
   zip.file("3D/3dmodel.model", model);
   zip.file("Metadata/project_settings.config", JSON.stringify(config, null, 4));
-  zip.file("Metadata/model_settings.config", MODEL_SETTINGS);
+  zip.file("Metadata/model_settings.config", modelSettings);
   zip.file("Metadata/slice_info.config", SLICE_INFO);
   await fs.writeFile(file, await zip.generateAsync({ type: "nodebuffer" }));
 }
@@ -82,11 +82,11 @@ function outcome({ time = 3600, weight = 20, facts = {}, block, warnings = [] } 
 }
 const crossing = (n, extra) => outcome({ facts: { [CROSS]: n }, ...extra });
 
-async function setup(t, { config, model } = {}) {
+async function setup(t, { config, model, modelSettings } = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "prepare-loop-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const source = path.join(dir, "part.3mf");
-  await writeSource(source, config, model);
+  await writeSource(source, config, model, modelSettings);
   return { dir, source, out: path.join(dir, "out") };
 }
 /** script: one entry per slice call (an outcome, an Error to throw, or a function(call) returning either); the last entry repeats. */
@@ -220,6 +220,53 @@ test("the exhausted ladder's text and caveat survive when an earlier, faster rou
   assert.ok(r.caveats.some(c => c.code === "exhausted_ladders"));
   assert.ok(r.caveats.some(c => c.code === "earlier_round_delivered"));
   assert.equal(r.verdict, "ready_with_caveats");
+});
+
+test("with the trigger still true in both rounds, the round with far fewer measured problems wins even if it prints longer", async t => {
+  const env = await setup(t);
+  // the step takes the unprotected travels from 1228 to 1 and costs 42 minutes; one left is still a true trigger
+  const h = harness(env, { actions: [ladder("tune.travel", CROSS, [["sparse_infill_pattern", "gyroid"], ["wall_loops", "3"]])], script: [crossing(1228, { time: 47470 }), crossing(1, { time: 49980 }), crossing(1, { time: 51000 })] });
+  const r = await h.run();
+  assert.equal(r.stop.reason, "exhausted");
+  assert.equal(r.delivered.round, 1, "1 left beats 1228 left; among equals the faster round");
+  assert.ok(r.diff.tuning.some(c => c.key === "sparse_infill_pattern"), "the measured step is in the delivered project");
+  assert.match(r.delivered.why_this_round, /no que sobra do problema medido/);
+});
+
+const TWO_PLATES = MODEL_SETTINGS.replace("</config>", `  <plate>
+    <metadata key="plater_id" value="2"/>
+    <model_instance><metadata key="object_id" value="2"/><metadata key="instance_id" value="1"/></model_instance>
+  </plate>
+</config>`);
+const measure = (plate, crossing, extra = {}) => ({ plate, time_s: 3600 * plate, weight_g: 10, crossing, warnings: [], ...extra });
+
+test("a project with several plates gets one slice of every plate at the end; a plate that still has crossing travels is a caveat, never ready", async t => {
+  const env = await setup(t, { modelSettings: TWO_PLATES });
+  let sliced;
+  const sliceAll = async file => { sliced = path.basename(file); return [measure(1, 0), measure(2, 7)]; };
+  const h = harness(env, { actions: [ladder("tune.travel", CROSS, [["sparse_infill_pattern", "gyroid"]])], script: [crossing(5), crossing(0)], sliceAll });
+  const r = await h.run();
+  assert.equal(sliced, "part_tuned.3mf", "the delivered project is what gets checked");
+  assert.deepEqual(r.verification_all_plates.plates.map(p => [p.plate, p.unprotected_crossing_travels]), [[1, 0], [2, 7]]);
+  assert.equal(r.verification_all_plates.total_time_s, 3600 + 7200);
+  assert.notEqual(r.verdict, "ready");
+  assert.ok(r.caveats.some(c => c.code === "other_plates_unresolved" && /mesa 2 \(7\)/.test(c.text)));
+  assert.match(r.resumo, /Todas as mesas depois do ajuste/);
+});
+
+test("the all-plates check is skipped for one plate and for a dry run, and a failure of it is a caveat, not a crash", async t => {
+  let calls = 0;
+  const sliceAll = async () => { calls++; return [measure(1, 0)]; };
+  const one = await harness(await setup(t), { actions: [], script: [crossing(0)], sliceAll }).run();
+  assert.equal(calls, 0);
+  assert.equal(one.verification_all_plates, null);
+  const dry = await harness(await setup(t, { modelSettings: TWO_PLATES }), { actions: [], script: [crossing(0)], sliceAll, input: { dryRun: true } }).run();
+  assert.equal(calls, 0);
+  assert.equal(dry.verification_all_plates, null);
+  const failing = await harness(await setup(t, { modelSettings: TWO_PLATES }), { actions: [], script: [crossing(0)], sliceAll: async () => { throw new Error("boom"); } }).run();
+  assert.equal(failing.verification_all_plates.checked, false);
+  assert.ok(failing.caveats.some(c => c.code === "all_plates_unchecked" && /boom/.test(c.text)));
+  assert.notEqual(failing.verdict, "ready");
 });
 
 test("a choice is PREDICTED ONLY even under a benign slice: the engine does not compare its evaluating facts with a target", async t => {

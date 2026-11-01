@@ -202,6 +202,14 @@ function decide(run: RunData, views: ChangeView[]): { verdict: Verdict; not_read
   if (ignored.length) add("not_reached_slice", `O Bambu Studio não usou ${ignored.length} valor(es) no fatiamento medido, então a medição não confirma: ${ignored.slice(0, 8).map(v => v.key).join(", ")}.`);
   const weak = views.filter(v => v.confidence !== null && WEAK.has(v.confidence));
   if (weak.length) add("weak_steps_applied", `${weak.length} mudança(s) de confiança fraca (hipótese ou não verificado), aplicada(s) porque um gatilho medido as confere: ${weak.slice(0, 8).map(v => v.key).join(", ")}.`);
+  const ap = run.allPlates;
+  if (ap?.error) add("all_plates_unchecked", `As outras mesas do projeto entregue não foram conferidas: ${ap.error}`);
+  else if (ap) {
+    const crossing = ap.measures.filter(m => (m.crossing ?? 0) > 0);
+    if (crossing.length) add("other_plates_unresolved", `Depois do ajuste, ${crossing.length} de ${ap.measures.length} mesa(s) ainda têm travels sem proteção cruzando extrusão já impressa: ${crossing.slice(0, 8).map(m => `mesa ${m.plate} (${m.crossing})`).join(", ")}.`);
+    const warnedPlates = ap.measures.filter(m => m.warnings.length);
+    if (warnedPlates.length) add("other_plates_warnings", `O Bambu Studio avisou no fatiamento de: ${warnedPlates.slice(0, 8).map(m => `mesa ${m.plate} (${clip(m.warnings[0], 120)})`).join(", ")}.`);
+  }
   const warned = sliceWarnings(best);
   if (warned.length) add("slicer_warnings", `O próprio Bambu Studio avisou no fatiamento entregue: ${warned.slice(0, 5).map(w => clip(w, 160)).join(" | ")}${warned.length > 5 ? ` | … e mais ${warned.length - 5}` : ""}.`);
   if (judged?.blind_facts.length) add("blind_facts", `Fatos que o motor não consegue ver e que seguram uma decisão: ${judged.blind_facts.join(", ")}.`);
@@ -231,6 +239,7 @@ export function buildReport(run: RunData): Record<string, unknown> {
   const engine = planRound?.engine;
   const judged = run.best?.judged;
   const collected = planRound?.collected;
+  const ap = run.allPlates;
 
   const undescribed = engine ? skippedByUndeclared(engine) : undefined;
   const undescribedText = undescribed?.count ? `${undescribed.count} ação(ões) não foram avaliadas porque a peça não foi descrita: ${Object.entries(undescribed.by_fact).sort((a, b) => b[1].length - a[1].length).map(([f, ids]) => `${f} (${ids.length})`).join(", ")}. Declare o que o usuário disse em part_context e rode de novo.` : "Nenhuma ação foi pulada por falta de descrição da peça.";
@@ -322,6 +331,12 @@ export function buildReport(run: RunData): Record<string, unknown> {
       combined_vs_original: { count: ref?.combined_diff.length ?? 0, shown: Math.min(40, ref?.combined_diff.length ?? 0), keys: (ref?.combined_diff ?? []).slice(0, 40) },
       unchanged_requested: ref?.unchanged_keys ?? [],
     },
+    verification_all_plates: ap ? {
+      checked: !ap.error, error: ap.error ?? null, minutes: round2(ap.ms / 60_000),
+      plates: ap.measures.map(m => ({ plate: m.plate, time_s: m.time_s, weight_g: m.weight_g, unprotected_crossing_travels: m.crossing, slicer_warnings: m.warnings.length })),
+      total_time_s: ap.measures.every(m => m.time_s !== null) && ap.measures.length ? ap.measures.reduce((n, m) => n + (m.time_s as number), 0) : null,
+      note: "Fatiamento único de todas as mesas do projeto entregue, com os ajustes finais. O laço de ajuste só mede uma mesa; esta conferência mostra como ficaram as outras (não gera ajustes novos).",
+    } : null,
     metrics: { baseline_error: run.baselineError ?? null, rows: metricRows(run, planRound), note: "plate.weight_g pode ou não incluir descarte e torre: compare só entre fatiamentos deste mesmo projeto." },
     layout: { ...run.layout, issues_count: run.layout.issues.length, issues: run.layout.issues.slice(0, 60) },
     history,
@@ -374,6 +389,11 @@ function resumo(run: RunData, report: Record<string, any>, views: ChangeView[], 
   const rows = (report.metrics.rows as Array<{ label: string; before: unknown; after: unknown }>).filter(r => r.before !== null && r.after !== null && r.before !== r.after).slice(0, 6);
   if (rows.length) lines.push("", "### Antes → depois (medido no G-code / resultado do fatiamento)", ...rows.map(r => `- ${r.label}: ${short(r.before)} → ${short(r.after)}`));
   else if (run.baseline && run.best?.measure) lines.push("", "### Antes → depois", "- Sem diferença medida nos números acompanhados.");
+  const vp = report.verification_all_plates as { checked: boolean; plates: Array<{ plate: number; time_s: number | null; unprotected_crossing_travels: number | null }>; total_time_s: number | null } | null;
+  if (vp?.checked && vp.plates.length) {
+    const h = (s: number | null) => (s === null ? "?" : `${Math.floor(s / 3600)}h${String(Math.round((s % 3600) / 60)).padStart(2, "0")}`);
+    lines.push("", "### Todas as mesas depois do ajuste (um fatiamento de conferência)", `- Total estimado: ${h(vp.total_time_s)}. ${vp.plates.map(p => `mesa ${p.plate}: ${h(p.time_s)}, ${p.unprotected_crossing_travels ?? "?"} travels cruzando`).join("; ")}.`);
+  }
   if (d.caveats.length) lines.push("", "### Ressalvas", ...d.caveats.map(c => `- ${c.text}`));
   if (report.ladders.exhausted.length) lines.push("", "### Escadas esgotadas", ...report.ladders.exhausted.map((e: { action: string }) => `- \`${e.action}\`: veja \`ladders.exhausted\` para o que a configuração não alcança.`));
   const skipped = report.skipped.for_undescribed_part;
