@@ -49,7 +49,7 @@ export const same = (a: unknown, b: unknown): boolean => (unit(a) && unit(a) ===
 const fmt = (x: number, round?: number): string => String(Number(x.toFixed(round ?? 6)));
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 const kindOf = (a: TuningAction): TuningKind => a.kind ?? "definite";
-const eqv = (x: unknown, y: unknown): boolean =>
+export const eqv = (x: unknown, y: unknown): boolean =>
   Array.isArray(x) || Array.isArray(y) ? Array.isArray(x) && Array.isArray(y) && x.length === y.length && x.every((v, i) => same(v, y[i])) : same(x, y);
 const blindTest = (list: string[] = []) => (f: string) => list.some(p => (p.endsWith(".") ? f.startsWith(p) : f === p));
 const missingFacts = (c: Condition, facts: Facts): string[] => [...new Set([...leaves(c)].map(l => l.fact).filter(f => facts[f] === undefined || facts[f] === null))];

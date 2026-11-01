@@ -8,5 +8,9 @@ export interface StudioRetargetOptions {
     /** Profile-name code of the model, "X2D" */
     modelCode: string;
     manipulator?: STLManipulator;
+    /** Aborting kills the CLI run in progress. */
+    signal?: AbortSignal;
+    /** false: refuse (instead of running) a retarget that needs a real slice, so a dry run never slices. Default true. */
+    allowSlice?: boolean;
 }
 export declare function studioRetargeter(o: StudioRetargetOptions): Retargeter;

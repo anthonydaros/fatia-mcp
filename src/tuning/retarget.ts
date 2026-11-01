@@ -8,7 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { loadSafe3mfArchive } from "../safety/archive.js";
 import { settingsReport } from "../slicer/project-settings.js";
-import { STLManipulator } from "../stl/stl-manipulator.js";
+import { removeQuietly, STLManipulator } from "../stl/stl-manipulator.js";
 import type { Retargeter } from "./project-writer.js";
 
 export interface StudioRetargetOptions {
@@ -19,6 +19,10 @@ export interface StudioRetargetOptions {
   /** Profile-name code of the model, "X2D" */
   modelCode: string;
   manipulator?: STLManipulator;
+  /** Aborting kills the CLI run in progress. */
+  signal?: AbortSignal;
+  /** false: refuse (instead of running) a retarget that needs a real slice, so a dry run never slices. Default true. */
+  allowSlice?: boolean;
 }
 
 /** A project the CLI can slice has one nozzle entry per extruder; an export that skipped the slice may not. */
@@ -37,15 +41,20 @@ export function studioRetargeter(o: StudioRetargetOptions): Retargeter {
     const plan = source.toLowerCase().endsWith(".3mf")
       ? await manipulator.planProjectSettings(source, o.slicerPath, o.printerPreset, o.modelCode)
       : undefined;
+    let slices = 0;
     const run = async (exportOnly: boolean): Promise<Buffer> => {
+      if (!exportOnly) {
+        if (o.allowSlice === false) throw new Error(`${path.basename(source)} has no project settings the Studio export can retarget without slicing; a dry run cannot build its plan.`);
+        slices++;
+      }
       // Plate 1 only: the settings are global, and slicing every plate of a big project would cost minutes for nothing.
       const exported = await manipulator.sliceSTL(
         source, "bambustudio", o.slicerPath, undefined, undefined, o.printerPreset,
-        { projectPlan: plan, exportOnly, ...(plan && !exportOnly ? { slicePlate: 1 } : {}) });
+        { projectPlan: plan, exportOnly, ...(plan && !exportOnly ? { slicePlate: 1 } : {}) }, o.signal);
       try {
         return await fs.readFile(exported);
       } finally {
-        await fs.rm(path.dirname(exported), { recursive: true, force: true });
+        await removeQuietly(path.dirname(exported));
       }
     };
     let archive = await run(plan !== undefined);
@@ -55,6 +64,7 @@ export function studioRetargeter(o: StudioRetargetOptions): Retargeter {
       report: plan ? settingsReport(plan, "keep") : null,
       process: plan?.process,
       edited: plan ? Object.keys(plan.overlay) : [],
+      slices,
     };
   };
 }

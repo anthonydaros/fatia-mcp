@@ -191,6 +191,7 @@ See the [changelog](https://github.com/DMontgomery40/bambu-printer-mcp/blob/main
 - Report the installed Bambu Studio and profile versions, the latest GitHub releases, and whether they changed since you last approved them via `slicer_info`
 - Look up the shipped Bambu Studio and Blender knowledge base (symptoms, causes, fixes, each with a confidence tag) via `consult_knowledge`
 - Check a 3MF's project settings against the knowledge-base rules before slicing, with proposals, confidence tags and an explicit list of what could not be checked, via `preflight_check`
+- Turn a part (3MF or STL) into a new, unsliced project 3MF with tuned slicing parameters via `prepare_print_project`: it slices with the Bambu Studio CLI, reads the G-code, adjusts and slices again within a budget, and reports what was verified, what is only predicted and what the engine cannot see (it never prints)
 - Inspect slicer settings from a saved 3MF template or extracted profile via `get_slice_settings`
 - Enumerate saved slicing templates from the local registry via `list_templates`
 - Save templates into the local registry via `save_template`
@@ -1058,6 +1059,22 @@ The printer is `bambu_model`, else `BAMBU_MODEL`, else the 3MF's `printer_model`
   "bambu_model": "x2d",
   "plate_index": 0,
   "min_severity": "warning"
+}
+```
+
+#### prepare_print_project
+
+Get a part ready for you to slice. It takes a `.3mf` project or an `.stl` and delivers a **new, unsliced project 3MF** with tuned slicing parameters, opened in Bambu Studio so you press slice and print yourself. It never prints, never contacts a printer, and never modifies the original (SHA-256 checked before and after); the output never overwrites a file. It lays the knowledge-base overlay on top of the project's own settings, then loops: slice the retargeted project once as a baseline, apply the tuning, slice, read the G-code (unprotected travels that can knock the part over, support, thin features), step the ladders, slice again, until the engine has nothing more to change, a ladder runs out of steps, a round would repeat itself, or the budget ends (`max_slices` default 12, `max_minutes` default 20). The best measured round is delivered. Slicing goes through the Bambu Studio CLI only; Blender is not part of the loop. How it works, the budget, the verdict rules and how to read the report: [docs/TUNING.md](./docs/TUNING.md).
+
+The report separates **VERIFIED** (measured on the G-code, slice result, mesh or 3MF), **PREDICTED ONLY** (fired from part facts or guide rules) and **UNSEEN** (what the engine cannot see), and gives the verdict `ready`, `ready_with_caveats` or `not_ready` with the reasons. Every change carries its confidence tag, guide source and rule ids, and the diff against the original is split into the printer retarget and the tuning. `ready` means the engine found nothing left that it can see and everything it applied was measured; most runs end `ready_with_caveats`, and the tool never claims every possibility was tested. `part_context` takes only what you said about the part (`load_class`, `mold_kind`, `kind`, `is_tall_narrow`, ...): an undeclared fact stays unknown, the actions that need it are skipped and listed, never guessed. `dry_run` plans without slicing. `apply: "strong_only"` writes only `preset`, `oficial` and `bug conhecido` values.
+
+```json
+{
+  "path": "/path/to/part.3mf",
+  "bambu_model": "x2d",
+  "part_context": { "load_class": "functional" },
+  "max_slices": 8,
+  "open_in_studio": true
 }
 ```
 

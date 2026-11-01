@@ -8,7 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { loadSafe3mfArchive } from "../safety/archive.js";
 import { settingsReport } from "../slicer/project-settings.js";
-import { STLManipulator } from "../stl/stl-manipulator.js";
+import { removeQuietly, STLManipulator } from "../stl/stl-manipulator.js";
 /** A project the CLI can slice has one nozzle entry per extruder; an export that skipped the slice may not. */
 async function hasNozzleStats(archive) {
     try {
@@ -25,14 +25,20 @@ export function studioRetargeter(o) {
         const plan = source.toLowerCase().endsWith(".3mf")
             ? await manipulator.planProjectSettings(source, o.slicerPath, o.printerPreset, o.modelCode)
             : undefined;
+        let slices = 0;
         const run = async (exportOnly) => {
+            if (!exportOnly) {
+                if (o.allowSlice === false)
+                    throw new Error(`${path.basename(source)} has no project settings the Studio export can retarget without slicing; a dry run cannot build its plan.`);
+                slices++;
+            }
             // Plate 1 only: the settings are global, and slicing every plate of a big project would cost minutes for nothing.
-            const exported = await manipulator.sliceSTL(source, "bambustudio", o.slicerPath, undefined, undefined, o.printerPreset, { projectPlan: plan, exportOnly, ...(plan && !exportOnly ? { slicePlate: 1 } : {}) });
+            const exported = await manipulator.sliceSTL(source, "bambustudio", o.slicerPath, undefined, undefined, o.printerPreset, { projectPlan: plan, exportOnly, ...(plan && !exportOnly ? { slicePlate: 1 } : {}) }, o.signal);
             try {
                 return await fs.readFile(exported);
             }
             finally {
-                await fs.rm(path.dirname(exported), { recursive: true, force: true });
+                await removeQuietly(path.dirname(exported));
             }
         };
         let archive = await run(plan !== undefined);
@@ -43,6 +49,7 @@ export function studioRetargeter(o) {
             report: plan ? settingsReport(plan, "keep") : null,
             process: plan?.process,
             edited: plan ? Object.keys(plan.overlay) : [],
+            slices,
         };
     };
 }

@@ -21,6 +21,8 @@ export interface RetargetOutcome {
     /** The target process preset the plan chose, and the process keys the plan overlaid on it (these are the "modified" ones). */
     process?: string;
     edited?: string[];
+    /** Real CLI slices the retarget needed (an STL, or a project whose export had no nozzle stats); the export alone is not a slice. */
+    slices?: number;
 }
 export type Retargeter = (source: string) => Promise<RetargetOutcome>;
 export interface WriteOptions {

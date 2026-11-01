@@ -16,7 +16,7 @@ import { buildProjectSettingsPlan, readProjectConfig, type ProjectSettingsPlan }
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 // Best-effort: a leftover file is only wasted disk and must never fail a slice or mask its real error (Windows EBUSY/EPERM).
-const removeQuietly = (target: string) =>
+export const removeQuietly = (target: string) =>
   fs.promises.rm(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
 const BAMBU_PROFILE_ROOTS = [
   '/Applications/BambuStudio.app/Contents/Resources/profiles/BBL',

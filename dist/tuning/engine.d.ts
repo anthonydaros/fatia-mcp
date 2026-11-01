@@ -7,6 +7,7 @@ export declare const KINDS: readonly TuningKind[];
 export declare const LADDER_COST: readonly ["tempo", "material", "qualidade", "resistencia", "nenhum"];
 /** Two numeric strings compare numerically ("0.20" == "0.2"), two percents too ("15%" == "15.0%"), a number never equals a percent, the rest as strings. */
 export declare const same: (a: unknown, b: unknown) => boolean;
+export declare const eqv: (x: unknown, y: unknown) => boolean;
 /** A fresh state for nextRound/simulate. */
 export declare function initialState(base?: Settings): TuningState;
 /** Round 0. actions: the shipped tuning actions; facts: flat {name: value}; base: the project's settings {key: string | string[]}. */

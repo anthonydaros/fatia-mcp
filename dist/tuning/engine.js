@@ -40,7 +40,7 @@ export const same = (a, b) => (unit(a) && unit(a) === unit(b) ? val(a) === val(b
 const fmt = (x, round) => String(Number(x.toFixed(round ?? 6)));
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const kindOf = (a) => a.kind ?? "definite";
-const eqv = (x, y) => Array.isArray(x) || Array.isArray(y) ? Array.isArray(x) && Array.isArray(y) && x.length === y.length && x.every((v, i) => same(v, y[i])) : same(x, y);
+export const eqv = (x, y) => Array.isArray(x) || Array.isArray(y) ? Array.isArray(x) && Array.isArray(y) && x.length === y.length && x.every((v, i) => same(v, y[i])) : same(x, y);
 const blindTest = (list = []) => (f) => list.some(p => (p.endsWith(".") ? f.startsWith(p) : f === p));
 const missingFacts = (c, facts) => [...new Set([...leaves(c)].map(l => l.fact).filter(f => facts[f] === undefined || facts[f] === null))];
 const uncond = (c) => !!c && "all" in c && Array.isArray(c.all) && !c.all.length && Object.keys(c).length === 1;

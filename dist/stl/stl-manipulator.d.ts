@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { EventEmitter } from 'events';
 import { type ProjectSettingsPlan } from '../slicer/project-settings.js';
+export declare const removeQuietly: (target: string) => Promise<void>;
 export type ProgressCallback = (progress: number, message?: string) => void;
 export type OperationResult = {
     success: boolean;
