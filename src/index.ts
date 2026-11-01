@@ -40,6 +40,12 @@ import { COMPARE_PROJECT_TOOLS, compareProjects } from "./workflows/compare-proj
 import { GEOMETRY_TOOLS, extractObjects, createFitTest } from "./workflows/geometry.js";
 import { COST_TOOLS, estimatePrintCost } from "./workflows/cost.js";
 import { SCENARIO_TOOLS, compareSliceScenarios } from "./workflows/scenarios.js";
+import { ORIENTATION_TOOLS, comparePrintOrientations } from "./workflows/orientations.js";
+import { WASTE_TOOLS, analyzePrintWaste } from "./workflows/waste.js";
+import { CALIBRATION_TOOLS, createCalibrationProject } from "./workflows/calibration.js";
+import { INVENTORY_TOOLS, checkFilamentAvailability } from "./workflows/inventory.js";
+import { MESH_HEALTH_TOOLS, analyzeMeshHealth } from "./workflows/mesh-health.js";
+import { detectProfilesRoot, resolveBblMachineProfile } from "./slicer/profile-flatten.js";
 import { studioRetargeter } from "./tuning/retarget.js";
 
 dotenv.config();
@@ -1024,6 +1030,7 @@ class BambuPrinterMCPServer {
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true }
           },
           ...PROFILE_TOOLS, ...COMPARE_PROJECT_TOOLS, ...GEOMETRY_TOOLS, ...COST_TOOLS, ...SCENARIO_TOOLS,
+          ...ORIENTATION_TOOLS, ...WASTE_TOOLS, ...CALIBRATION_TOOLS, ...INVENTORY_TOOLS, ...MESH_HEALTH_TOOLS,
           ...KNOWLEDGE_TOOLS.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, required: "required" in tool.inputSchema ? [...tool.inputSchema.required] : [] } })),
           ...PREPARE_TOOLS.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, required: [...tool.inputSchema.required] } })),
           {
@@ -1428,11 +1435,34 @@ class BambuPrinterMCPServer {
           case "estimate_print_cost":
             result = await estimatePrintCost(args ?? {});
             break;
+          case "check_filament_availability":
+            result = await checkFilamentAvailability(args ?? {}, extra.signal);
+            break;
+          case "analyze_print_waste":
+            result = await analyzePrintWaste(args ?? {}, extra.signal);
+            break;
+          case "analyze_mesh_health":
+            result = await analyzeMeshHealth(args ?? {}, extra.signal);
+            break;
+          case "create_calibration_project": {
+            const model = await this.resolveBambuModel(args?.bambu_model as string | undefined);
+            const { slicerPath } = resolveSlicerConfig({ slicer_type: "bambustudio" });
+            const printerPreset = BAMBU_MODEL_PRESETS[model](DEFAULT_NOZZLE_DIAMETER);
+            const machine = await resolveBblMachineProfile(detectProfilesRoot(slicerPath), printerPreset);
+            const rawMax = machine.nozzle_temperature_max;
+            const max = rawMax === undefined ? undefined : Number(Array.isArray(rawMax) ? rawMax[0] : rawMax);
+            if (max !== undefined && (!Number.isFinite(max) || max <= 0)) throw Error('Installed machine has an invalid nozzle_temperature_max');
+            result = await createCalibrationProject(args ?? {}, {
+              printerPreset, tempDir: TEMP_DIR, outputDir: OUTPUT_DIR, signal: extra.signal, maxNozzleTemperature: max,
+            });
+            break;
+          }
+          case "compare_print_orientations":
           case "compare_slice_scenarios": {
             const model = await this.resolveBambuModel(args?.bambu_model as string | undefined);
             const { slicerPath } = resolveSlicerConfig({ slicer_type: "bambustudio" });
             const printerPreset = BAMBU_MODEL_PRESETS[model](DEFAULT_NOZZLE_DIAMETER);
-            result = await compareSliceScenarios(args ?? {}, {
+            result = await (name === "compare_print_orientations" ? comparePrintOrientations : compareSliceScenarios)(args ?? {}, {
               printerPreset, tempDir: TEMP_DIR, outputDir: OUTPUT_DIR, signal: extra.signal,
               slice: studioSlicer({ manipulator: this.stlManipulator, slicerPath, printerPreset,
                 modelCode: FILAMENT_MODEL_CODES[model], plateIndex: Number(args?.plate_index ?? 0),

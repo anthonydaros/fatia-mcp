@@ -8,13 +8,13 @@ import JSZip from 'jszip';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 const root = fileURLToPath(new URL('../', import.meta.url));
-test('27-tool MCP dispatches new read/write workflows and validates nested scenario inputs', async (t) => {
+test('32-tool MCP dispatches new read/write workflows and validates nested scenario inputs', async (t) => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'fatia-workflow-mcp-'));
     const client = new Client({ name: 'workflow-mcp-test', version: '1' });
     t.after(async () => { await client.close(); await fs.rm(dir, { recursive: true, force: true }); });
     await client.connect(new StdioClientTransport({ command: process.execPath, args: [path.join(root, 'dist/index.js'), '--stdio'], cwd: dir, stderr: 'pipe', env: { PATH: process.env.PATH || '', BAMBU_MODEL: 'p1s', FATIA_OUTPUT_DIR: path.join(dir, 'outputs'), TEMP_DIR: '' } }));
     const tools = (await client.listTools()).tools;
-    assert.equal(tools.length, 27);
+    assert.equal(tools.length, 32);
     const call = async (name, args) => { const r = await client.callTool({ name, arguments: args }); assert.notEqual(r.isError, true, JSON.stringify(r)); return JSON.parse(r.content[0].text); };
     const zip = new JSZip();
     zip.file('3D/3dmodel.model', '<model unit="millimeter"><resources><object id="1"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object></resources><build><item objectid="1"/></build></model>');
@@ -33,6 +33,21 @@ test('27-tool MCP dispatches new read/write workflows and validates nested scena
     assert.equal(comparison.identical, true);
     const cost = await call('estimate_print_cost', { path: file, material_price_per_kg: 100 });
     assert.equal(cost.per_project.material_cost, 1);
+    const health = await call('analyze_mesh_health', { path: file });
+    assert.ok(health);
+    const inventory = await call('check_filament_availability', { path: file, filaments: [{ slot: 1, available_g: 100 }] });
+    assert.equal(inventory.status, 'unknown', 'weight without slot consumption cannot establish stock sufficiency');
+    const waste = await client.callTool({ name: 'analyze_print_waste', arguments: { path: file } });
+    assert.ok(waste.content[0].text, 'missing G-code must be reported');
+    for (const [name, arguments_] of [
+      ['compare_print_orientations', { path: file, orientations: [{ name: 'bad', rotation_x: 361 }] }],
+      ['create_calibration_project', { path: file, kind: 'unsupported', values: [1] }],
+      ['check_filament_availability', { path: file, filaments: [{ slot: 1, available_g: -1 }] }],
+    ]) {
+      const invalid = await client.callTool({ name, arguments: arguments_ });
+      assert.equal(invalid.isError, true, name);
+      assert.match(invalid.content[0].text, /argument|must|invalid/i);
+    }
     const bad = await client.callTool({ name: 'compare_slice_scenarios', arguments: { path: file, scenarios: [{ name: 'bad', settings: { machine_start_gcode: 'x' } }] } });
     assert.equal(bad.isError, true);
     assert.match(bad.content[0].text, /argument|additional|setting/i);

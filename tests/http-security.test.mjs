@@ -61,11 +61,11 @@ test('HTTP clients have independent sessions and deleting one preserves the othe
   await Promise.all(clients.map((client, i) => client.connect(transports[i])));
   assert.notEqual(transports[0].sessionId, transports[1].sessionId);
   const results = await Promise.all(clients.map(client => client.listTools()));
-  assert.equal(results[0].tools.length, 27); assert.equal(results[1].tools.length, 27);
+  assert.equal(results[0].tools.length, 32); assert.equal(results[1].tools.length, 32);
   const sid = transports[0].sessionId;
   assert.equal((await s.request(null, { 'mcp-session-id': sid }, 'DELETE')).status, 200);
   assert.equal((await s.request(null, { 'mcp-session-id': sid }, 'GET')).status, 404);
-  assert.equal((await clients[1].listTools()).tools.length, 27);
+  assert.equal((await clients[1].listTools()).tools.length, 32);
   const invalid = await clients[1].callTool({ name: 'scale_stl', arguments: { stl_path: 'unused.stl', scale_x: 'oops' } });
   assert.equal(invalid.isError, true);
 });
@@ -75,7 +75,7 @@ test('stateless HTTP serves initialize and subsequent tool requests on fresh tra
   assert.equal((await s.request()).status, 200);
   const listed = await s.request({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
   assert.equal(listed.status, 200);
-  assert.equal(JSON.parse(listed.text).result.tools.length, 27);
+  assert.equal(JSON.parse(listed.text).result.tools.length, 32);
 });
 
 test('raw JSON overflow numbers are rejected at the MCP argument boundary', async t => {

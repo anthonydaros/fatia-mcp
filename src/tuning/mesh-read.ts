@@ -194,7 +194,7 @@ export async function readProjectMesh(project: ProjectFiles, plateIndex: number 
       if (depth > MAX_DEPTH) throw new MeshReadError("unreadable", "3MF components are nested too deeply");
       if (++instances > MAX_INSTANCES) throw new MeshReadError("unreadable", "3MF has too many component instances");
       const object = (await load(file)).get(id);
-      if (!object) return;
+      if (!object) throw new MeshReadError("unreadable", "3MF references a missing model object or component");
       if (object.verts.length && object.tris.length && !notModel.has(id)) {
         triangles += object.tris.length / 3;
         vertices += object.verts.length / 3; // every instance copies all vertices of its object, referenced or not: a fan-out of big objects must stop here

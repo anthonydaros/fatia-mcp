@@ -11,6 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // This fork prepares models for Bambu Studio and never contacts or controls a printer.
 const KEPT_TOOLS = [
+  "compare_print_orientations", "analyze_print_waste", "create_calibration_project", "check_filament_availability", "analyze_mesh_health",
   "list_slicer_profiles", "compare_projects", "compare_slice_scenarios", "extract_3mf_objects", "estimate_print_cost", "create_fit_test",
   "blender_mcp_call", "blender_mcp_edit_model", "blender_mcp_status", "center_model", "consult_knowledge", "extend_stl_base",
   "get_slice_settings", "get_stl_info", "lay_flat", "list_3mf_plate_objects", "list_templates", "merge_vertices", "open_in_slicer",

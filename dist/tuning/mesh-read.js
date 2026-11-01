@@ -209,7 +209,7 @@ export async function readProjectMesh(project, plateIndex, maxTriangles = MAX_TR
                 throw new MeshReadError("unreadable", "3MF has too many component instances");
             const object = (await load(file)).get(id);
             if (!object)
-                return;
+                throw new MeshReadError("unreadable", "3MF references a missing model object or component");
             if (object.verts.length && object.tris.length && !notModel.has(id)) {
                 triangles += object.tris.length / 3;
                 vertices += object.verts.length / 3; // every instance copies all vertices of its object, referenced or not: a fan-out of big objects must stop here

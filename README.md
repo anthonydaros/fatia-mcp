@@ -66,6 +66,30 @@ Six workflow tools extend the existing preparation tools:
 
 `preflight_check` findings now include the matching condition, observed facts and proposed next action. `prepare_print_project` reports measured alternatives and saves eligible candidates; `select_round` chooses an eligible measured round in that run. The default remains automatic selection. Review the reported unknowns and each candidate in Bambu Studio.
 
+Five additional tools bring the total to **32**, preserving the previous tools:
+
+| Tool | What it does |
+|---|---|
+| `compare_print_orientations` | Compares up to six rotations of a compatible single-item, single-plate 3MF, within slice/time budgets. Saves unsliced candidates and reports estimated time/material/support plus geometric bed contact. |
+| `analyze_print_waste` | Reads one plate's sliced G-code to separate extrusion roles. Ambiguous purge accounting, incomplete scans and unknown roles prevent precise waste totals. |
+| `create_calibration_project` | Creates separate unsliced flow-ratio, fixed-temperature or retraction coupons using a compatible single-filament 3MF as the settings baseline. |
+| `check_filament_availability` | Compares recorded per-slot consumption with caller-supplied remaining grams, copies and a reserve. Missing stock or plate consumption stays unknown. No stock service or printer connection. |
+| `analyze_mesh_health` | Checks exact-coordinate edge topology, winding, duplicate/degenerate faces and connected components of STL/3MF geometry. Read-only; does not repair or test self-intersections. |
+
+Examples of tool arguments:
+
+```json
+{"path":"/absolute/part.3mf","orientations":[{"name":"authored"},{"name":"side","rotation_x":90}],"max_slices":2,"bambu_model":"p1s"}
+```
+
+Use the example above with `compare_print_orientations`. X/Y/Z rotations are applied in world space in that order; the XY bounding-box center is retained and the lowest printable point rests at Z=0. It requires reliable plate membership; prepare an STL or foreign-printer project first. Failed CLI attempts count toward the budget. A slicer estimate cannot establish adhesion, finish or mechanical strength.
+
+For `create_calibration_project`, use `{"path":"/absolute/baseline.3mf","kind":"flow_ratio","values":[0.94,0.98,1.02],"bambu_model":"p1s"}`. Other kinds are `temperature` (integer Celsius within the baseline filament's declared range and the installed machine limit when available) and `retraction` (0–2 mm); flow ratios are absolute, 0.8–1.2. Supply 1–12 distinct values. Each candidate is a separate project; temperature candidates keep the baseline first-layer temperature and use the candidate temperature thereafter, rather than a tower with per-layer changes. Inspect and print the coupons separately, evaluate the physical result, then choose a setting. Labels are filenames and a manifest, not embossed text; effective sliced settings must be checked in Studio.
+
+For `check_filament_availability`, use `{"path":"/absolute/sliced.3mf","filaments":[{"slot":1,"available_g":120}],"copies":2,"safety_margin_percent":10}`. Slots are one-based and each supplied stock represents a separate physical supply. The default reserve is 10%; it does not guarantee coverage of unrecorded purge/tower waste. The tool neither reserves nor deducts stock and does not verify material/color assignments.
+
+The read-only `analyze_print_waste` and `analyze_mesh_health` accept `path` and optional zero-based `plate_index` (default 0). Waste supports `.gcode` and sliced `.3mf`; mesh health supports `.stl` and millimeter `.3mf`. Standalone STL/G-code only accepts plate 0. Mesh health defaults to 100,000 triangles, with `max_triangles` bounded at 250,000; exceeding the cap errors rather than declaring the inspected subset healthy. Closed edges do not prove a valid solid or printability.
+
 For scenario comparisons, use `path`, optional `bambu_model` and zero-based `plate_index`, and `scenarios: [{"name":"original","settings":{}},{"name":"fine","settings":{"layer_height":0.16}}]`. `max_slices` counts failed CLI attempts too; maximum six. `max_minutes` defaults to ten. Prepare an STL or a project for another printer first with `prepare_print_project`. Only the advertised process settings can vary; settings not confirmed in G-code are excluded from ranking.
 
 For costs, supply a sliced 3MF `path` and `material_price_per_kg`, or `filament_prices: [{"slot":1,"price_per_kg":100}]`. `copies` multiplies the entire project; `parts_per_project` enables an explicitly allocated per-part estimate. Supply both `power_w` and `electricity_price_per_kwh` to include energy. Currency defaults to BRL. Missing consumption or plate coverage is unknown, never zero; known sliced-subset costs remain available when whole-project totals cannot be established; labor, failures and depreciation are excluded, and recorded material use may omit purge/tower waste.

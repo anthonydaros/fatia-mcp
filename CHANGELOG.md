@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add five tools for bounded orientation comparisons, evidence-based print waste, separate calibration projects, caller-supplied filament availability and mesh topology health. Preserve all 27 existing tools; the MCP surface now contains 32.
+- Keep unverified purge totals, incomplete project consumption and missing stock unknown. Preserve sources and isolate generated artifacts with cancellation cleanup.
+- Generate fixed-setting flow, temperature and retraction coupons for physical evaluation; do not control a printer or automatically change user presets.
+- Test MCP/HTTP registration, malformed input, geometry, budgets, cancellation and real installed Studio slicing of generated candidates.
+
 ## [1.1.45] – 2026-11-01
 
 - Detect model-content changes including triangle painting; reject spoofed unit attributes and unavailable plate selections. Leave whole-project cost totals unknown when plate coverage is incomplete, while retaining measured subset costs.
