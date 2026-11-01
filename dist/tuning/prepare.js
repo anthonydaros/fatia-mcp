@@ -200,8 +200,10 @@ export async function prepareProject(input, deps) {
                 plateKind = "first_plate_unmeasured";
             }
             // The facts read the laid-out files; the settings facts that describe the ORIGINAL project (its printer) still read the original's settings.
-            const laid = await openProject(layout.file);
-            project = { ...laid, config: originalProject?.config, configProblem: originalProject?.configProblem };
+            if (!isStl) { // an STL has no project of its own: its facts stay those of the mesh
+                const laid = await openProject(layout.file);
+                project = { ...laid, config: originalProject?.config, configProblem: originalProject?.configProblem };
+            }
             for (let k = warnings.length - 1; k >= 0; k--)
                 if (/^The source printer's bed/.test(warnings[k]))
                     warnings.splice(k, 1); // now a layout issue, fixed

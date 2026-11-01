@@ -914,3 +914,25 @@ test("the tool describes the layout stage and its arguments", () => {
   assert.deepEqual(tool.inputSchema.properties.layout.enum, ["auto", "check_only", "off"]);
   for (const k of ["layout_gap_mm", "layout_margin_mm", "layout_max_slices", "layout_max_minutes"]) assert.ok(tool.inputSchema.properties[k], k);
 });
+
+test("an STL whose part stands off the target's plate is laid out too: the writer's origin is the STL, so the retarget summary is the baseline's", async t => {
+  const env = await setup(t);
+  const stl = path.join(env.dir, "tetra.stl");
+  await fs.writeFile(stl, "solid t\nfacet normal 0 0 -1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nfacet normal 0 -1 0\nouter loop\nvertex 0 0 0\nvertex 0 0 1\nvertex 1 0 0\nendloop\nendfacet\nfacet normal -1 0 0\nouter loop\nvertex 0 0 0\nvertex 0 1 0\nvertex 0 0 1\nendloop\nendfacet\nfacet normal 1 1 1\nouter loop\nvertex 1 0 0\nvertex 0 0 1\nvertex 0 1 0\nendloop\nendfacet\nendsolid t\n");
+  const before = sha(await fs.readFile(stl));
+  // the Studio export the retarget hands back has the part far outside plate 1
+  const archive = await buildLayoutProject({ objects: [{ id: 2, name: "part", size: [100, 100, 40], at: [1000, 1000] }], plates: [["2:0"]], config: loopConfig() });
+  const retarget = async () => ({ archive, report: null, edited: [], slices: 1 });
+  const fake = candidateSlicer();
+  const h = harness(env, { actions: [definite("tune.def", { top_shell_layers: "5" })], script: [crossing(0)], retarget, sliceAll: fake.sliceAll, input: { path: stl } });
+  const r = await h.run();
+  assert.equal(r.layout.status, "applied");
+  assert.ok(r.layout.issues.some(i => ["outside_plate", "between_plates"].includes(i.kind)));
+  assert.ok(r.delivered, "a project was delivered");
+  assert.equal(r.diff.retarget.reason, "baseline");
+  assert.equal(r.stop.slices_used.retarget, 1);
+  assert.equal((await laidOut(r.delivered.path)).analysis.clean, true);
+  assert.equal((await readCfg(r.delivered.path)).top_shell_layers, "5");
+  assert.equal(sha(await fs.readFile(stl)), before, "the STL is untouched");
+  assert.equal(r.source.unchanged, true);
+});

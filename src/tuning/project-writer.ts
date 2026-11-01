@@ -190,7 +190,7 @@ export async function writeTunedProject(o: WriteOptions): Promise<WriteResult> {
   const original = originalText === undefined ? undefined : parseConfig(originalText);
   if (o.origin && original === undefined) throw new Error("A laid-out source must carry its project settings.");
   // What the diffs are against: the user's own file when `source` is a working copy of its P0.
-  const originText = originBytes ? await text(await loadSafe3mfArchive(originBytes), CONFIG) : originalText;
+  const originText = originBytes ? (/\.stl$/i.test(originPath!) ? undefined : await text(await loadSafe3mfArchive(originBytes), CONFIG)) : originalText;
   const diffBase = originText === undefined ? undefined : parseConfig(originText);
 
   // 2. P0: the project for the target printer. A baseline (STL, or a 3MF with no settings) is the exported project whole; a project made
