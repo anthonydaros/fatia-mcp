@@ -97,12 +97,13 @@ function changeViews(run: RunData, round: RoundRecord | undefined, plan: RoundRe
   const add = (key: string, scope: ChangeScope | "object", from: SettingValue | null, fromP0: SettingValue | null, to: SettingValue | null) => {
     const { item, first } = pick(`${scope === "object" ? "o" : "s"}\0${key}`);
     const a = item ? actionById.get(item.action) : undefined;
+    const reached = scope === "object" ? null : (round?.measure?.reach[key] ?? null);
     views.push({
       key, scope, from, from_p0: fromP0, to, action: item?.action ?? "engine", title: a?.title ?? null, kind: item?.kind ?? "definite",
       why: item ? clip(item.why ?? item.rationale) : null, confidence: item?.confidence ?? null, risk: item?.risk ?? null, rules: item?.rules ?? [], src: item?.src ?? [],
       round: item?.round ?? 0, first_round: first, ...(item?.cost ? { cost: item.cost } : {}), ...(item?.expect ? { expect: clip(item.expect) } : {}),
-      verification: verification(run, item, a, first, round),
-      reached_slice: scope === "object" ? null : (round?.measure?.reach[key] ?? null),
+      verification: verification(run, item, a, first, round, reached),
+      reached_slice: reached,
     });
   };
   const combined = new Map(write.combined_diff.map(d => [d.key, d.from]));
@@ -111,10 +112,12 @@ function changeViews(run: RunData, round: RoundRecord | undefined, plan: RoundRe
   return views;
 }
 
-function verification(run: RunData, item: TuningItem | undefined, a: TuningAction | undefined, first: number, round: RoundRecord | undefined): Verification {
+function verification(run: RunData, item: TuningItem | undefined, a: TuningAction | undefined, first: number, round: RoundRecord | undefined, reached: boolean | null): Verification {
   const predicted = (note: string): Verification => ({ status: "predicted_only", note });
   if (!item || !a) return predicted("sem ação do motor para esta chave");
   if (!round?.judged || !round.collected || !round.engine) return predicted("a rodada que carrega esta mudança não foi medida");
+  // The measurement says nothing about a value the slicer did not use: its CONFIG_BLOCK shows another one.
+  if (reached === false) return predicted("o Bambu Studio não usou este valor no fatiamento (o CONFIG_BLOCK do G-code mostra outro); a medição desta rodada não vale para esta mudança");
   const measured = round.measure!.facts;
   if (a.kind === "ladder") {
     const status = round.engine.ladders.find(l => l.action === a.id);
@@ -186,6 +189,8 @@ function decide(run: RunData, views: ChangeView[]): { verdict: Verdict; not_read
   else if (judged?.triggers_true.length) add("unresolved_trigger", `Gatilho(s) ainda disparando no fatiamento entregue: ${judged.triggers_true.join(", ")}.`);
   const predicted = views.filter(v => v.verification.status === "predicted_only");
   if (predicted.length) add("predicted_only_applied", `${predicted.length} mudança(s) aplicada(s) só por previsão (nenhuma medição confirma o efeito): ${predicted.slice(0, 8).map(v => v.key).join(", ")}${predicted.length > 8 ? ", …" : ""}.`);
+  const ignored = views.filter(v => v.reached_slice === false);
+  if (ignored.length) add("not_reached_slice", `O Bambu Studio não usou ${ignored.length} valor(es) no fatiamento medido, então a medição não confirma: ${ignored.slice(0, 8).map(v => v.key).join(", ")}.`);
   const weak = views.filter(v => v.confidence !== null && WEAK.has(v.confidence));
   if (weak.length) add("weak_steps_applied", `${weak.length} mudança(s) de confiança fraca (hipótese ou não verificado), aplicada(s) porque um gatilho medido as confere: ${weak.slice(0, 8).map(v => v.key).join(", ")}.`);
   const warned = sliceWarnings(best);

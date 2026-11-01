@@ -39,6 +39,8 @@ const PRESET_META = new Set([
 const MACHINE_EDITS = /^(retract|deretraction|z_hop|travel_slope)|^wipe(_distance)?$/;
 const FILAMENT_GCODE = /gcode$/;
 const listed = (entry) => (entry ?? '').split(';').filter(Boolean);
+// A 3MF's process list may only name process keys: G-code and machine keys it lists there would reach the slice through the process overlay.
+const listedProcess = (entry) => listed(entry).filter(key => !FILAMENT_GCODE.test(key) && !key.startsWith('machine_'));
 const show = (value) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value) ?? 'unset';
     return text.length > 80 ? `${text.slice(0, 77)}...` : text;
@@ -102,7 +104,7 @@ export async function buildProjectSettingsPlan(t) {
         notKept.push('different_settings_to_system is missing; process settings come from the printer preset');
     const overlay = {};
     // A key the sparse preset lacks (brim_type, wall_sequence) still counts when the project lists it: the CLI resets it otherwise.
-    const keys = (samePrinter ? [...new Set([...Object.keys(flat), ...listed(changed[0])])] : listed(changed[0])).filter(key => !PRESET_META.has(key));
+    const keys = (samePrinter ? [...new Set([...Object.keys(flat), ...listedProcess(changed[0])])] : listedProcess(changed[0])).filter(key => !PRESET_META.has(key));
     for (const key of keys) {
         const value = config[key];
         const base = flat[key];

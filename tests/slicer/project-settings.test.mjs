@@ -168,6 +168,16 @@ test('a project for the target printer also keeps a changed key its process pres
   assert.deepEqual(other.overlay, { wall_sequence: 'inner-outer-inner wall' });
 });
 
+test('a process list that names G-code or machine keys never carries them into the slice, for either printer', async t => {
+  const f = await fixture(t);
+  withProfilesRoot(t, f);
+  const config = { ...x2dDefaults, sparse_infill_pattern: 'grid', wall_sequence: 'inner-outer-inner wall', layer_change_gcode: 'M104 S400', machine_start_gcode: 'EVIL START', machine_max_acceleration_x: ['99999'], different_settings_to_system: ['wall_sequence;layer_change_gcode;machine_start_gcode;machine_max_acceleration_x', '', ''] };
+  const same = await plan(f, await f.project(config));
+  assert.deepEqual(same.overlay, { wall_sequence: 'inner-outer-inner wall' });
+  const other = await plan(f, await f.project({ ...config, printer_settings_id: 'Bambu Lab H2D 0.4 nozzle', print_settings_id: '0.12mm Fine @BBL H2D' }));
+  assert.deepEqual(other.overlay, { wall_sequence: 'inner-outer-inner wall' });
+});
+
 // What a tuned project lists as edited for the printer and for a filament must survive a later slice, which takes both from the presets.
 const tuned = {
   ...x2dDefaults, filament_type: ['PLA'], filament_colour: ['#000000'], z_hop: ['0.8', '0.8', '0.8'], machine_start_gcode: 'EVIL START', nozzle_temperature: ['215'], filament_start_gcode: ['M104 S400'],

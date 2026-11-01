@@ -22,7 +22,7 @@ Every candidate is written by `writeTunedProject` from the original source, re-o
 - `max_minutes` (default 20) is checked before each slice: the loop starts another only if the time spent plus the last slice's duration still fits.
 - A stop by budget is a caveat, never `ready`. The report lists what the engine wanted next and did not run (`pending_next_round`).
 - `dry_run` builds the plan from the project's own data (settings, mesh, declared facts), writes nothing that is kept and slices nothing. It needs a project the Studio export can retarget without slicing (a 3MF with settings); it delivers no file and its verdict is always `not_ready`.
-- `apply: "recommended"` (default) writes values of confidence `preset`, `oficial`, `bug conhecido`, `teste de revisor` and `relato`; `hipotese` and `nao verificado` stay suggestions (`suggestions_not_applied`), except ladder steps, which a measured trigger checks every round and which are reported as weak when applied. `"strong_only"` writes only `preset`, `oficial` and `bug conhecido`.
+- `apply: "recommended"` (default) writes values of confidence `preset`, `oficial`, `bug conhecido`, `teste de revisor` and `relato`; `hipotese` and `nao verificado` stay suggestions (`suggestions_not_applied`), except ladder steps, which a measured trigger checks every round and which are reported as weak when applied. `"strong_only"` writes only `preset`, `oficial` and `bug conhecido` values; ladder steps that a measured trigger checks are still applied (reported as weak).
 
 ## What the caller declares (`part_context`)
 

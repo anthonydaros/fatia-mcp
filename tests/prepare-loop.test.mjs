@@ -546,6 +546,23 @@ test("a declared fact enables its action and becomes an unchecked-declaration ca
   await assert.rejects(harness(env3, { actions: [ctx], script: [crossing(0)], input: { partContext: { load_class: "heavy" } } }).run(), /load_class must be one of/);
 });
 
+test("a ladder step the slicer did not use is PREDICTED ONLY and the verdict is never ready", async t => {
+  const env = await setup(t);
+  const h = harness(env, {
+    actions: [ladder("tune.travel", CROSS, [["sparse_infill_pattern", "gyroid"]])],
+    script: [crossing(40), crossing(0, { block: { sparse_infill_pattern: "grid" } })], // the trigger clears, but the CONFIG_BLOCK still shows the old pattern
+  });
+  const r = await h.run();
+  const step = r.diff.tuning.find(c => c.key === "sparse_infill_pattern");
+  assert.equal(step.reached_slice, false);
+  assert.equal(step.verified, false);
+  assert.equal(step.verification.status, "predicted_only");
+  assert.match(step.verification.note, /não usou/);
+  assert.notEqual(r.verdict, "ready");
+  assert.ok(r.caveats.some(x => x.code === "not_reached_slice" && /sparse_infill_pattern/.test(x.text)));
+  assert.deepEqual(r.verified.measured.values_reached_the_slice, []);
+});
+
 test("apply strong_only writes only preset, oficial and bug conhecido values; relato stays a suggestion", async t => {
   const actions = [definite("tune.strong", { top_shell_layers: "5" }, "oficial"), definite("tune.relato", { seam_position: "nearest" }, "relato")];
   const rec = await harness(await setup(t), { actions, script: [crossing(0)] }).run();
