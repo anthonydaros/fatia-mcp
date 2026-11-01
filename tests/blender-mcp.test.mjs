@@ -177,7 +177,7 @@ test("Blender standard edit previews without launching and exports a verified ne
   const result = await peer.call("blender_mcp_edit_model", { ...request, execute: true });
   assert.equal(result.isError, undefined, errorText(result));
   assert.equal(data(result).status, "success");
-  assert.equal(data(result).output_path, fs.realpathSync(output));
+  assert.equal(fs.realpathSync.native(data(result).output_path), fs.realpathSync.native(output));
   assert.equal(data(result).triangles, 1);
   assert.equal(fs.statSync(output).size, 134);
   assert.deepEqual(fs.readdirSync(peer.directory).sort(), [path.basename(output), "peer.jsonl"].sort());

@@ -24,3 +24,7 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm test
+        if: runner.os != 'Windows'
+      # Concurrent package installs can stall a cold PowerShell version probe on Windows runners.
+      - run: npm test -- --test-concurrency=1
+        if: runner.os == 'Windows'
