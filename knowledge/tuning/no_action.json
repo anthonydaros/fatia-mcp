@@ -1,0 +1,687 @@
+[
+  {
+    "rule": "bambu.3mf.per-object-overrides-present",
+    "reason": "not-a-setting",
+    "note": "Overrides por objeto (cadeado) vencem o global e são aviso de revisão; a consequência para o motor é que um ajuste de processo em chave sobrescrita por objeto precisa ir como override do objeto (scope object), não como chave nova."
+  },
+  {
+    "rule": "bambu.3mf.printer-switched-params-discarded",
+    "reason": "not-a-setting",
+    "note": "Aviso de revisão (processo e parâmetros de multibico podem ter mudado ao trocar de impressora); a fonte não diz quais parâmetros foram descartados, então não há valor a gravar."
+  },
+  {
+    "rule": "bambu.3mf.third-party-checklist",
+    "reason": "not-a-setting",
+    "note": "É um checklist de revisão do 3MF de terceiros; o MCP já lê o 3MF, não sobrescreve o original e entrega um 3MF novo com a identificação da máquina, então não há chave a ajustar."
+  },
+  {
+    "rule": "bambu.a1.ams-lite-auto-swap",
+    "reason": "manual",
+    "note": "Confiar ou não na troca automática de carretel em impressão longa é decisão do usuário; o guia não define limiar de 'longa' nem há chave para isso."
+  },
+  {
+    "rule": "bambu.a1.ams-lite-maintenance",
+    "reason": "hardware",
+    "note": "Limpeza do alimentador, descarga de filamento e adaptador de carretel são manutenção física do AMS Lite."
+  },
+  {
+    "rule": "bambu.a1.amslite-purge-at-start",
+    "reason": "hardware",
+    "note": "A purga inicial é comportamento da máquina com AMS Lite e os paliativos do guia são hipóteses não verificadas; nada aparece no arquivo para ajustar."
+  },
+  {
+    "rule": "bambu.a1.first-layer-adhesion-checklist",
+    "reason": "hardware",
+    "note": "Conferir a placa, limpá-la com água e detergente neutro e nivelar são ações físicas."
+  },
+  {
+    "rule": "bambu.a1.first-layer-floating-base",
+    "reason": "not-a-setting",
+    "note": "Detector de gcode.first_layer_contact_share: a correção do guia (Cut ou Lay on face) é geometria/orientação, não chave de fatiamento; o relatório deve apenas avisar."
+  },
+  {
+    "rule": "bambu.a1.first-layer-g29-offset",
+    "reason": "hardware",
+    "note": "G29.1 Z{-0.02} é ajuste físico temporário do Start G-code por parafusos soltos, a decidir pelo usuário olhando a primeira camada."
+  },
+  {
+    "rule": "bambu.a1.timelapse-surface",
+    "reason": "needs-user-context",
+    "note": "Se o acabamento da parede importa é objetivo do usuário, e ligar ou desligar o timelapse não é chave do project_settings."
+  },
+  {
+    "rule": "bambu.a1.volume-exceeded",
+    "reason": "not-a-setting",
+    "note": "Reorientar, reduzir a escala ou dividir a peça muda a geometria, não uma configuração do Studio; a regra bloqueante impede o 'pronto'."
+  },
+  {
+    "rule": "bambu.bed.a1-open-materials",
+    "reason": "manual",
+    "note": "O guia só diz para checar PC e PA numa A1 (heurística não verificada, sem valores nem remédio); trocar de material ou de impressora é decisão do usuário."
+  },
+  {
+    "rule": "bambu.bed.petg-on-cool-plate",
+    "reason": "needs-user-context",
+    "note": "A saída é Textured PEI a 70 °C, mas o tipo de placa do projeto precisa ser o da placa física instalada (offset de 0,04 mm), algo que só o usuário sabe; trocar curr_bed_type sozinho repetiria o erro que a regra quer evitar."
+  },
+  {
+    "rule": "bambu.bed.pla-on-engineering-plate-a1",
+    "reason": "needs-user-context",
+    "note": "A troca para Cool Plate (35 °C) ou Textured PEI (65 °C na A1) só vale se for a placa física que está na mesa, informação que só o usuário tem."
+  },
+  {
+    "rule": "bambu.bed.plate-type-vs-physical-plate",
+    "reason": "needs-user-context",
+    "note": "Comparar a placa física com curr_bed_type não aparece em nenhum arquivo e o firmware da A1 só verifica a presença da placa, não o tipo [oficial]; só o usuário sabe qual placa está na mesa (a mesma informação declarada que destravaria as outras regras de placa)."
+  },
+  {
+    "rule": "bambu.bed.plate-unsupported-for-filament",
+    "reason": "needs-user-context",
+    "note": "O guia manda trocar a placa na impressora e em curr_bed_type (3.2, 10.4), mas o motor só edita o 3MF, o firmware da A1 verifica a presença da placa e não o tipo e a Textured PEI abaixa o bico em 0,04 mm, então declarar Textured PEI (a única placa que o guia mostra suportada para PLA, PETG e ABS) sem ela estar instalada desalinha o offset do bico; qual placa existe na máquina só o usuário sabe (mesma decisão do G1 para petg-on-cool-plate, pla-on-engineering-plate-a1 e smooth-pei-selected), e o relatório deve manter o aviso como pendência e apontar a Textured PEI como destino, sem dizer 'pronto'."
+  },
+  {
+    "rule": "bambu.bed.smooth-pei-selected",
+    "reason": "needs-user-context",
+    "note": "Smooth PEI foi descontinuada; qual placa substitui depende da placa que o usuário realmente usa, e a temperatura da mesa muda por placa e filamento."
+  },
+  {
+    "rule": "bambu.compensation.context-check",
+    "reason": "needs-user-context",
+    "note": "O valor certo de elefant_foot_compensation, xy_hole_compensation e filament_shrink depende do objetivo da peça e da medição da peça real (8.5), que só o usuário fornece; as faixas por objetivo são tratadas nas regras da seção 8.5, como bambu.dimensional.hole-compensation-zero (outro chunk)."
+  },
+  {
+    "rule": "bambu.cut.assembly-dry-fit-and-glue",
+    "reason": "hardware",
+    "note": "Teste a seco, lixa e escolha da cola por material são trabalho físico depois da impressão; nada a ajustar no fatiamento."
+  },
+  {
+    "rule": "bambu.cut.connector-placement",
+    "reason": "manual",
+    "note": "Posicionar 2 ou 3 conectores a pelo menos 4 mm da borda é um gesto do usuário no diálogo do Cut."
+  },
+  {
+    "rule": "bambu.cut.connector-type-and-shape",
+    "reason": "manual",
+    "note": "Type, Style e Shape do conector (Dowel, Prism ou Frustum, Hexagon ou Square) são opções do diálogo do Cut, não chaves de processo."
+  },
+  {
+    "rule": "bambu.cut.dowel-pins-upright",
+    "reason": "not-a-setting",
+    "note": "Deitar o pino com Lay on face muda a orientação do objeto no projeto, não uma chave de configuração."
+  },
+  {
+    "rule": "bambu.cut.exceeds-build-volume",
+    "reason": "manual",
+    "note": "Peça maior que o volume de impressão é bloqueio: o motor não consegue fatiar, e onde cortar e quais conectores usar é decisão do usuário na ferramenta Cut; deve parar e avisar."
+  },
+  {
+    "rule": "bambu.cut.lever-parallel-cut",
+    "reason": "manual",
+    "note": "Evitar corte paralelo à alavanca (Dovetail ou Dowel longo com 15 a 25 mm de penetração por lado) é decisão do usuário no diálogo do Cut."
+  },
+  {
+    "rule": "bambu.cut.seam-on-flat-surface",
+    "reason": "manual",
+    "note": "Escolher o plano de corte numa transição de geometria é decisão do usuário na ferramenta Cut, sem chave de configuração."
+  },
+  {
+    "rule": "bambu.cut.supports-eliminated-by-cut",
+    "reason": "manual",
+    "note": "Usar o corte para eliminar suportes é decisão de projeto do usuário (plano de corte e Place on cut), sem limiar numérico no guia."
+  },
+  {
+    "rule": "bambu.cut.thin-part-needs-dovetail",
+    "reason": "manual",
+    "note": "Escolher Mode: Dovetail, aba de 45 a 60 graus e tolerância de 0,15 a 0,20 mm é decisão do usuário no diálogo do Cut."
+  },
+  {
+    "rule": "bambu.cut.zero-tolerance",
+    "reason": "not-a-setting",
+    "note": "Tolerance é um campo do diálogo Cut (pequena 0,15 mm; média 0,15 a 0,18 mm; grande 0,18 a 0,20 mm) aplicado ao executar o corte, não uma chave de processo."
+  },
+  {
+    "rule": "bambu.dimensional.elephant-foot-off-preset",
+    "reason": "needs-user-context",
+    "note": "O guia (333) manda começar no preset, medir o pé de elefante e ajustar, e lista 'pé de elefante por objetivo' como divergência aberta (656): um valor fora do preset pode ser medido e deliberado, e só o usuário sabe; o caso de preset da impressora errada (0,075 mm do A1 numa X2D) está em tune.quality.x2d-elephant-foot-from-a1."
+  },
+  {
+    "rule": "bambu.dimensional.shrinkage-painted-no-effect",
+    "reason": "not-a-setting",
+    "note": "Aviso informativo (Shrinkage não tem efeito em modelo pintado [preset]) sem chave a mudar; a ação tune.dimensional.abs-shrinkage já exclui projetos pintados."
+  },
+  {
+    "rule": "bambu.drift.sequence-or-timelapse-changed",
+    "reason": "manual",
+    "note": "Confirmar se print_sequence e timelapse_type alterados são intencionais é decisão do usuário, e o guia não mapeia os valores numéricos de timelapse_type para Instant e Smooth, então nenhum valor seguro para ajustar."
+  },
+  {
+    "rule": "bambu.drift.settings-differ-from-system",
+    "reason": "not-a-setting",
+    "note": "É relatório de deriva do projeto: o motor já aplica o ajuste por cima das chaves do 3MF original e não deve revertê-las ao preset de sistema; o que fazer com cada diferença é decisão do usuário."
+  },
+  {
+    "rule": "bambu.estimate.prediction-vs-m73",
+    "reason": "not-a-setting",
+    "note": "Não há chave a ajustar: o motor deve usar gcode.m73_time_s como referência de tempo no relatório e tratar plate.time_s apenas como piso (a estimativa do Studio foi piso em todos os casos medidos)."
+  },
+  {
+    "rule": "bambu.estimate.start-end-gcode-drift",
+    "reason": "manual",
+    "note": "O guia só manda comparar o G-code de início e fim com os templates públicos e confirmar a origem de cada diferença, uma decisão do usuário; restaurar o template apagaria personalizações intencionais."
+  },
+  {
+    "rule": "bambu.facedown.engrave-depth",
+    "reason": "not-a-setting",
+    "note": "A profundidade do texto embutido (0,40 a 0,60 mm, 2 a 3 camadas) é geometria do modelo; nenhuma chave do Studio a corrige."
+  },
+  {
+    "rule": "bambu.facedown.first-layer-sequence",
+    "reason": "not-a-setting",
+    "note": "First layer filament sequence é opção da placa (first_layer_print_sequence, lista ordenada de filamentos em escopo de projeto), não um valor escalar de processo; o contrato de chaves não a cobre."
+  },
+  {
+    "rule": "bambu.facedown.needs-ams",
+    "reason": "hardware",
+    "note": "O método face-down exige AMS, que é equipamento da impressora; não há chave que o substitua."
+  },
+  {
+    "rule": "bambu.first-layer.weak-adhesion-params",
+    "reason": "no-measurable-trigger",
+    "note": "O guia dá a faixa de 15 a 25 mm/s para a primeira camada 'em peças minúsculas' (10.4 [relato], padrão 50 mm/s) mas não define 'minúscula' nem dá limiar de pegada, velocidade ou contato (a regra diz que os limiares não existem), então nenhum gatilho mensurável sem inventar número; a parte de peça minúscula está em bambu.a1.first-layer-tiny-part (outro chunk)."
+  },
+  {
+    "rule": "bambu.hardware.ams-2-pro-service-notice",
+    "reason": "hardware",
+    "note": "Aviso de serviço da fabricante sobre o alimentador do AMS 2 Pro (lote de maio a julho de 2026), que só o usuário confere na unidade dele."
+  },
+  {
+    "rule": "bambu.hardware.loose-screws-bed-cable",
+    "reason": "hardware",
+    "note": "Parafusos soltos e cabo da mesa são verificação física que não aparece em 3MF nem em G-code."
+  },
+  {
+    "rule": "bambu.hardware.nozzle-change-failure",
+    "reason": "hardware",
+    "note": "Falha mecânica de troca de bico só se vê na máquina e não deixa rastro no arquivo."
+  },
+  {
+    "rule": "bambu.hardware.slot-real-state",
+    "reason": "hardware",
+    "note": "O filamento realmente carregado em cada slot do AMS não está no arquivo e só se confere na máquina."
+  },
+  {
+    "rule": "bambu.ironing.color-change-layer",
+    "reason": "not-a-setting",
+    "note": "A troca de cor ou pausa é um marcador de camada do projeto (régua de camadas), não uma chave de configuração, e nenhuma outra ação carrega a correção; o motor pode calcular a camada (base de 2,40 mm: letras na camada 13), mas inserir o marcador exige editar a estrutura do 3MF."
+  },
+  {
+    "rule": "bambu.ironing.painted-keychain-many-changes",
+    "reason": "not-a-setting",
+    "note": "Remover a pintura por pincel e inserir uma troca por camada alteram os dados de cor do 3MF, não uma chave de configuração."
+  },
+  {
+    "rule": "bambu.ironing.qr-inverted-or-silk",
+    "reason": "manual",
+    "note": "Inverter o QR e escolher PLA Silk são decisões de modelo e de material do usuário; o guia só manda evitar e validar a leitura em vários aplicativos."
+  },
+  {
+    "rule": "bambu.ironing.qr-size-and-validation",
+    "reason": "needs-user-context",
+    "note": "O tamanho de partida (35 x 35 mm para chave curta, 45 x 45 mm para longa) depende do tamanho da chave PIX, que só o usuário sabe, e a leitura é validada com aplicativos reais."
+  },
+  {
+    "rule": "bambu.ironing.relief-base-too-thin",
+    "reason": "not-a-setting",
+    "note": "A espessura da base (chaveiro 2,40 a 3,00 mm; placa PIX 2,00 a 2,60 mm) é geometria do modelo; nenhuma chave do Studio a corrige e o motor não edita a malha."
+  },
+  {
+    "rule": "bambu.ironing.relief-height-out-of-range",
+    "reason": "not-a-setting",
+    "note": "A altura do relevo (0,60 a 0,80 mm, 3 a 4 camadas de 0,20 mm) é geometria do modelo; nenhuma chave do Studio a corrige e o motor não edita a malha (Blender é sob demanda)."
+  },
+  {
+    "rule": "bambu.ironing.stroke-too-thin",
+    "reason": "not-a-setting",
+    "note": "A correção da regra é engrossar o traço para 0,85 a 1,00 mm (ou ampliar o texto) no modelo, o que nenhuma chave do Studio faz; a mitigação por chaves (Arachne e limites de 75% e 15%, só enquanto o G-code mostrar traço ausente) está em tune.fine-text.arachne-ladder, e o relatório deve dizer ao usuário que engrossar o traço é a solução do guia."
+  },
+  {
+    "rule": "bambu.layer.thin-layer-no-strength-or-xy-detail",
+    "reason": "manual",
+    "note": "É uma expectativa do usuário (camada fina não dá resistência nem detalhe em XY): o motor não deve usar layer_height menor para esses objetivos, mas não há valor nem intervalo a navegar."
+  },
+  {
+    "rule": "bambu.material.abs-asa-on-open-a1",
+    "reason": "hardware",
+    "note": "O guia só indica o contorno físico (sala quente e fechada [relato]) ou trocar de material/impressora, que é decisão do usuário; nesta fatia não há chave nem critério de empenamento com passos para escalar."
+  },
+  {
+    "rule": "bambu.material.pva-ams-assignment",
+    "reason": "needs-user-context",
+    "note": "Em qual alimentador (AMS, AMS Lite ou carretel externo) o PVA ou TPU está carregado só o usuário sabe, e o guia não traz chave nem valor para isso (o TPU no AMS Lite é divergência aberta)."
+  },
+  {
+    "rule": "bambu.materials.abs-a1-enclosure-risk",
+    "reason": "hardware",
+    "note": "Enclausurar a A1 é decisão física e o risco à eletrônica é [nao verificado] e não quantificado."
+  },
+  {
+    "rule": "bambu.materials.petg-crumbly-infill",
+    "reason": "no-measurable-trigger",
+    "note": "O esfarelamento só se vê na peça impressa e o guia não dá valor de velocidade de infill; a causa (vazão acima do material) é coberta pelo teto de 13 mm³/s de tune.materials.petg-max-volumetric."
+  },
+  {
+    "rule": "bambu.materials.petg-smooth-plate",
+    "reason": "needs-user-context",
+    "note": "Trocar curr_bed_type não adianta se a placa montada é outra: o guia só relata o risco e a placa física só o usuário conhece."
+  },
+  {
+    "rule": "bambu.materials.tpu-ams-lite",
+    "reason": "hardware",
+    "note": "Carregar TPU no carretel externo em vez do AMS Lite é ação física; o fatiador não escolhe o caminho do filamento."
+  },
+  {
+    "rule": "bambu.materials.tpu-x2d-main-nozzle",
+    "reason": "needs-user-context",
+    "note": "A atribuição filamento-bico (filament_map, chave de projeto) tem de refletir onde o usuário carregou o TPU, e o guia não dá a codificação do bico principal."
+  },
+  {
+    "rule": "bambu.materials.wet-filament",
+    "reason": "hardware",
+    "note": "Nenhum ajuste de fatiador conserta filamento úmido: secar o carretel é ação física."
+  },
+  {
+    "rule": "bambu.purge.flush-length-vs-matrix",
+    "reason": "no-measurable-trigger",
+    "note": "O detector (gcode.flush_length_mismatch_count) é parcial e não foi validado em multicor, e o remédio do guia é só revisar flush_multiplier e a matriz e medir a purga real, sem valor inicial; o único contorno concreto (par branco para preto do auxiliar em 900 mm³, seção 11.5) depende do par da matriz, que um escalar não expressa."
+  },
+  {
+    "rule": "bambu.quality.fine-layer-multicolor",
+    "reason": "not-a-setting",
+    "note": "Variable layer height é um perfil de altura por objeto no 3MF, não uma chave de project_settings; reservar a camada fina às regiões que ganham é decisão de modelagem."
+  },
+  {
+    "rule": "bambu.quality.ironing-before-solid-top",
+    "reason": "manual",
+    "note": "Ironing é acabamento e não conserta topo mal formado; o motor não liga ironing e avaliá-lo depende de o usuário querer o acabamento."
+  },
+  {
+    "rule": "bambu.quality.nonexistent-curled-perimeters",
+    "reason": "not-a-setting",
+    "note": "A opção 'Slow down for curled perimeters' não existe no Studio 2.8.4.57; não há chave a ajustar (as opções reais são Detect overhang wall e Slow down for overhang)."
+  },
+  {
+    "rule": "bambu.quality.thin-teeth-missing-segments",
+    "reason": "no-measurable-trigger",
+    "note": "Caso aberto (dentes finos com trechos ausentes mesmo com Arachne): causa não confirmada, sem valores no guia e sem fato de G-code confiável que acuse o trecho ausente."
+  },
+  {
+    "rule": "bambu.quality.top-surface-diagnosis",
+    "reason": "no-measurable-trigger",
+    "note": "O guia dá só a ordem de verificação (espessura física, pillowing, velocidades de solid infill e top surface, extrusão e umidade, top surface flow ratio), sem valores-alvo nem sinal medível de topo ruim; mudar uma variável por vez."
+  },
+  {
+    "rule": "bambu.quality.volumetric-flow-limit",
+    "reason": "not-a-setting",
+    "note": "O Studio já limita o avanço ao Max volumetric speed do filamento; reduzir velocidades só deixa a estimativa honesta (o relatório usa o tempo efetivo) e subir o teto mudaria o material (risco)."
+  },
+  {
+    "rule": "bambu.safety.a1-heatbed-cable-recall",
+    "reason": "hardware",
+    "note": "Recall de 2024 do cabo da mesa aquecida da A1, sem ligação demonstrada com o fatiador; verificar o reparo da unidade."
+  },
+  {
+    "rule": "bambu.safety.first-layer-nozzle-clearance",
+    "reason": "hardware",
+    "note": "Placa instalada, nivelamento automático e folga do bico são físicos ou do firmware (First Layer Quality Calibration no 01.01.00.00); nenhuma chave de fatiamento resolve."
+  },
+  {
+    "rule": "bambu.safety.nozzle-clump-unattended-loose-part",
+    "reason": "hardware",
+    "note": "Grumo no bico depois de peça solta sem supervisão não aparece em arquivo nenhum; o guia manda acompanhar a primeira camada e parar diante de raspagem persistente."
+  },
+  {
+    "rule": "bambu.safety.nozzle-diameter-hardness-mismatch",
+    "reason": "needs-user-context",
+    "note": "O bico físico instalado (diâmetro e dureza) só o usuário sabe; o motor não pode trocar nozzle_diameter por conta própria, só relatar a divergência que a regra detectar."
+  },
+  {
+    "rule": "bambu.sequence.by-object-brim-collision-check",
+    "reason": "manual",
+    "note": "Conferir no Preview se o brim entra na checagem de colisão do By object é visual; a parte com chave (skirt de 1 camada) está em tune.sequence.by-object-skirt-height."
+  },
+  {
+    "rule": "bambu.settings.filament-overrides-active",
+    "reason": "not-a-setting",
+    "note": "Setting Overrides do filamento mudam o valor efetivo; é aviso de leitura (o motor deve gravar a chave do filamento quando ela vence a da máquina), não uma configuração a definir."
+  },
+  {
+    "rule": "bambu.strength.orientation-along-fiber",
+    "reason": "needs-user-context",
+    "note": "A direção da carga só o usuário sabe, e orientar a peça na mesa (deitar o gancho, 45°) é posicionamento, não chave de fatiamento."
+  },
+  {
+    "rule": "bambu.studio.custom-filament-question-mark-ams",
+    "reason": "not-a-setting",
+    "note": "Bug aberto desde dezembro de 2023 que o fabricante diz resolver no firmware; o guia não indica contorno no Studio."
+  },
+  {
+    "rule": "bambu.studio.custom-filament-unsupported",
+    "reason": "not-a-setting",
+    "note": "Bug da 2.4.0.70 em que filamentos personalizados aparecem como 'Unsupported'; o contorno em hipótese é criar o perfil herdando de um preset do modelo correto, o que é edição de perfil e não de chave de fatiamento."
+  },
+  {
+    "rule": "bambu.studio.mapping-overwriting-color-swap",
+    "reason": "needs-user-context",
+    "note": "A escolha entre Mapping e Overwriting e a conferência do filamento final de cada cor (principalmente de terceiros) são decisões e verificações do usuário na interface do AMS."
+  },
+  {
+    "rule": "bambu.studio.preview-slow-or-frozen",
+    "reason": "not-a-setting",
+    "note": "Lentidão ou travamento do Preview depende do sistema e da versão do Studio, sem contorno conhecido; Enable advanced G-code viewer é preferência do aplicativo e não está no projeto."
+  },
+  {
+    "rule": "bambu.studio.strength-profile-thin-parts",
+    "reason": "needs-user-context",
+    "note": "Manter as seis paredes (resistência) ou reduzi-las para recuperar infill depende da intenção do usuário, e o guia não dá limiar de espessura nem valor alvo, só manda conferir o Preview e ajustar as paredes conscientemente."
+  },
+  {
+    "rule": "bambu.studio.top-down-extension-embossed-text",
+    "reason": "manual",
+    "note": "O padrão sob texto em relevo é deliberado (adesão e prevenção de bleed) e o guia só diz que, se incomodar, o modo Developer Interface Shells ajuda; é preferência estética do usuário e o motor não tem como medi-la."
+  },
+  {
+    "rule": "bambu.support.dedicated-interface-distances",
+    "reason": "manual",
+    "note": "Interface em outro filamento é decisão do usuário e Z = 0 é hipótese a validar pelo experimento A/B/C do guia (aderência, remoção, marcas), que o motor não executa."
+  },
+  {
+    "rule": "bambu.support.pla-petg-prime-tower",
+    "reason": "no-measurable-trigger",
+    "note": "Os 800 mm³ de flush entre PLA e PETG são valor de um par da matriz flush_volumes_matrix (lista n×n) que o motor não ajusta elemento a elemento (um escalar preenche todos), e a ponte da torre sobre PETG não é medida."
+  },
+  {
+    "rule": "bambu.support.pla-petg-same-nozzle",
+    "reason": "hardware",
+    "note": "Resíduo de um polímero no outro no mesmo bico (A1) é físico; o guia só manda inspecionar a transição e usar o experimento A (tudo em PLA) como controle."
+  },
+  {
+    "rule": "bambu.support.side-adhesion-xy-distance",
+    "reason": "no-measurable-trigger",
+    "note": "Subir Support/object xy distance (0,35 para 0,40 a 0,60; faixa 0,35 a 0,70) só vale se o suporte colar na lateral, o que nenhum fatiamento ou análise de G-code mostra; o único valor inicial seguro é o padrão 0,35."
+  },
+  {
+    "rule": "bambu.support.studio-2-1-0-50-weak-supports",
+    "reason": "not-a-setting",
+    "note": "Suportes fracos na 2.1.0.50 são caso aberto sem versão corrigida conhecida; nenhuma chave resolve, o relatório só avisa e manda conferir o Preview."
+  },
+  {
+    "rule": "bambu.support.studio-before-2-7-0",
+    "reason": "not-a-setting",
+    "note": "A correção do ângulo de limiar do suporte em árvore é da versão do Studio (2.7.0); nenhuma chave a substitui, o relatório só avisa para atualizar."
+  },
+  {
+    "rule": "bambu.support.studio-before-2-8-2",
+    "reason": "not-a-setting",
+    "note": "A correção das raízes no ar do suporte em árvore é da versão do Studio (2.8.2); nenhuma chave a substitui, o relatório só avisa."
+  },
+  {
+    "rule": "bambu.support.x2d-pla-main-petg-aux-interface",
+    "reason": "not-a-setting",
+    "note": "Só inspeção: conferir M104/M109 do PETG depois da troca de bico e blobs na interface (a contagem gcode.tool_temperature_mismatch_count já existe no kb); a temperatura errada é bug aberto e não há chave a ajustar aqui."
+  },
+  {
+    "rule": "bambu.tools.fuzzy-skin-fine-finish",
+    "reason": "needs-user-context",
+    "note": "Trocar a textura de fábrica (ponto 0,8 mm, espessura 0,3 mm) pelo acabamento industrial fino (ponto 0,30 a 0,40 mm, espessura 0,15 a 0,20 mm) depende do acabamento que o usuário quer e do modificador no corpo."
+  },
+  {
+    "rule": "bambu.tools.local-reinforcement-modifier",
+    "reason": "needs-user-context",
+    "note": "Onde o parafuso aplica força (e quais furos levam parafuso) só o usuário sabe; o reforço de 6 paredes e 60% de infill é um modificador posicionado à mão."
+  },
+  {
+    "rule": "bambu.tools.seam-painting-hide-seam",
+    "reason": "needs-user-context",
+    "note": "Saber onde fica o rosto, a frente ou a nuca da peça só o usuário sabe, e a pintura da costura é dado por faceta, não uma chave."
+  },
+  {
+    "rule": "bambu.tools.support-painting-small-holes",
+    "reason": "not-a-setting",
+    "note": "Support painting grava bloqueios e reforços de suporte por faceta no 3MF; nenhuma chave de processo faz o mesmo."
+  },
+  {
+    "rule": "bambu.top.top-layers-in-gcode",
+    "reason": "no-measurable-trigger",
+    "note": "O guia pede conferir as camadas de topo no G-code e a espessura física (7.3, 7.5) sem limiar, e os remédios listados (velocidade do solid infill, pillowing, subextrusão, Top surface flow ratio) não trazem valores; a aritmética de top_shell_layers e top_shell_thickness está em bambu.quality.top-shell-thinner-after-layer-reduction (outro chunk)."
+  },
+  {
+    "rule": "bambu.tower.layer-height-mismatch",
+    "reason": "needs-user-context",
+    "note": "Qual altura de camada vale para todos os objetos (a do processo, a do objeto mais fino ou a do mais grosso) depende do tipo de cada objeto, que só o usuário sabe; além disso o engine de referência compara o valor de um override de objeto com a altura do processo e descarta como unchanged_already qualquer override igual a ela, então não há como expressar igualar os objetos ao processo, nem remover camada variável (verificado por simulação); o Studio recusa fatiar com a torre ligada e alturas diferentes [preset], e o engine só relata o conflito."
+  },
+  {
+    "rule": "bambu.tower.no-sparse-layers-ooze",
+    "reason": "no-measurable-trigger",
+    "note": "Dá para comparar gcode.tower_g com e sem a opção, mas isso exige dois fatiamentos A/B que o engine de referência não modela e o custo (ooze pelo deslocamento Z mais lento) não é mensurável nem tem limiar no guia."
+  },
+  {
+    "rule": "bambu.tower.no-sparse-layers-with-smooth-timelapse",
+    "reason": "manual",
+    "note": "Segundo o guia o Studio desliga No sparse layers quando o timelapse Smooth está ativo [preset], então nada falha e só a economia esperada da torre não acontece; escolher entre a economia da torre e o timelapse Smooth é preferência do usuário."
+  },
+  {
+    "rule": "bambu.tower.tall-tower-falls",
+    "reason": "manual",
+    "note": "O guia só manda vigiar a torre em impressões longas e altas (um caso tombou na camada 794 de 70 h); não há limiar nem chave de correção."
+  },
+  {
+    "rule": "bambu.tower.tower-vs-part-weight",
+    "reason": "no-measurable-trigger",
+    "note": "O guia manda comparar a torre com o peso da peça mas não dá limiar para 'grande' nem para 'alta' (só exemplos: peça de 0,5 g que vira 5 g com a torre, torre que tombou na camada 794), então nada decide quando agir; os remédios (No sparse layers, volumes, manter a torre) pertencem às regras bambu.x2d.support-only-aux-tower-waste e bambu.x2d.dual-nozzle-without-prime-tower, de outros chunks."
+  },
+  {
+    "rule": "bambu.travel.avoid-crossing-wall-suggestion",
+    "reason": "no-measurable-trigger",
+    "note": "Blobs causados por travel que cruza parede não aparecem em arquivo e o guia não dá limiar de cruzamentos; 300 mm ou 50% é sugestão de criadores [hipótese], e ligar a opção traz o risco de bico duplo da X2D."
+  },
+  {
+    "rule": "bambu.travel.hotend-screws-scrape",
+    "reason": "hardware",
+    "note": "Parafusos soltos do conjunto do hotend não aparecem em nenhum arquivo; o relatório deve citá-los quando restar travel desprotegido."
+  },
+  {
+    "rule": "bambu.travel.normal-lift-nub",
+    "reason": "no-measurable-trigger",
+    "note": "A espinha do Normal Lift em PLA fluido não aparece em arquivo; o guia só manda conferir os pontos de travel e comparar com Spiral ou Slope se ela surgir."
+  },
+  {
+    "rule": "bambu.travel.slope-lift-warped-edge",
+    "reason": "no-measurable-trigger",
+    "note": "A rampa do Slope Lift só bate em borda empenada vizinha, e nem o G-code nem a malha dizem onde uma borda vai empenar; o engine não escolhe Slope Lift e só avisa quando o usuário o escolheu."
+  },
+  {
+    "rule": "bambu.travel.spiral-lift-petg-pins",
+    "reason": "no-measurable-trigger",
+    "note": "O guia diz que a rejeição a Spiral em PETG é teste, não regra (o fabricante usa Spiral na X2D) e só manda trocar se pinos forem arrancados, o que nenhum arquivo mostra; o engine já parte de Normal Lift em tune.travel.zhop-type-explicit."
+  },
+  {
+    "rule": "bambu.travel.unprotected-support-island-travel",
+    "reason": "no-measurable-trigger",
+    "note": "Há contador (gcode.unprotected_travels_in_support), mas nenhuma chave do guia o move: o travel na mesma ilha de suporte ignora as opções de retração, o guia não dá a contagem de Support wall loops para suporte isolado (a chave vai de -1 automático a 2; a parede única da linha 215 é para a peça frágil amassar, não para reforçar) e o brim, citado na mitigação 4, só tem ações pontuais com número no guia (tune.materials.abs-x2d-brim-* para ABS/ASA grande na X2D, tune.a1.tall-narrow-brim e tune.a1.tall-narrow-brim-type para peça alta na A1); não há política geral de brim porque o guia não dá gatilho nem largura para peça minúscula (399) nem para colisão de travel (166). O engine só relata a contagem residual e a marca como risco não corrigível por configuração; a parede única de suporte (tune.support.fragile-tree-wall) fica desligada quando a contagem é maior que zero."
+  },
+  {
+    "rule": "bambu.versions.ams2pro-labeled-ams-lite",
+    "reason": "needs-user-context",
+    "note": "O rótulo AMS Lite numa X2D é um relato de sincronização; confirmar o tipo de AMS e o mapeamento depende do hardware que o usuário tem."
+  },
+  {
+    "rule": "bambu.versions.beta-3mf-makerworld",
+    "reason": "not-a-setting",
+    "note": "Dica sobre o envio ao MakerWorld de um 3MF salvo em beta; não afeta o fatiamento nem tem chave."
+  },
+  {
+    "rule": "bambu.versions.estimate-or-speeds-changed-after-sync",
+    "reason": "needs-user-context",
+    "note": "Só o usuário sabe qual era o tempo esperado e quais velocidades ele tinha definido; o guia traz o relato (15 h viraram 39 h) sem critério numérico para o motor decidir."
+  },
+  {
+    "rule": "bambu.versions.x2d-studio-too-old",
+    "reason": "not-a-setting",
+    "note": "A solução é atualizar o Bambu Studio e o firmware (2.5.3.60 e 01.01.00.00), não uma chave do projeto."
+  },
+  {
+    "rule": "bambu.waste.dark-color-bleed-diagnosis",
+    "reason": "needs-user-context",
+    "note": "Distinguir bleed (escuro aparecendo pela camada clara) de purga insuficiente depende do par de cores e da peça, que só o usuário avalia; o guia relata manter o multiplicador em 0,75 a 0,80 de preto para branco."
+  },
+  {
+    "rule": "bambu.waste.estimate-is-floor",
+    "reason": "not-a-setting",
+    "note": "É um aviso de relatório: o número de purga do Studio é piso (carga, preparação e torre ficam de fora), não há chave para ajustar."
+  },
+  {
+    "rule": "bambu.waste.flush-into-infill-color-bleed",
+    "reason": "no-measurable-trigger",
+    "note": "Paredes finas, claras ou translúcidas não têm limiar no guia, então não há como decidir quando o flush into infill deve ser desligado; o engine apenas avisa."
+  },
+  {
+    "rule": "bambu.waste.flush-matrix-pla-petg-before-2-8-0",
+    "reason": "no-measurable-trigger",
+    "note": "O guia não dá o volume de flush de PLA para PETG da matriz nova (2.8.0 beta), então não há valor seguro para gravar; o engine só avisa que o projeto foi salvo antes da 2.8.0 e que o par deve ser conferido."
+  },
+  {
+    "rule": "bambu.waste.flush-without-tower",
+    "reason": "needs-user-context",
+    "note": "Ligar a torre (o guia) ou abrir mão do flush into infill são decisões do usuário, e os dois são ajustes fora do padrão de fábrica; sem a torre a opção simplesmente não tem efeito, então o engine só reporta o conflito."
+  },
+  {
+    "rule": "bambu.waste.high-waste-ratio",
+    "reason": "no-measurable-trigger",
+    "note": "Purga e torre foram de 2 a mais de 10 vezes o peso da peça, mas o guia não define limiar oficial para disparar uma correção; o engine só relata gcode.purge_g, gcode.tower_g e o peso da peça (o ponto de partida do multiplicador está em tune.waste.flush-multiplier-start)."
+  },
+  {
+    "rule": "bambu.waste.long-retraction-when-cut-risk",
+    "reason": "manual",
+    "note": "A opção experimental reduz a purga ao custo do risco de entupimento que o próprio Studio avisa; aceitar esse risco é decisão do usuário e o engine nunca a liga por conta própria."
+  },
+  {
+    "rule": "bambu.waste.multicolor-levers",
+    "reason": "manual",
+    "note": "As alavancas (orientar a peça, várias cópias úteis, Split to Objects ou Parts, By object, camada mais grossa) são decisões de modelagem e de objetivo do usuário; as que têm chave ficam com ações próprias (multiplicador) ou exigem cor de parede, que o guia não mede."
+  },
+  {
+    "rule": "bambu.waste.split-to-objects-floating-parts",
+    "reason": "not-a-setting",
+    "note": "Split to Objects versus Split to Parts é uma operação da interface sobre os objetos, não uma chave de processo; o engine só avisa que cascas flutuantes caem para Z = 0 no Split to Objects."
+  },
+  {
+    "rule": "bambu.x2d.ams-sync-wrong-color-positions",
+    "reason": "hardware",
+    "note": "O mapeamento real dos slots das duas AMS não aparece no arquivo; o guia manda conferir o mapeamento antes de enviar."
+  },
+  {
+    "rule": "bambu.x2d.arrange-reserves-aux-strip",
+    "reason": "not-a-setting",
+    "note": "O guia manda só conferir a atribuição de bico de objetos, skirt, brim e suporte quando a peça passa de 235 mm sem usar o bico 2; é verificação de arrange e atribuição, não uma chave de configuração."
+  },
+  {
+    "rule": "bambu.x2d.aux-bowden-retraction-custom-profile",
+    "reason": "risk",
+    "note": "O remédio seria retração de 2 mm só no auxiliar, mas retraction_length é um vetor por variante e um escalar preencheria também o bico principal (0,8 mm, direct drive); sem endereçamento por variante o motor não escreve e a regra só avisa (corrigido na 2.8.4.57 beta)."
+  },
+  {
+    "rule": "bambu.x2d.aux-nozzle-cautious-filaments",
+    "reason": "hardware",
+    "note": "O guia só diz 'com cautela' para PETG-CF, ASA-CF e PLA Silk no auxiliar e que o alimentador auxiliar não detecta jam; não há valor a ajustar, só acompanhar a impressão (o teto de 200 mm/s e 1000 mm/s² do auxiliar é tratado pela regra de limites do auxiliar)."
+  },
+  {
+    "rule": "bambu.x2d.aux-nozzle-reach-limits",
+    "reason": "not-a-setting",
+    "note": "O remédio é reposicionar objetos, skirt, brim e torre dentro de x >= 20,5 mm e z <= 256 mm (ou reatribuir o bico), e o único ajuste de configuração que soma altura é o z_hop, para o qual o guia não dá valor reduzido; a detecção fica na própria regra (gcode.aux_nozzle_min_x_mm, gcode.aux_nozzle_max_z_mm, gcode.tool_xy_outside_area_count)."
+  },
+  {
+    "rule": "bambu.x2d.aux-profile-review",
+    "reason": "manual",
+    "note": "O tipo de filamento no auxiliar e a retração por variante são decisões por vetor Direct Drive/Bowden (um escalar corromperia o bico principal) e a temperatura em M104 é bug de índice; a torre ligada está em bambu.x2d.dual-nozzle-without-prime-tower (outro chunk), e os detectores gcode.aux_retraction_equals_main e gcode.tool_temperature_mismatch_count só relatam."
+  },
+  {
+    "rule": "bambu.x2d.aux-volume-exceeded",
+    "reason": "not-a-setting",
+    "note": "Reorientar, reduzir ou reatribuir o objeto ao bico principal não é chave de configuração (a atribuição de bico por objeto não está em studio-keys.json); a regra bloqueante impede o 'pronto'."
+  },
+  {
+    "rule": "bambu.x2d.custom-profile-variant-vector",
+    "reason": "manual",
+    "note": "Preencher as seis variantes de um filamento personalizado é edição do perfil do usuário; o motor grava um escalar em todos os elementos, o que igualaria Bowden e direct drive e reproduziria o bug de retração do auxiliar."
+  },
+  {
+    "rule": "bambu.x2d.dd-bowden-profiles-overwrite",
+    "reason": "not-a-setting",
+    "note": "Bug da 2.8.4.57 que só aparece depois de reiniciar o aplicativo e pede conferir os vetores por extrusor na interface; não há chave a ajustar."
+  },
+  {
+    "rule": "bambu.x2d.estimate-misses-nozzle-change-time",
+    "reason": "not-a-setting",
+    "note": "O tempo de troca de bico não entra na estimativa do Studio (um caso: 85 h contra 116 h por camada, +36%); serve para o relatório tratar a estimativa como piso, sem chave a ajustar."
+  },
+  {
+    "rule": "bambu.x2d.fnan-flow-bug",
+    "reason": "needs-user-context",
+    "note": "O guia manda definir 'vazão válida para o material e o caminho' sem nomear a chave nem dar valor; o gatilho existe (gcode.contains_fnan) mas não há valor seguro para escrever, então só a regra avisa."
+  },
+  {
+    "rule": "bambu.x2d.grouping-mode-custom",
+    "reason": "manual",
+    "note": "Em Custom (Manual) o usuário escolheu o bico de cada filamento e precisa validar material, perfil e caminho; o motor respeita a escolha (a escada tune.x2d.grouping-mode-ladder exclui Manual) e a conferência do G-code fica nas regras próprias."
+  },
+  {
+    "rule": "bambu.x2d.main-volume-exceeded",
+    "reason": "not-a-setting",
+    "note": "Reorientar, reduzir a escala ou dividir a peça muda a geometria, não uma configuração do Studio; a regra bloqueante impede o 'pronto'."
+  },
+  {
+    "rule": "bambu.x2d.mixed-nozzle-diameters",
+    "reason": "needs-user-context",
+    "note": "Mudar nozzle_diameter seria declarar um bico físico que o motor não vê (risco alto com confiança relato); o guia só diz que a combinação não é suportada oficialmente e que o Studio a recusa com a torre ligada."
+  },
+  {
+    "rule": "bambu.x2d.more-than-two-colors-purge",
+    "reason": "not-a-setting",
+    "note": "É uma expectativa de desperdício ('acima de duas cores ainda há troca e purga'), sem chave a ajustar nesta fatia; o relatório deve usar plate.tool_changes e plate.weight_g como piso, e as alavancas de purga ficam nas regras das seções 4 e 11."
+  },
+  {
+    "rule": "bambu.x2d.petg-interface-temp-bug",
+    "reason": "needs-user-context",
+    "note": "Os contornos do guia são agrupamento manual (mais purga), que exige o usuário atribuir cada filamento a um bico, ou um script que reescreve o M104 220; nenhum é um valor que o motor possa escolher sozinho."
+  },
+  {
+    "rule": "bambu.x2d.purge-matrix-wrong-nozzle",
+    "reason": "needs-user-context",
+    "note": "O contorno é pôr o par branco para preto do auxiliar em 900 mm³ na matriz de purga, o que exige saber quais filamentos formam o par e editar um único elemento da matriz, e o contrato só preenche listas com um escalar."
+  },
+  {
+    "rule": "bambu.x2d.reach-z-hop-height",
+    "reason": "manual",
+    "note": "O remédio é reduzir Z-hop, altura ou escala (orientação e escala não são chaves de processo) e o limite exato seria z_hop <= 256 - altura, que uma fórmula ref não expressa porque só lê settings.*; o guia não dá outro valor de Z-hop e z_hop em 0 anularia a proteção de travel."
+  },
+  {
+    "rule": "bambu.x2d.second-nozzle-feed-source",
+    "reason": "hardware",
+    "note": "O AMS 2 Pro tem uma só saída; carretel externo, segunda AMS ou Filament Track Switch é montagem física que nenhum arquivo mostra."
+  },
+  {
+    "rule": "bambu.x2d.small-letters-02-nozzle",
+    "reason": "manual",
+    "note": "O guia só relata que letras pequenas descolam com bico de 0,2 mm em 0,08 mm e não dá correção; as medidas de primeira camada para peça minúscula (15 a 25 mm/s, brim, +5 °C) estão em 10.4 e pertencem a outra regra."
+  },
+  {
+    "rule": "bambu.x2d.support-only-aux-tower-waste",
+    "reason": "risk",
+    "note": "A única saída do guia é No sparse layers mais volumes reduzidos, ambos hipótese: o primeiro é experimental, a dica dele no Studio instalado diz que o extrusor desce até a torre nas camadas com troca e que o usuário responde por evitar colisão com a peça (e o fatiamento pode ser recusado se a posição relativa do modelo e da torre não servir), o que é risco alto, e os volumes reduzidos não têm chave nem número no guia; a detecção do descarte fica na regra."
+  },
+  {
+    "rule": "bambu.x2d.verify-grouping-after-slice",
+    "reason": "needs-user-context",
+    "note": "O bico pretendido para cada filamento (por exemplo o carretel externo) só o usuário sabe; a comparação dos modos é sugerida por tune.x2d.grouping-mode-ladder (agora uma sugestão, não escada) quando o Studio avisa, e a conferência de gcode.filament_nozzle_assignment fica na regra."
+  }
+]

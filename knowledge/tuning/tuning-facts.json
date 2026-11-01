@@ -1,0 +1,152 @@
+[
+  {
+    "name": "gcode.aux_nozzle_max_extrusion_accel_mm_s2",
+    "description": "Maior aceleração (último M204 em vigor, mm/s²) nos movimentos de EXTRUSÃO do G-code fatiado com o bico auxiliar da X2D ativo. Viagens ficam de fora (relatadas à parte).",
+    "source_of_truth": "Varredura do G-code fatiado separando por ferramenta; o M204 em vigor em cada movimento com extrusão.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.aux_nozzle_max_extrusion_feedrate_mm_s",
+    "description": "Maior avanço efetivo (mm/s, convertido de F em mm/min) entre os movimentos de EXTRUSÃO (G1 com E positivo) do G-code fatiado com o bico auxiliar da X2D ativo. Viagens ficam de fora (relatadas à parte).",
+    "source_of_truth": "Varredura do G-code fatiado separando por ferramenta, só movimentos com extrusão.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.ironing_line_count",
+    "description": "Número de segmentos de extrusão do ironing no G-code fatiado (linhas G1 com E positivo dentro dos blocos '; FEATURE: Ironing'). 0 significa que o Studio não gerou nenhum passe de ironing.",
+    "source_of_truth": "Scan do G-code fatiado: blocos iniciados por '; FEATURE: Ironing' (rótulo confirmado nas strings do Bambu Studio instalado).",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.min_line_width_mm",
+    "description": "Menor valor de '; LINE_WIDTH:' (mm) entre as extrusões de parede do G-code; indício parcial de que traços finos foram gerados.",
+    "source_of_truth": "Varredura do G-code fatiado: marcadores ; LINE_WIDTH: das extrusões de parede.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.missing_thin_feature_count",
+    "description": "Número de trechos finos do modelo em que o G-code não tem nenhuma extrusão (parede, gap fill ou preenchimento) num raio de metade da largura de linha, nas camadas em que o trecho existe. Só contam trechos cuja largura local está entre 0,06 mm (15% do bico de 0,4 mm, o menor valor que a escada consegue imprimir) e 0,85 mm, que existem em pelo menos 2 camadas consecutivas; pontas e cantos agudos, onde a largura do eixo medial tende a zero e nada imprime nem a 15%, não contam. O comprimento mínimo do trecho é um filtro de ruído a fixar pela implementação (o guia não dá número). Trecho impresso como gap fill não conta como ausente: o problema do guia é o traço que some.",
+    "source_of_truth": "Fatiar a malha por camada, achar as regiões estreitas (esqueleto ou distância ao eixo medial), e conferir no G-code fatiado (marcadores ; FEATURE: de parede externa, parede interna, gap infill e infill) se há extrusão sobre a linha de eixo de cada região; contar as regiões sem extrusão.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.support_weight_g",
+    "description": "Massa estimada (g) de filamento extrudado nos segmentos '; FEATURE: Support' e '; FEATURE: Support interface' do G-code (comprimento × seção da linha × densidade do filamento).",
+    "source_of_truth": "Varredura do G-code fatiado: marcadores ; FEATURE:, ; LINE_WIDTH:, ; LAYER_HEIGHT: e comprimentos extrudados.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.unprotected_travel_crossing_count",
+    "description": "Quantidade de travels desprotegidos (mesma definição de gcode.unprotected_travel_count: deslocamento XY sem extrusão, mais longo que retraction_minimum_travel em vigor no G-code, logo após extrusão na mesma Z, sem E negativo, sem subida de Z e fora da troca de camada) cujo trajeto XY CRUZA (interseção própria; encostar nas pontas não conta) pelo menos um segmento já impresso da mesma camada de um destes papéis: Outer wall, Inner wall, Overhang wall, Floating vertical shell, Support, Support interface, Support transition, Top surface, Bridge, Bottom surface, Internal solid infill, Gap infill. Qualquer origem (papel da extrusão anterior ao travel). Sparse infill não é obstáculo. É um subconjunto de gcode.unprotected_travel_count.",
+    "source_of_truth": "Varredura do G-code fatiado (a mesma passada de gcode.unprotected_travel_count): para cada travel desprotegido, teste de interseção do trajeto contra os segmentos já impressos da mesma camada (grade de 4 mm, arcos como corda). Desconhecido, não zero, se o arquivo foi truncado, se spiral_mode ou print_sequence por objeto estão ligados, se o G-code é multifilamento (T<n> com n < 254 usado para mais de uma ferramenta, ou blocos WIPE_TOWER/NOZZLE_CHANGE/FLUSH presentes; sem amostra, analyzer-spec 5.3) ou se a leitura falhou.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.unprotected_travel_curl_risk_count",
+    "description": "Quantidade de travels de gcode.unprotected_travel_crossing_count cujo trajeto cruza pelo menos um segmento já impresso da mesma camada com papel Overhang wall, Bridge ou Top surface: linhas sem apoio embaixo ou expostas, onde o guia cita curling como causa de linha levantada (5.1) e a seção 18 cita 'topo'. Contagem simples, sem pesos: o guia não define severidade por curling nem dá pesos. Evidência de relatório, nunca entra em condição.",
+    "source_of_truth": "Varredura do G-code fatiado: o mesmo teste de cruzamento de gcode.unprotected_travel_crossing_count, contando só o conjunto de papéis acima. Classe de evidência [I] (inferência do analisador, não do guia). Mesmos desconhecidos do cruzamento, inclusive multifilamento.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.unprotected_travels_by_origin",
+    "description": "Mapa {papel da extrusão anterior ao travel: {unprotected, crossing}} com a contagem de travels desprotegidos e, desses, os que cruzam extrusão (gcode.unprotected_travel_crossing_count), por origem (Sparse infill, Floating vertical shell, Internal solid infill, Bridge, Top surface, Gap infill, Support...). Evidência de relatório: diz se um degrau da escada alcançou a origem que sobrou. Nunca entra em condição.",
+    "source_of_truth": "Varredura do G-code fatiado: o marcador ; FEATURE: da última extrusão antes de cada travel desprotegido. Mesmos desconhecidos do cruzamento, inclusive multifilamento.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.zhop_lift_count",
+    "description": "Número de elevações de Z associadas a travels no G-code fatiado (Z sobe junto da retração, o bico viaja e Z desce antes de extrudar de novo), qualquer que seja o tipo de Z-hop; a subida da troca de camada não conta.",
+    "source_of_truth": "Varredura do G-code: pares sobe-Z/desce-Z em volta de movimentos sem extrusão dentro da mesma camada.",
+    "cost": "expensive"
+  },
+  {
+    "name": "gcode.zhop_type_mismatch",
+    "description": "true se o estilo de elevação dominante nos travels do G-code (G1 só com Z = Normal Lift; G2/G3 com Z = Spiral Lift; G1 com X/Y e Z ao mesmo tempo = Slope Lift) é diferente do z_hop_types gravado no bloco de configuração do próprio G-code (nível da máquina), o que indica override de filamento.",
+    "source_of_truth": "Varredura do G-code: classificar cada elevação de travel pelo tipo de comando e comparar o estilo mais frequente com a linha z_hop_types do bloco de configuração no fim do arquivo.",
+    "cost": "expensive"
+  },
+  {
+    "name": "mesh.unsupported_overhang_area_mm2",
+    "description": "Área total (mm²) das faces do objeto que realmente ficam no ar e precisam de suporte: ângulo de inclinação (slope angle), medido a partir da HORIZONTAL, abaixo de support_threshold_angle (30° de fábrica), excluindo as faces ao nível do Z mínimo (contato com a mesa), as faces que repousam sobre geometria mais baixa e as regiões conexas estreitas demais para contar (pontes e furos pequenos de parafuso: o guia, 16, manda bloquear suporte em furos de 3 a 6 mm por pintura, mas não dá piso numérico, que fica a cargo da implementação, ver doubts). Zero se não houver. Refina mesh.overhang_area_mm2 (que não exclui nada disso e conta facetas de tessellation de esferas e cilindros) para as ações de tuning. Uma caixa lisa deve dar 0; um cogumelo, mais que 0.",
+    "source_of_truth": "Análise da malha do objeto: normais das faces versus o limiar de suporte, sem a face de contato com a mesa, sem faces apoiadas em geometria mais baixa e sem regiões estreitas demais.",
+    "cost": "expensive"
+  },
+  {
+    "name": "object.has_fit_pins_and_holes",
+    "description": "true se a peça tem pinos e furos de encaixe que se acoplam a outra peça (por exemplo peça de encaixe ou de registro). Declarado pelo usuário ou inferido pelo agente; não existe como campo no 3MF.",
+    "source_of_truth": "Declarado pelo usuário ou inferido pelo agente (nome do arquivo, descrição, peças cortadas com pino); não consta do 3MF.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.has_tight_fit_male_part",
+    "description": "true se o objeto é um pino, tampa ou encaixe macho que precisa entrar justo em furo ou encaixe fêmea.",
+    "source_of_truth": "Declarado pelo usuário ou inferido pelo agente olhando a peça; o par de encaixe não é detectável de forma confiável na malha. Ausente = desconhecido.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.is_cut_part",
+    "description": "true se o objeto é uma das metades (partes) geradas pela ferramenta Cut, e não um pino ou conector (Dowel) nem um objeto sem relação com o corte. Fato por objeto: o projeto pode ter vários objetos com valores diferentes.",
+    "source_of_truth": "Estrutura do 3MF: informação de corte do objeto (objeto com dados de Cut que não é volume de conector); o guia não nomeia o arquivo, a confirmar no parser (mesma ressalva de project.has_cut_objects).",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.is_cut_pin",
+    "description": "true se o objeto é um pino ou conector (Dowel) gerado pela ferramenta Cut, e não uma das metades cortadas.",
+    "source_of_truth": "Estrutura do 3MF: informação de corte e volumes de conector; o guia não nomeia o arquivo, a confirmar no parser (mesma ressalva de project.has_cut_objects).",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.is_large_part",
+    "description": "true se a peça é grande no sentido do guia (caixa ou placa grande); julgamento qualitativo, o guia não dá limiar.",
+    "source_of_truth": "Declarado pelo usuário ou inferido pelo agente (pode usar mesh.footprint_area_mm2, mesh.size_x_mm e mesh.size_y_mm como apoio); não existe no 3MF. Ausente = desconhecido.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.is_tall_narrow",
+    "description": "true se a peça é alta e estreita no sentido do guia (10.2); julgamento qualitativo, o guia diz que não há limiar oficial.",
+    "source_of_truth": "Declarado pelo usuário ou inferido pelo agente (pode usar mesh.height_mm e mesh.height_to_footprint como apoio); não existe no 3MF. Ausente = desconhecido.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.is_tiny_part",
+    "description": "true se a peça é minúscula no sentido do guia (10.4); julgamento qualitativo, o guia não dá limiar.",
+    "source_of_truth": "Declarado pelo usuário ou inferido pelo agente (pode usar mesh.footprint_area_mm2 como apoio); não existe no 3MF. Ausente = desconhecido.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.load_class",
+    "description": "Classe de carga da peça declarada: none, functional (funcional comum) ou high_load (carga alta).",
+    "source_of_truth": "Declarada pelo usuário ou inferida pelo agente a partir do pedido (por exemplo gancho, suporte de carga); não existe no 3MF. Ausente = desconhecido: a ação não dispara e é reportada como não verificada.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.support_top_z_ratio",
+    "description": "Razão support_top_z_distance ÷ layer_height do projeto base (1,0 = padrão de fábrica; a faixa dos criadores é 1,2 a 1,4).",
+    "source_of_truth": "Divisão de duas chaves do project_settings.config do 3MF, sem fatiar.",
+    "cost": "cheap"
+  },
+  {
+    "name": "object.support_top_z_ratio_rounded",
+    "description": "Razão support_top_z_distance ÷ layer_height do projeto base ARREDONDADA a 2 casas decimais (Math.round(x*100)/100): 1,0 = padrão de fábrica; a faixa dos criadores é 1,2 a 1,4, com os extremos incluídos (sem o arredondamento 0.28/0.2 dá 1.4000000000000001 em ponto flutuante e seria lido como 'acima de 1,4').",
+    "source_of_truth": "Divisão de duas chaves do project_settings.config do 3MF, sem fatiar, arredondada a 2 casas.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.speed_lowered_without_temp_drop",
+    "description": "true se alguma velocidade de impressão do processo (parede, infill, sólido, topo) está abaixo do preset de sistema de mesmo nome e a temperatura do bico do filamento não está abaixo do preset.",
+    "source_of_truth": "Comparação do project_settings.config com o preset de sistema herdado (inherits), chave a chave.",
+    "cost": "cheap"
+  },
+  {
+    "name": "project.support_painted",
+    "description": "true se o 3MF traz suporte pintado à mão (enforcers ou blockers de suporte pintados nos objetos).",
+    "source_of_truth": "Dados de pintura de suporte nos meshes do 3MF (o nome exato do atributo precisa ser confirmado no parser do 3MF).",
+    "cost": "cheap"
+  },
+  {
+    "name": "slicer.grouping_not_ideal_warning",
+    "description": "true se o resultado do fatiamento traz o aviso do Studio de que o agrupamento de filamentos por bico do arquivo não é o ideal (informa gramas e trocas a mais); false se o fatiamento terminou sem esse aviso.",
+    "source_of_truth": "Avisos e saída do fatiamento pela CLI do Bambu Studio (resultado JSON ou stderr). Não foi verificado se a CLI emite esse aviso: se não emitir, o fato fica indisponível e o chamador deve declará-lo em options.unavailable. Os textos equivalentes no binário do Studio instalado são de interface gráfica ('Your filament grouping method in the sliced file is not optimal'; 'Current grouping of slice result is not optimal. Increase %1%g filament and %2% nozzle purges compared to optimal grouping'), então é provável que a CLI não os emita.",
+    "cost": "cheap"
+  }
+]

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 import JSZip from "jszip";
@@ -34,10 +34,11 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
   packageMcpb({ root: fixture, outputPath, quiet: true });
 
   const archive = await JSZip.loadAsync(fs.readFileSync(outputPath));
-  for (const name of ["manifest.json", "package.json", "dist/index.js", "src/index.ts", "knowledge/rules.json", "knowledge/manifest.json", "patches/bambu-node+3.22.21.patch", "scripts/install-patches.mjs", "scripts/build-bambu-native.sh", "scripts/setup-bambu-native.mjs", "native/bambu-native-print.cpp", "LICENSE", "README.md", "CONTRIBUTORS.md", "node_modules/mqtt/LICENSE.md", "node_modules/bambu-node/LICENSE", "node_modules/three/LICENSE", "node_modules/basic-ftp/LICENSE.txt"]) {
+  for (const name of ["manifest.json", "package.json", "dist/index.js", "src/index.ts", "knowledge/rules.json", "knowledge/manifest.json", "knowledge/tuning/tuning.json", "knowledge/tuning/no_action.json", "knowledge/tuning/tuning-facts.json", "patches/bambu-node+3.22.21.patch", "scripts/install-patches.mjs", "scripts/build-bambu-native.sh", "scripts/setup-bambu-native.mjs", "native/bambu-native-print.cpp", "LICENSE", "README.md", "CONTRIBUTORS.md", "node_modules/mqtt/LICENSE.md", "node_modules/bambu-node/LICENSE", "node_modules/three/LICENSE", "node_modules/basic-ftp/LICENSE.txt"]) {
     assert.ok(archive.file(name), `missing release file: ${name}`);
   }
   for (const name of Object.keys(archive.files)) {
+    assert.doesNotMatch(name, /^tests\//, "test fixtures (eval.json, golden.json) stay out of the archive");
     assert.doesNotMatch(name, /studio-control|launch-bambu|call-bambu|cgevent|LOCAL-X2D|local-x2d/);
     assert.doesNotMatch(name, /^(?:bambu certs\/|bambu-mcp-config\.json|temp\/|native\/(?!bambu-native-print\.cpp$)|\.env|unrelated\.txt|node_modules\/typescript\/)/);
   }
@@ -76,6 +77,14 @@ test("MCPB archive preserves runtime and licenses without local secrets or pruni
     const consulted = JSON.parse((await client.callTool({ name: "consult_knowledge", arguments: { query: "z hop" } })).content[0].text);
     assert.equal(consulted.kb.integrity, "ok", "the installed extension finds and verifies its knowledge folder");
     assert.equal(consulted.results[0].id, "bambu.travel.zhop-types");
+    // The installed copy of the tuning data is the one that was built: same hashes as the manifest, loaded by the installed engine.
+    const installedManifest = JSON.parse(fs.readFileSync(path.join(installed, "knowledge/manifest.json"), "utf8"));
+    const { loadTuningFrom } = await import(pathToFileURL(path.join(installed, "dist/tuning/loader.js")).href);
+    const { loadKbFrom } = await import(pathToFileURL(path.join(installed, "dist/knowledge/loader.js")).href);
+    const tuning = loadTuningFrom(path.join(installed, "knowledge/tuning"), loadKbFrom(path.join(installed, "knowledge")));
+    assert.equal(tuning.integrity, "ok");
+    assert.equal(tuning.version, installedManifest.kb_version);
+    assert.equal(tuning.actions.length, installedManifest.counts.actions);
     assert.equal(fs.existsSync(path.join(launchDirectory, "temp")), false, "extension startup must not create a cwd-relative temp directory");
   } finally {
     await client.close();
