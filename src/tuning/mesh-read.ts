@@ -11,8 +11,12 @@ import { MAX_PRINT_FILE_BYTES } from "../safety/archive.js";
 
 /** Triangle soup in world space: pos = x,y,z per vertex, idx = 3 vertex numbers per triangle (counter-clockwise seen from outside). */
 export interface Soup { pos: Float64Array; idx: Uint32Array }
-/** One printable object (a build item): all its model parts together. */
-export interface MeshObject { name: string; soup: Soup }
+/**
+ * One printable object (a build item): all its model parts together. objectId, instance (the build items of one object counted in order, as
+ * model_settings.config's instance_id does), itemIndex (position among all build items, which is also the order of the `<item>` tags) and painted
+ * (some triangle carries a paint_color) are what the layout stage needs to find the item again.
+ */
+export interface MeshObject { name: string; soup: Soup; objectId?: string; instance?: number; itemIndex?: number; painted?: boolean }
 export interface ReadMesh { objects: MeshObject[]; triangles: number }
 export type MeshReadFailure = "too_large" | "no_geometry" | "unreadable" | "no_plate";
 export class MeshReadError extends Error {
@@ -68,7 +72,7 @@ class Grow<T extends Float64Array | Uint32Array> {
   done(): T { return this.a.slice(0, this.n) as T; }
 }
 
-interface ModelObject { verts: Float64Array; tris: Uint32Array; components: Array<{ id: string; path?: string; matrix: Matrix }> }
+interface ModelObject { verts: Float64Array; tris: Uint32Array; components: Array<{ id: string; path?: string; matrix: Matrix }>; painted: boolean }
 interface Item { objectId: string; path?: string; matrix: Matrix; printable: boolean }
 interface Budget { triangles: number }
 
@@ -76,7 +80,7 @@ interface Budget { triangles: number }
 function parseModel(buf: Buffer, budget: Budget): { objects: Map<string, ModelObject>; items: Item[] } {
   const objects = new Map<string, ModelObject>();
   const items: Item[] = [];
-  let id: string | undefined, ordinal = 0, verts = new Grow(n => new Float64Array(n)), tris = new Grow(n => new Uint32Array(n)), components: ModelObject["components"] = [];
+  let id: string | undefined, ordinal = 0, verts = new Grow(n => new Float64Array(n)), tris = new Grow(n => new Uint32Array(n)), components: ModelObject["components"] = [], painted = false;
   for (let i = buf.indexOf(60); i >= 0; i = buf.indexOf(60, i + 1)) {
     const next = buf[i + 1];
     if (next === 33 || next === 63) { // comment, CDATA, declaration: skip past it
@@ -91,7 +95,7 @@ function parseModel(buf: Buffer, budget: Budget): { objects: Map<string, ModelOb
       if (id !== undefined && /^\/(?:\w+:)?object\b/.test(buf.toString("latin1", i + 1, Math.min(end, i + 40)))) {
         const vertexValues = verts.done(), triangleValues = tris.done();
         for (const v of triangleValues) if (v >= vertexValues.length / 3) throw new MeshReadError("unreadable", `object #${ordinal}: a triangle uses a vertex that does not exist`);
-        objects.set(id, { verts: vertexValues, tris: triangleValues, components });
+        objects.set(id, { verts: vertexValues, tris: triangleValues, components, painted });
         id = undefined;
       }
       i = end;
@@ -105,6 +109,7 @@ function parseModel(buf: Buffer, budget: Budget): { objects: Map<string, ModelOb
       verts.push(xyz[0]); verts.push(xyz[1]); verts.push(xyz[2]);
     } else if (name === "triangle" && id !== undefined) {
       if (--budget.triangles < 0) throw new MeshReadError("too_large", "the 3MF holds more triangles than the analyzer's limit");
+      if (!painted && text.includes("paint_color")) painted = true;
       for (const key of ["v1", "v2", "v3"]) {
         const v = Number(attr(text, key));
         if (!Number.isInteger(v) || v < 0) throw new MeshReadError("unreadable", `object #${ordinal}: a triangle has no valid ${key}`);
@@ -116,6 +121,7 @@ function parseModel(buf: Buffer, budget: Budget): { objects: Map<string, ModelOb
       verts = new Grow(n => new Float64Array(n));
       tris = new Grow(n => new Uint32Array(n));
       components = [];
+      painted = false;
     } else if (name === "component" && id !== undefined) {
       const objectid = attr(text, "objectid");
       if (objectid) components.push({ id: objectid, path: attr(text, "path"), matrix: parseMatrix(attr(text, "transform")) });
@@ -145,10 +151,13 @@ export function faceOutward(pos: Float64Array, idx: Uint32Array, from: number, t
   if (volume < 0) for (let i = from; i < to; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
 }
 
-interface Placed { objectId: string; verts: Float64Array; tris: Uint32Array; matrix: Matrix }
+interface Placed { objectId: string; verts: Float64Array; tris: Uint32Array; matrix: Matrix; painted: boolean }
 
-/** Reads the printable normal-part meshes of one plate of an opened 3MF. A file without geometry (a GUI-sliced export) is `no_geometry`. */
-export async function readProjectMesh(project: ProjectFiles, plateIndex: number, maxTriangles = MAX_TRIANGLES): Promise<ReadMesh> {
+/**
+ * Reads the printable normal-part meshes of one plate of an opened 3MF (`plateIndex` null: of every plate, which the layout stage needs).
+ * A file without geometry (a GUI-sliced export) is `no_geometry`.
+ */
+export async function readProjectMesh(project: ProjectFiles, plateIndex: number | null, maxTriangles = MAX_TRIANGLES): Promise<ReadMesh> {
   if (!project.read) throw new MeshReadError("unreadable", "the 3MF was not opened with entry access");
   const budget: Budget = { triangles: maxTriangles };
   const models = new Map<string, Map<string, ModelObject>>();
@@ -166,14 +175,14 @@ export async function readProjectMesh(project: ProjectFiles, plateIndex: number,
   models.set(MAIN_MODEL, parsed.objects);
 
   const modelSettings = project.modelSettings;
-  const hasPlates = asArray(modelSettings?.plate).length > 0;
+  const hasPlates = plateIndex !== null && asArray(modelSettings?.plate).length > 0;
   const onPlate = hasPlates ? plateInstances(modelSettings, plateIndex) : undefined;
-  if (hasPlates && !onPlate) throw new MeshReadError("no_plate", `the project has no plate ${plateIndex + 1}`);
+  if (hasPlates && !onPlate) throw new MeshReadError("no_plate", `the project has no plate ${plateIndex! + 1}`);
 
   const seen = new Map<string, number>();
   const objects: MeshObject[] = [];
   let triangles = 0, vertices = 0, instances = 0;
-  for (const item of parsed.items) {
+  for (const [itemIndex, item] of parsed.items.entries()) {
     const instance = seen.get(item.objectId) ?? 0; // instance_id counts the build items of the same object in order
     seen.set(item.objectId, instance + 1);
     if (!item.printable || (onPlate && !onPlate.includes(`${item.objectId}:${instance}`))) continue;
@@ -190,7 +199,7 @@ export async function readProjectMesh(project: ProjectFiles, plateIndex: number,
         triangles += object.tris.length / 3;
         vertices += object.verts.length / 3; // every instance copies all vertices of its object, referenced or not: a fan-out of big objects must stop here
         if (triangles > maxTriangles || vertices > 3 * maxTriangles) throw new MeshReadError("too_large", `the plate holds more than ${maxTriangles} triangles or ${3 * maxTriangles} vertices`);
-        placed.push({ objectId: id, verts: object.verts, tris: object.tris, matrix });
+        placed.push({ objectId: id, verts: object.verts, tris: object.tris, matrix, painted: object.painted });
       }
       for (const c of object.components) await visit(c.path ?? file, c.id, compose(c.matrix, matrix), depth + 1);
     };
@@ -216,9 +225,9 @@ export async function readProjectMesh(project: ProjectFiles, plateIndex: number,
       faceOutward(pos, idx, from, to);
     }
     const name = asArray(modelSettings?.object).find(o => String(o.id) === item.objectId);
-    objects.push({ name: String(meta(name, "name") ?? `object ${item.objectId}`), soup: { pos, idx } });
+    objects.push({ name: String(meta(name, "name") ?? `object ${item.objectId}`), soup: { pos, idx }, objectId: item.objectId, instance, itemIndex, painted: placed.some(p => p.painted) });
   }
-  if (!objects.length) throw new MeshReadError("no_geometry", hasPlates ? `plate ${plateIndex + 1} has no printable model geometry` : "the 3MF has no printable model geometry");
+  if (!objects.length) throw new MeshReadError("no_geometry", hasPlates ? `plate ${plateIndex! + 1} has no printable model geometry` : "the 3MF has no printable model geometry");
   return { objects, triangles };
 }
 

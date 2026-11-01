@@ -4,10 +4,18 @@ export interface Soup {
     pos: Float64Array;
     idx: Uint32Array;
 }
-/** One printable object (a build item): all its model parts together. */
+/**
+ * One printable object (a build item): all its model parts together. objectId, instance (the build items of one object counted in order, as
+ * model_settings.config's instance_id does), itemIndex (position among all build items, which is also the order of the `<item>` tags) and painted
+ * (some triangle carries a paint_color) are what the layout stage needs to find the item again.
+ */
 export interface MeshObject {
     name: string;
     soup: Soup;
+    objectId?: string;
+    instance?: number;
+    itemIndex?: number;
+    painted?: boolean;
 }
 export interface ReadMesh {
     objects: MeshObject[];
@@ -26,7 +34,10 @@ export declare const MAX_TRIANGLES = 3000000;
  * keep it small. Meaningful for closed meshes only: an open surface has no sign, and keeps what it has when the volume is not negative.
  */
 export declare function faceOutward(pos: Float64Array, idx: Uint32Array, from: number, to: number): void;
-/** Reads the printable normal-part meshes of one plate of an opened 3MF. A file without geometry (a GUI-sliced export) is `no_geometry`. */
-export declare function readProjectMesh(project: ProjectFiles, plateIndex: number, maxTriangles?: number): Promise<ReadMesh>;
+/**
+ * Reads the printable normal-part meshes of one plate of an opened 3MF (`plateIndex` null: of every plate, which the layout stage needs).
+ * A file without geometry (a GUI-sliced export) is `no_geometry`.
+ */
+export declare function readProjectMesh(project: ProjectFiles, plateIndex: number | null, maxTriangles?: number): Promise<ReadMesh>;
 /** Reads one STL (binary or ASCII) as a single object; units are taken as millimetres. */
 export declare function readStlMesh(filePath: string, maxTriangles?: number): Promise<ReadMesh>;
