@@ -563,6 +563,15 @@ test("a ladder step the slicer did not use is PREDICTED ONLY and the verdict is 
   assert.deepEqual(r.verified.measured.values_reached_the_slice, []);
 });
 
+test("each change carries the print-time cost of the round that introduced it, and the summary shows it", async t => {
+  const actions = [definite("tune.a", { top_shell_layers: "5" }), definite("tune.b", { seam_position: "nearest" })];
+  const r = await harness(await setup(t), { actions, script: [crossing(0, { time: 3600 }), crossing(0, { time: 5400 })] }).run();
+  for (const c of r.diff.tuning) assert.deepEqual(c.round_time_cost, { before_s: 3600, after_s: 5400, delta_s: 1800, shared_with: 1 });
+  assert.match(r.resumo, /\+30 min de impressão \(50\.0%, junto com 1 outra\(s\) da mesma rodada\)/);
+  const same = await harness(await setup(t), { actions, script: [crossing(0, { time: 3600 })] }).run();
+  assert.doesNotMatch(same.resumo, /min de impressão/, "a cost under a minute is not shown");
+});
+
 test("apply strong_only writes only preset, oficial and bug conhecido values; relato stays a suggestion", async t => {
   const actions = [definite("tune.strong", { top_shell_layers: "5" }, "oficial"), definite("tune.relato", { seam_position: "nearest" }, "relato")];
   const rec = await harness(await setup(t), { actions, script: [crossing(0)] }).run();

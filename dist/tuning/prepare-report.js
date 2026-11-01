@@ -60,12 +60,15 @@ function changeViews(run, round, plan, write) {
         const { item, first } = pick(`${scope === "object" ? "o" : "s"}\0${key}`);
         const a = item ? actionById.get(item.action) : undefined;
         const reached = scope === "object" ? null : (round?.measure?.reach[key] ?? null);
+        const seconds = (r) => { const t = r?.measure?.facts["plate.time_s"]; return typeof t === "number" ? t : undefined; };
+        const [before, after] = [first === 0 ? run.baseline?.measure.facts["plate.time_s"] : seconds(run.rounds.find(r => r.round === first - 1)), seconds(run.rounds.find(r => r.round === first))];
         views.push({
             key, scope, from, from_p0: fromP0, to, action: item?.action ?? "engine", title: a?.title ?? null, kind: item?.kind ?? "definite",
             why: item ? clip(item.why ?? item.rationale) : null, confidence: item?.confidence ?? null, risk: item?.risk ?? null, rules: item?.rules ?? [], src: item?.src ?? [],
             round: item?.round ?? 0, first_round: first, ...(item?.cost ? { cost: item.cost } : {}), ...(item?.expect ? { expect: clip(item.expect) } : {}),
             verification: verification(run, item, a, first, round, reached),
             reached_slice: reached,
+            round_time_cost: typeof before === "number" && typeof after === "number" ? { before_s: before, after_s: after, delta_s: after - before, shared_with: 0 } : null,
         });
     };
     const combined = new Map(write.combined_diff.map(d => [d.key, d.from]));
@@ -74,6 +77,9 @@ function changeViews(run, round, plan, write) {
     for (const o of write.object_overrides)
         if (!views.some(v => v.scope === "object" && v.key === o.key))
             add(o.key, "object", o.from, o.from, o.to);
+    for (const v of views)
+        if (v.round_time_cost)
+            v.round_time_cost.shared_with = views.filter(w => w !== v && w.first_round === v.first_round).length;
     return views;
 }
 function verification(run, item, a, first, round, reached) {
@@ -261,6 +267,7 @@ export function buildReport(run) {
         key: v.key, from: v.from, to: v.to, scope: v.scope, action: v.action, title: v.title, kind: v.kind, why: v.why, confidence: v.confidence, risk: v.risk, rules: v.rules, src: v.src,
         round: v.round, first_round: v.first_round, ...(v.cost ? { cost: v.cost } : {}), ...(v.expect ? { expect: v.expect } : {}),
         verified: v.verification.status === "verified", verification: v.verification, reached_slice: v.reached_slice,
+        round_time_cost: v.round_time_cost,
     }));
     const report = {
         tool: "prepare_print_project",
@@ -309,6 +316,15 @@ export function buildReport(run) {
     report.resumo = resumo(run, report, views, { verdict, not_ready, caveats });
     return report;
 }
+/** " — +31 min de impressão" for the round that introduced the change; the other changes of that round are mixed in. */
+function timeText(v) {
+    const c = v.round_time_cost;
+    if (!c || Math.abs(c.delta_s) < 60)
+        return "";
+    const min = Math.round(Math.abs(c.delta_s) / 60);
+    const mixed = c.shared_with ? `, junto com ${c.shared_with} outra(s) da mesma rodada` : "";
+    return ` — ${c.delta_s > 0 ? "+" : "-"}${min} min de impressão (${(c.delta_s / c.before_s * 100).toFixed(1)}%${mixed})`;
+}
 function resumo(run, report, views, d) {
     const lines = [];
     const name = run.delivered ? run.delivered.path.split(/[\\/]/).pop() : run.source.path.split(/[\\/]/).pop();
@@ -322,7 +338,7 @@ function resumo(run, report, views, d) {
     if (views.length) {
         lines.push("", `### Mudanças (${views.length})`);
         for (const v of views.slice(0, 14))
-            lines.push(`- \`${v.key}\`: ${short(v.from, 30)} → ${short(v.to, 30)} [${v.confidence ?? "?"}, ${v.action}, rodada ${v.round}] — ${v.verification.status === "verified" ? `VERIFICADO${v.verification.outcome === "not_cleared" ? " (aplicado, mas o problema continua)" : ""}` : "SÓ PREVISTO"}`);
+            lines.push(`- \`${v.key}\`: ${short(v.from, 30)} → ${short(v.to, 30)} [${v.confidence ?? "?"}, ${v.action}, rodada ${v.round}] — ${v.verification.status === "verified" ? `VERIFICADO${v.verification.outcome === "not_cleared" ? " (aplicado, mas o problema continua)" : ""}` : "SÓ PREVISTO"}${timeText(v)}`);
         if (views.length > 14)
             lines.push(`- … e mais ${views.length - 14} (veja \`diff.tuning\`).`);
     }
