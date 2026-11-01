@@ -51,6 +51,7 @@ export interface BambuSliceOptions {
     skipModifiedGcodes?: boolean;
     slicePlate?: number;
     projectPlan?: ProjectSettingsPlan;
+    exportOnly?: boolean;
 }
 export declare function bambuCliFailureReason(exitCode: unknown, resultPath: string): string | undefined;
 export declare class STLManipulator extends EventEmitter {
@@ -77,6 +78,12 @@ export declare class STLManipulator extends EventEmitter {
      * preset owns those keys; drop them from the other profiles.
      */
     private isolateMachineSettings;
+    /**
+     * A project made for the target printer lists the printer and filament keys it edited; the plan carries them
+     * (ProjectSettingsPlan.machineOverlay, filaments[].overlay), and they are merged here onto the prepared machine
+     * and filament files, which otherwise replace every such value the project holds.
+     */
+    private applyProjectEdits;
     /** --load-filaments is positional; a single override must cover every project slot. */
     private expandProjectFilaments;
     /**

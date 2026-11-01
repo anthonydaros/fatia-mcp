@@ -187,6 +187,10 @@ function parseEntries(bytes) {
         return fail('unreferenced local ZIP data before the central directory');
     return entries;
 }
+/** Entry names in archive order with their ZIP method, after the checks loadSafe3mfArchive makes (so a rewrite can keep order and compression). */
+export function listSafe3mfEntries(bytes) {
+    return parseEntries(bytes).map(entry => ({ name: entry.name, stored: entry.method === 0 }));
+}
 /** Bounded native inflation prevents false size fields from making JSZip allocate
  * unbounded output. Populate JSZip only with the verified, uniquely named bytes. */
 export async function loadSafe3mfArchive(bytes) {

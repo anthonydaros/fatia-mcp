@@ -514,6 +514,28 @@ export class STLManipulator extends EventEmitter {
             filamentPaths: bundle.filamentPaths.map(filePath => isolate(filePath, 'filament')),
         };
     }
+    /**
+     * A project made for the target printer lists the printer and filament keys it edited; the plan carries them
+     * (ProjectSettingsPlan.machineOverlay, filaments[].overlay), and they are merged here onto the prepared machine
+     * and filament files, which otherwise replace every such value the project holds.
+     */
+    applyProjectEdits(bundle, plan, outputBase) {
+        const machineEdits = plan?.machineOverlay ?? {};
+        const filamentEdits = plan?.filaments.map(f => f.overlay) ?? [];
+        if (!plan || !bundle.settingsArg || (Object.keys(machineEdits).length === 0 && filamentEdits.every(edits => !edits)))
+            return bundle;
+        if (filamentEdits.length !== bundle.filamentPaths.length && filamentEdits.some(edits => edits)) {
+            throw new Error(`The project's edits cover ${filamentEdits.length} filament slots, but ${bundle.filamentPaths.length} filament profiles are loaded; refusing to drop them.`);
+        }
+        const merge = (filePath, edits, label) => !edits || Object.keys(edits).length === 0 ? filePath
+            : this.writeTempJson(outputBase, label, { ...this.readJsonFile(filePath), ...edits });
+        const [machinePath, ...rest] = bundle.settingsArg.split(';');
+        return {
+            ...bundle,
+            settingsArg: [merge(machinePath, machineEdits, 'machine_project'), ...rest].join(';'),
+            filamentPaths: bundle.filamentPaths.map((filePath, i) => merge(filePath, filamentEdits[i], `filament_${i + 1}_project`)),
+        };
+    }
     /** --load-filaments is positional; a single override must cover every project slot. */
     async expandProjectFilaments(inputPath, bundle) {
         if (!inputPath.toLowerCase().endsWith('.3mf') || bundle.filamentPaths.length === 0)
@@ -1324,14 +1346,14 @@ export class STLManipulator extends EventEmitter {
                                 this.writeTempJson(outputBase, `machine_${bambuOptions.nozzleType}`, machine), ...rest,
                             ].join(';');
                         }
-                        const cliBundle = this.isolateMachineSettings(settingsBundle);
+                        const cliBundle = this.isolateMachineSettings(this.applyProjectEdits(settingsBundle, slicerProfile ? undefined : bambuOptions?.projectPlan, outputBase));
                         // One folder per slice: the CLI's plate_N.gcode and result.json names are fixed,
                         // so concurrent or repeated slices of one model must never share them.
                         sliceDir = await fs.promises.mkdtemp(path.join(this.tempDir, 'slice-'));
                         const bambuOutputPath = path.join(sliceDir, outputBase + '_sliced.3mf');
                         resultPath = path.join(sliceDir, 'result.json');
                         args = [
-                            '--slice', String(bambuOptions?.slicePlate ?? 0),
+                            ...(bambuOptions?.exportOnly ? [] : ['--slice', String(bambuOptions?.slicePlate ?? 0)]),
                             '--outputdir', sliceDir,
                             '--export-3mf', path.basename(bambuOutputPath),
                         ];

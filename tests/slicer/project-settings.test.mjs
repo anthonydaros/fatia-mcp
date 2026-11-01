@@ -26,14 +26,14 @@ async function fixture(t) {
   }));
   const write = (kind, value) => fs.writeFile(path.join(bbl, kind, `${value.name}.json`), JSON.stringify(value));
   await write('machine', {
-    name: X2D, nozzle_diameter: ['0.4'], machine_start_gcode: 'X2D START',
+    name: X2D, nozzle_diameter: ['0.4'], machine_start_gcode: 'X2D START', z_hop: ['0.4', '0.4', '0.4'], z_hop_types: ['Auto Lift', 'Auto Lift', 'Auto Lift'],
     default_print_profile: '0.20mm Standard @BBL X2D', default_filament_profile: ['Bambu PLA Basic @BBL X2D 0.4 nozzle'],
   });
   const variants = { print_extruder_variant: ['Direct Drive Standard', 'Direct Drive High Flow', 'Bowden Standard'], print_extruder_id: ['1', '1', '2'] };
   for (const [name, layer] of [['0.20mm Standard @BBL X2D', '0.2'], ['0.12mm Fine @BBL X2D', '0.12']]) {
     await write('process', { name, compatible_printers: [X2D], layer_height: layer, sparse_infill_pattern: 'grid', outer_wall_speed: ['200', '500', '50'], ...variants });
   }
-  const filament = (name, compatible, type = 'PLA') => write('filament', { name, compatible_printers: [compatible], filament_type: [type], nozzle_temperature: ['220'] });
+  const filament = (name, compatible, type = 'PLA') => write('filament', { name, compatible_printers: [compatible], filament_type: [type], nozzle_temperature: ['220'], filament_flow_ratio: ['0.98', '0.98', '0.98'] });
   await filament('Bambu PLA Basic @BBL X2D 0.4 nozzle', X2D);
   await filament('Generic PLA @BBL X2D', 'Bambu Lab X2D 0.6 nozzle'); // the bare name is the 0.6/0.8 variant
   await filament('Generic PLA @BBL X2D 0.4 nozzle', X2D);
@@ -153,6 +153,88 @@ test('slicing a project for the target printer loads its values although the cha
   const args = await f.args();
   const cli = JSON.parse(await fs.readFile(args[args.indexOf('--load-settings') + 1].split(';')[1], 'utf8'));
   assert.deepEqual([cli.sparse_infill_pattern, cli.outer_wall_speed], ['gyroid', ['100', '500', '50']]);
+});
+
+// The sparse process preset lacks keys such as wall_sequence and brim_type: the CLI resets them to its own default unless the overlay carries them.
+test('a project for the target printer also keeps a changed key its process preset lacks, when it lists it; post_process never', async t => {
+  const f = await fixture(t);
+  withProfilesRoot(t, f);
+  const config = { ...x2dDefaults, sparse_infill_pattern: 'grid', wall_sequence: 'inner-outer-inner wall', brim_type: 'outer_only', post_process: ['calc.exe'], different_settings_to_system: ['wall_sequence;post_process', '', ''] };
+  const p = await plan(f, await f.project(config));
+  assert.deepEqual(p.overlay, { wall_sequence: 'inner-outer-inner wall' }, 'brim_type is not listed and not in the preset: nothing says it was edited');
+  assert.deepEqual([p.kept, p.notKept], [['wall_sequence: inner-outer-inner wall -> unset'], []]);
+  // A project from another printer carries it the same way.
+  const other = await plan(f, await f.project({ ...config, printer_settings_id: 'Bambu Lab H2D 0.4 nozzle', print_settings_id: '0.12mm Fine @BBL H2D' }));
+  assert.deepEqual(other.overlay, { wall_sequence: 'inner-outer-inner wall' });
+});
+
+// What a tuned project lists as edited for the printer and for a filament must survive a later slice, which takes both from the presets.
+const tuned = {
+  ...x2dDefaults, filament_type: ['PLA'], filament_colour: ['#000000'], z_hop: ['0.8', '0.8', '0.8'], machine_start_gcode: 'EVIL START', nozzle_temperature: ['215'], filament_start_gcode: ['M104 S400'],
+  different_settings_to_system: ['', 'nozzle_temperature;filament_start_gcode', 'machine_start_gcode;z_hop'],
+};
+
+test('a project for the target printer carries its edited retraction and filament keys, and never G-code or hardware keys', async t => {
+  const f = await fixture(t);
+  withProfilesRoot(t, f);
+  const p = await plan(f, await f.project(tuned));
+  assert.deepEqual(p.machineOverlay, { z_hop: ['0.8', '0.8', '0.8'] });
+  assert.deepEqual(p.filaments, [{ slot: 1, from: 'Bambu PLA Basic @BBL X2D 0.4 nozzle', to: 'Bambu PLA Basic @BBL X2D 0.4 nozzle', overlay: { nozzle_temperature: ['215'] } }]);
+  assert.deepEqual(p.kept.slice(1), ['printer z_hop: ["0.8","0.8","0.8"] -> ["0.4","0.4","0.4"]', 'filament 1 nozzle_temperature: ["215"] -> ["220"]']);
+  assert.deepEqual(p.notKept, [
+    `printer machine_start_gcode: machine settings outside the retraction family come from ${X2D}`,
+    'filament 1 filament_start_gcode: G-code and preset identity come from Bambu PLA Basic @BBL X2D 0.4 nozzle',
+  ]);
+});
+
+// Two slots with different values: a slot must get its own slice, never slot 1's.
+test('each filament slot takes its own slice of a project vector, per slot and per slot and extruder variant', async t => {
+  const f = await fixture(t);
+  withProfilesRoot(t, f);
+  const preset = 'Bambu PLA Basic @BBL X2D 0.4 nozzle';
+  const p = await plan(f, await f.project({
+    ...x2dDefaults, filament_settings_id: [preset, preset], filament_type: ['PLA', 'PLA'], filament_colour: ['#000000', '#FFFFFF'],
+    nozzle_temperature: ['215', '205'], // the preset holds one value: the project holds one per slot
+    filament_flow_ratio: ['0.91', '0.92', '0.93', '0.94', '0.95', '0.96'], // the preset holds three (the extruder variants): the project holds three per slot
+    different_settings_to_system: ['', 'nozzle_temperature;filament_flow_ratio', 'nozzle_temperature;filament_flow_ratio', ''],
+  }));
+  assert.deepEqual(p.filaments.map(entry => entry.overlay), [
+    { nozzle_temperature: ['215'], filament_flow_ratio: ['0.91', '0.92', '0.93'] },
+    { nozzle_temperature: ['205'], filament_flow_ratio: ['0.94', '0.95', '0.96'] },
+  ]);
+  assert.deepEqual(p.notKept, []);
+});
+
+test('a project from another printer still carries none of its printer or filament edits', async t => {
+  const f = await fixture(t);
+  withProfilesRoot(t, f);
+  const p = await plan(f, await f.project({ ...tuned, printer_settings_id: 'Bambu Lab H2D 0.4 nozzle', filament_settings_id: ['Generic PLA @BBL H2D'] }));
+  assert.deepEqual(p.machineOverlay, {});
+  assert.ok(p.filaments.every(entry => entry.overlay === undefined));
+  assert.ok(p.notKept.some(line => line === `printer: machine_start_gcode, z_hop (machine settings come from ${X2D})`));
+});
+
+test('slicing a tuned project merges its printer and filament edits onto the prepared machine and filament files', POSIX_ONLY, async t => {
+  const f = await fixture(t);
+  withProfilesRoot(t, f);
+  const input = await f.project(tuned);
+  await new STLManipulator(path.join(f.dir, 'out'))
+    .sliceSTL(input, 'bambustudio', f.executable, undefined, undefined, X2D, { projectPlan: await plan(f, input) });
+  const args = await f.args();
+  const read = file => fs.readFile(file, 'utf8').then(JSON.parse);
+  const machine = await read(args[args.indexOf('--load-settings') + 1].split(';')[0]);
+  const filament = await read(args[args.indexOf('--load-filaments') + 1].split(';')[0]);
+  assert.deepEqual([machine.z_hop, machine.machine_start_gcode], [['0.8', '0.8', '0.8'], 'X2D START']);
+  assert.deepEqual([filament.nozzle_temperature, filament.filament_start_gcode], [['215'], undefined]);
+});
+
+test('exportOnly writes the project without asking the slicer to slice', POSIX_ONLY, async t => {
+  const f = await fixture(t);
+  withProfilesRoot(t, f);
+  const input = await f.project(x2dDefaults);
+  await new STLManipulator(path.join(f.dir, 'out')).sliceSTL(input, 'bambustudio', f.executable, undefined, undefined, X2D, { exportOnly: true });
+  const args = await f.args();
+  assert.deepEqual([args.includes('--slice'), args.includes('--export-3mf')], [false, true]);
 });
 
 test('a process preset that only other model codes carry is kept for the printer that uses it (P1S on the X1C presets)', async t => {

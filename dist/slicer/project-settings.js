@@ -32,7 +32,13 @@ const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
 const PRESET_META = new Set([
     'name', 'type', 'from', 'inherits', 'include', 'instantiation', 'setting_id', 'version', 'description',
     'print_settings_id', 'compatible_printers', 'compatible_printers_condition',
+    'post_process', // runs a script after slicing: never from a 3MF
 ]);
+// Machine edits that carry over from a project made for this very printer: the retraction family, which is where tuning lives.
+// Hardware and G-code keys stay with the preset (a 3MF is untrusted); widen this list on purpose, never by pattern.
+const MACHINE_EDITS = /^(retract|deretraction|z_hop|travel_slope)|^wipe(_distance)?$/;
+const FILAMENT_GCODE = /gcode$/;
+const listed = (entry) => (entry ?? '').split(';').filter(Boolean);
 const show = (value) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value) ?? 'unset';
     return text.length > 80 ? `${text.slice(0, 77)}...` : text;
@@ -95,7 +101,8 @@ export async function buildProjectSettingsPlan(t) {
     if (changed.length === 0 && !samePrinter)
         notKept.push('different_settings_to_system is missing; process settings come from the printer preset');
     const overlay = {};
-    const keys = samePrinter ? Object.keys(flat).filter(key => !PRESET_META.has(key)) : (changed[0] ?? '').split(';').filter(Boolean);
+    // A key the sparse preset lacks (brim_type, wall_sequence) still counts when the project lists it: the CLI resets it otherwise.
+    const keys = (samePrinter ? [...new Set([...Object.keys(flat), ...listed(changed[0])])] : listed(changed[0])).filter(key => !PRESET_META.has(key));
     for (const key of keys) {
         const value = config[key];
         const base = flat[key];
@@ -124,28 +131,88 @@ export async function buildProjectSettingsPlan(t) {
         overlay[key] = next;
         kept.push(`${key}: ${show(next)} -> ${show(base)}`);
     }
+    // [process, filament 1..N, printer]. For the project's own printer, what it lists as edited for a filament or for the
+    // printer is carried too (G-code and hardware keys excepted): Studio's own "modified preset" semantics, and the way
+    // a tuned printer or filament value survives a later slice, which otherwise takes both from the presets.
+    const layout = changed.length === ids.length + 2;
+    const machineOverlay = {};
+    if (samePrinter && layout) {
+        for (const key of listed(changed[changed.length - 1])) {
+            const [value, base] = [config[key], t.machine[key]];
+            if (value === undefined)
+                continue;
+            if (!MACHINE_EDITS.test(key)) {
+                notKept.push(`printer ${key}: machine settings outside the retraction family come from ${printerPreset}`);
+                continue;
+            }
+            if (base !== undefined && (Array.isArray(value) !== Array.isArray(base) || (Array.isArray(value) && value.length !== base.length))) {
+                notKept.push(`printer ${key}: ${show(value)} does not fit the ${modelCode} preset's ${show(base)}`);
+                continue;
+            }
+            if (same(value, base))
+                continue;
+            machineOverlay[key] = value;
+            kept.push(`printer ${key}: ${show(value)} -> ${show(base)}`);
+        }
+    }
     const filaments = [];
     if (!t.skipFilaments) {
-        ids.forEach((from, i) => {
+        for (const [i, from] of ids.entries()) {
             const to = equivalent('filament', from);
-            filaments.push({ slot: i + 1, from, to: to ?? defaults.filament });
+            const entry = { slot: i + 1, from, to: to ?? defaults.filament };
+            filaments.push(entry);
             if (!to && !defaults.filament)
                 throw new Error(`No ${modelCode} equivalent for filament "${from}" and ${printerPreset} names no default filament.`);
             if (!to)
                 notKept.push(`filament ${i + 1} ${from}: no ${modelCode} equivalent compatible with ${printerPreset}; using ${defaults.filament}`);
             else if (to !== defaults.filament)
                 kept.push(`filament ${i + 1}: ${from} -> ${to} (printer default: ${defaults.filament})`);
-            if (changed.length === ids.length + 2 && changed[i + 1]) {
+            if (!layout || !changed[i + 1])
+                continue;
+            if (!(samePrinter && to === from)) {
                 notKept.push(`filament ${i + 1} ${from}: edited ${changed[i + 1].split(';').join(', ')} (filament edits are not carried over)`);
+                continue;
             }
-        });
+            let flatFilament;
+            try {
+                flatFilament = await t.flatProcess(to);
+            }
+            catch {
+                notKept.push(`filament ${i + 1} ${from}: edited ${changed[i + 1].split(';').join(', ')} (preset ${to} cannot be read)`);
+                continue;
+            }
+            const edits = {};
+            for (const key of listed(changed[i + 1])) {
+                const value = config[key];
+                const base = flatFilament[key];
+                if (value === undefined)
+                    continue;
+                if (PRESET_META.has(key) || FILAMENT_GCODE.test(key)) {
+                    notKept.push(`filament ${i + 1} ${key}: G-code and preset identity come from ${to}`);
+                    continue;
+                }
+                // Project vectors hold every slot: one value per slot, or per slot and extruder variant (the preset's own length).
+                const per = Array.isArray(base) ? base.length : 1;
+                const piece = !Array.isArray(value) ? value : value.length === ids.length * per ? value.slice(i * per, (i + 1) * per) : undefined;
+                if (piece === undefined || (base !== undefined && Array.isArray(piece) !== Array.isArray(base))) {
+                    notKept.push(`filament ${i + 1} ${key}: ${show(value)} does not fit the ${to} preset's ${show(base)}`);
+                    continue;
+                }
+                if (same(piece, base))
+                    continue;
+                edits[key] = piece;
+                kept.push(`filament ${i + 1} ${key}: ${show(piece)} -> ${show(base)}`);
+            }
+            if (Object.keys(edits).length > 0)
+                entry.overlay = edits;
+        }
     }
-    if (changed.length === ids.length + 2 && changed[changed.length - 1]) {
+    if (layout && !samePrinter && changed[changed.length - 1]) {
         notKept.push(`printer: ${changed[changed.length - 1].split(';').join(', ')} (machine settings come from ${printerPreset})`);
     }
     return {
         from: { printer: String(config.printer_settings_id ?? config.printer_model ?? 'unknown printer'), process: projectProcess },
-        process, overlay, filaments, defaults, kept, notKept,
+        process, overlay, machineOverlay, filaments, defaults, kept, notKept,
     };
 }
 /** What a slice in the chosen mode kept and dropped, for the tool result. */

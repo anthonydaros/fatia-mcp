@@ -8,12 +8,15 @@ export interface ProjectSettingsPlan {
     process: string;
     /** Changed process keys, merged onto the target preset (vectors at the target's length). */
     overlay: Config;
-    /** Target filament per project slot; unmapped slots hold the printer's default filament. */
+    /** Target filament per project slot; unmapped slots hold the printer's default filament. `overlay`: the slot's edited keys, merged onto that preset. */
     filaments: {
         slot: number;
         from: string;
         to: string;
+        overlay?: Config;
     }[];
+    /** Retraction-family printer keys a project made for this very printer lists as edited, merged onto the machine preset (empty otherwise). */
+    machineOverlay: Config;
     defaults: {
         process: string;
         filament: string;

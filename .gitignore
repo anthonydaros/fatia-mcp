@@ -37,4 +37,5 @@ native/*.dSYM/
 !/CONTRIBUTORS.md
 !/docs/SLICING.md
 !/docs/SETUP.md
+!/docs/TUNING-WRITER.md
 !/docs/prd/scan-to-print-PRD.md

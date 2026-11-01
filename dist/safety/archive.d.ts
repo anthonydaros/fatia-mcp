@@ -2,6 +2,11 @@ import JSZip from 'jszip';
 export declare const MAX_PRINT_FILE_BYTES: number;
 /** Read no more than the fixed print-artifact limit, even if the file grows. */
 export declare function readBoundedPrintFile(filePath: string): Promise<Buffer>;
+/** Entry names in archive order with their ZIP method, after the checks loadSafe3mfArchive makes (so a rewrite can keep order and compression). */
+export declare function listSafe3mfEntries(bytes: Buffer): {
+    name: string;
+    stored: boolean;
+}[];
 /** Bounded native inflation prevents false size fields from making JSZip allocate
  * unbounded output. Populate JSZip only with the verified, uniquely named bytes. */
 export declare function loadSafe3mfArchive(bytes: Buffer): Promise<JSZip>;
