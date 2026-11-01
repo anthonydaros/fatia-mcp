@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fetchReleases, readAppVersion, readProfileVersion, slicerInfo, stateFilePath, versionFromPlistJson } from "../../dist/slicer/slicer-info.js";
+import { fetchReleases, keepVersion, readAppVersion, readProfileVersion, slicerInfo, stateFilePath, versionFromPlistJson } from "../../dist/slicer/slicer-info.js";
 
 const PLIST = (version) => `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -200,4 +200,15 @@ test("stateFilePath honors SLICER_STATE_FILE and otherwise lives under the home 
   assert.equal(stateFilePath(), custom);
   process.env.SLICER_STATE_FILE = "  ";
   assert.equal(stateFilePath(), path.join(os.homedir(), ".bambu-printer-mcp", "slicers.json"));
+});
+
+test("keepVersion keeps a real version for the process but asks again after null", async () => {
+  const answers = [null, null, "02.08.04.57", "02.09.00.01"];
+  let calls = 0;
+  const read = keepVersion(async () => answers[calls++]);
+  assert.equal(await read(), null, "Studio unreadable this time");
+  assert.equal(await read(), null, "a null was not kept: it asked again");
+  assert.equal(await read(), "02.08.04.57");
+  assert.equal(await read(), "02.08.04.57", "a real version is kept");
+  assert.equal(calls, 3, "no lookup after the version was found");
 });

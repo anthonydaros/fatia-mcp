@@ -6,7 +6,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { MACHINE_LIMITS, normalizeModel } from "../../safety/limits.js";
 import type { FactContext, FactProvider, FactValue, Facts, MeshInfo, ProjectFiles } from "../types.js";
-import { asArray, meta, plateInstances, targetName } from "./settings.js";
+import { asArray, hasPaint, meta, plateInstances, targetName } from "./settings.js";
 
 /** Facts whose 3MF key the guide marks "a confirmar numa X2D real". */
 export const UNCONFIRMED_FACTS: ReadonlySet<string> = new Set([
@@ -15,6 +15,10 @@ export const UNCONFIRMED_FACTS: ReadonlySet<string> = new Set([
 
 /** A verdict fact is easier to trust next to the numbers behind it; preflight adds these to a finding's evidence. */
 export const EVIDENCE_ALSO: Readonly<Record<string, readonly string[]>> = {
+  // "plate" = the filaments the chosen plate uses; "all_slots" = model_settings.config did not say (or the 3MF has painted colours it does not list), so every configured slot counts.
+  // project.filament_count has no fallback: without the plate's objects it stays unknown.
+  "project.filament_types": ["project.filament_scope"],
+  "filament.low_stickiness_on_sticky_type_count": ["project.filament_scope"],
   "mesh.exceeds_build_volume": ["mesh.size_x_mm", "mesh.size_y_mm", "mesh.height_mm", "printer.build_volume_mm"],
 };
 
@@ -174,17 +178,6 @@ async function thirdParty(ctx: FactContext, project: ProjectFiles): Promise<bool
   const head = (await project.read?.("3D/3dmodel.model", 65536))?.toString("utf8");
   if (head === undefined) return undefined;
   return [...head.matchAll(/<metadata\s+name="(?:Designer|Origin)"\s*>([^<]*)</g)].some(m => m[1].trim() !== "");
-}
-
-async function hasPaint(project: ProjectFiles): Promise<boolean | undefined> {
-  let geometry = false;
-  for (const name of project.names ?? []) {
-    if (!/^3D\/.*\.model$/i.test(name)) continue;
-    const bytes = await project.read?.(name); // searched as bytes: a big mesh is never turned into a string
-    if (bytes?.includes(' paint_color="')) return true; // Studio's colour painting; support and seam painting use other attributes
-    geometry ||= !!bytes?.includes("<triangle");
-  }
-  return geometry ? false : undefined; // a GUI-sliced 3MF carries no geometry, so nothing can be said about paint
 }
 
 interface Scope { ctx: FactContext; project?: ProjectFiles; config?: Record<string, unknown>; volume?: Vec; objects?: Obj[] }

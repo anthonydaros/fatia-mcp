@@ -136,5 +136,5 @@ export function getKb() {
 }
 /** Applying a rule's fix without asking is allowed only for a definite setting value backed by a strong source. */
 export const approvalFor = (r) => r.auto_apply && r.solution.settings && Object.keys(r.solution.settings).length > 0
-    && (r.confidence === "preset" || r.confidence === "oficial") && r.stage !== "blender-prep"
+    && (r.confidence === "preset" || r.confidence === "oficial") && r.stage !== "blender-prep" && r.domain !== "blender"
     ? "auto_apply" : "needs_user_approval";

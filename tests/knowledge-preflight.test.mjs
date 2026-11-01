@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import JSZip from "jszip";
-import { settingsProvider } from "../dist/knowledge/facts/settings.js";
+import { openProject, settingsProvider } from "../dist/knowledge/facts/settings.js";
 import { getKb } from "../dist/knowledge/loader.js";
 import { preflightCheck } from "../dist/knowledge/preflight.js";
 import { STLManipulator } from "../dist/stl/stl-manipulator.js";
@@ -48,20 +48,25 @@ const sliceInfo = (version, sliced) => `<?xml version="1.0" encoding="UTF-8"?>
   </header>${sliced ? '\n  <plate><metadata key="index" value="1"/></plate>' : ""}
 </config>`;
 
-/** plates: [[extruder, ...] per plate], one object per entry, each on the plate it is listed in. */
+/** plates: [[extruder, ...] per plate], one object per entry, each on the plate it is listed in; an entry may be {extruder, meta: {key: value}} for per-object overrides. */
 const modelSettings = (plates) => {
   let id = 0;
   const objects = [], instances = [];
   for (const plate of plates) {
-    const mine = plate.map((extruder) => { id++; objects.push(`<object id="${id}"><metadata key="name" value="o${id}"/><metadata key="extruder" value="${extruder}"/></object>`); return id; });
+    const mine = plate.map((entry) => {
+      const { extruder, meta = {} } = typeof entry === "object" ? entry : { extruder: entry };
+      id++;
+      objects.push(`<object id="${id}"><metadata key="name" value="o${id}"/><metadata key="extruder" value="${extruder}"/>${Object.entries(meta).map(([k, v]) => `<metadata key="${k}" value="${v}"/>`).join("")}</object>`);
+      return id;
+    });
     instances.push(`<plate><metadata key="plater_id" value="${instances.length + 1}"/>${mine.map((o) => `<model_instance><metadata key="object_id" value="${o}"/></model_instance>`).join("")}</plate>`);
   }
   return `<?xml version="1.0" encoding="UTF-8"?><config>${objects.join("")}${instances.join("")}</config>`;
 };
 
-async function project(t, { config = {}, version, sliced = false, plates, raw, name = "part.3mf" } = {}) {
+async function project(t, { config = {}, version, sliced = false, plates, raw, model = "<model/>", name = "part.3mf" } = {}) {
   const zip = new JSZip();
-  zip.file("3D/3dmodel.model", "<model/>");
+  zip.file("3D/3dmodel.model", model);
   if (raw !== null) zip.file("Metadata/project_settings.config", raw ?? JSON.stringify({ ...BASE, ...config }));
   if (version) zip.file("Metadata/slice_info.config", sliceInfo(version, sliced));
   if (plates) zip.file("Metadata/model_settings.config", modelSettings(plates));
@@ -91,7 +96,7 @@ test("a settings rule with a strong source fires, with its evidence, proposal an
   assert.equal(finding.severity, "warning");
   assert.equal(finding.confidence, "preset");
   assert.equal(finding.approval, "needs_user_approval");
-  assert.deepEqual(finding.evidence, { "settings.curr_bed_type": "Cool Plate", "project.filament_types": ["PETG"] });
+  assert.deepEqual(finding.evidence, { "settings.curr_bed_type": "Cool Plate", "project.filament_types": ["PETG"], "project.filament_scope": "all_slots" }, "no plate in the file: every slot counts, and the evidence says so");
   assert.ok(finding.fix.steps.length && finding.fix.message);
   assert.ok(getKb().topicById.has(finding.topic) && finding.src.length);
   assert.deepEqual(result.stage_reached, ["pre-slice", "project-settings"]);
@@ -233,6 +238,91 @@ test("object and filament counts describe the chosen plate", async (t) => {
 
   const noPlates = await run(await project(t, { config }));
   assert.ok(noPlates.unchecked.by_reason["fato ausente no 3MF: project.filament_count"] >= 1, "no model_settings.config: unknown, not a guess");
+});
+
+test("filament types describe the filaments the chosen plate uses; without plate data every slot counts and the evidence says so", async (t) => {
+  const rule = "bambu.bed.petg-on-cool-plate";
+  const config = { curr_bed_type: "Cool Plate", filament_type: ["PLA", "PETG"], filament_metal_stickiness: ["High", "None"] };
+  const file = await project(t, { config, plates: [[1], [1, 2], [2]] });
+  // The review case: slots [PLA, PETG], the plate prints only PLA (slot 1), so the PETG-on-Cool-Plate warning does not apply.
+  assert.ok(!ids(await run(file)).includes(rule), "plate 0 uses only the PLA slot");
+  const both = (await run(file, { plate_index: 1 })).findings.find((f) => f.rule_id === rule);
+  assert.deepEqual(both.evidence["project.filament_types"], ["PLA", "PETG"]);
+  assert.equal(both.evidence["project.filament_scope"], "plate");
+  const petg = (await run(file, { plate_index: 2 })).findings.find((f) => f.rule_id === rule);
+  assert.deepEqual([petg.evidence["project.filament_types"], petg.evidence["project.filament_scope"]], [["PETG"], "plate"]);
+  const noPlates = (await run(await project(t, { config }))).findings.find((f) => f.rule_id === rule);
+  assert.deepEqual([noPlates.evidence["project.filament_types"], noPlates.evidence["project.filament_scope"]], [["PLA", "PETG"], "all_slots"]);
+
+  // Counts that read filament types follow the same slots.
+  const names = ["project.filament_types", "project.filament_scope", "filament.low_stickiness_on_sticky_type_count"];
+  const collect = async (plateIndex, f = file) => settingsProvider.collect({ project: await openProject(f), plateIndex, targetPrinter: "x2d", installedStudio: async () => null }, names);
+  assert.deepEqual(await collect(0), { "project.filament_types": ["PLA"], "project.filament_scope": "plate", "filament.low_stickiness_on_sticky_type_count": 0 });
+  assert.equal((await collect(2))["filament.low_stickiness_on_sticky_type_count"], 1, "the PETG slot has stickiness None");
+  assert.equal((await collect(0, await project(t, { config })))["filament.low_stickiness_on_sticky_type_count"], 1, "all slots without plate data");
+  // A slot the settings do not have never turns into an empty list ("every filament is X" would hold of nothing).
+  const odd = await project(t, { config: { filament_type: ["PLA"] }, plates: [[5]] });
+  assert.deepEqual((await collect(0, odd))["project.filament_types"], ["PLA"]);
+  assert.equal((await collect(0, odd))["project.filament_scope"], "all_slots");
+  // A fractional slot (untrusted 3MF) is no slot: every slot counts and nothing throws.
+  const fractional = await project(t, { config, plates: [["1.5"]] });
+  assert.deepEqual(await collect(0, fractional), { "project.filament_types": ["PLA", "PETG"], "project.filament_scope": "all_slots", "filament.low_stickiness_on_sticky_type_count": 1 });
+  assert.ok(ids(await run(fractional)).includes(rule));
+});
+
+test("filament types include the support filaments of the plate and fall back to every slot when colours are painted", async (t) => {
+  const rule = "bambu.bed.petg-on-cool-plate";
+  const base = { curr_bed_type: "Cool Plate", filament_type: ["PLA", "PETG"] };
+  const types = async (config, extra = {}) => {
+    const finding = (await run(await project(t, { config: { ...base, ...config }, ...extra }))).findings.find((f) => f.rule_id === rule);
+    return finding && [finding.evidence["project.filament_types"], finding.evidence["project.filament_scope"]];
+  };
+  // The object prints in PLA (slot 1), its support interface in PETG (slot 2): the PETG-on-Cool-Plate warning applies.
+  assert.deepEqual(await types({ enable_support: "1", support_interface_filament: "2" }, { plates: [[1]] }), [["PLA", "PETG"], "plate"]);
+  assert.deepEqual(await types({ enable_support: "1", support_filament: "2" }, { plates: [[1]] }), [["PLA", "PETG"], "plate"]);
+  assert.equal(await types({ enable_support: "0", support_interface_filament: "2" }, { plates: [[1]] }), undefined, "no support, no PETG");
+  assert.equal(await types({ enable_support: "1", support_interface_filament: "0", support_filament: "0" }, { plates: [[1]] }), undefined, "0 = the object's own filament");
+  assert.deepEqual(await types({ enable_support: "0", support_interface_filament: "2" }, { plates: [[{ extruder: 1, meta: { enable_support: "1" } }]] }), [["PLA", "PETG"], "plate"], "a per-object override counts");
+  assert.equal(await types({ enable_support: "1", support_interface_filament: "2" }, { plates: [[{ extruder: 1, meta: { enable_support: "0" } }]] }), undefined);
+  // Painted colours add filaments model_settings.config does not list: every slot counts.
+  const painted = '<model><triangle v1="0" v2="1" v3="2" paint_color="8"/></model>';
+  const plain = '<model><triangle v1="0" v2="1" v3="2"/></model>';
+  assert.deepEqual(await types({}, { plates: [[1]], model: painted }), [["PLA", "PETG"], "all_slots"]);
+  assert.equal(await types({}, { plates: [[1]], model: plain }), undefined, "geometry without paint: the plate's slots");
+});
+
+test("rules that compare a setting Studio stores as a number with a word are checklist items, not silent non-firing", async (t) => {
+  const timelapse = ["bambu.sequence.by-object-smooth-timelapse", "bambu.tower.no-sparse-layers-with-smooth-timelapse", "bambu.a1.timelapse-smooth-tower"];
+  // Studio writes timelapse_type as "0" or "1"; the rules compare it with "smooth".
+  const file = await project(t, { config: { timelapse_type: "1", print_sequence: "by object", wipe_tower_no_sparse_layers: "1", enable_prime_tower: "0" } });
+  const result = await run(file, { min_severity: "tip" });
+  for (const id of timelapse) {
+    const item = result.checklist.find((c) => c.rule_id === id);
+    assert.ok(item, `${id} is a checklist item`);
+    assert.match(item.note, /cannot be checked automatically: stored value differs/);
+    assert.equal(item.current_values["settings.timelapse_type"], "1");
+    assert.ok(!ids(result).includes(id));
+  }
+  assert.equal(result.accounting.checklist, result.checklist.length);
+  assert.equal(result.accounting.findings + result.accounting.checklist + result.accounting.not_fired + result.accounting.unchecked + result.accounting.hidden, result.accounting.candidates, "still every rule once");
+  // A file that stores the word itself is the rule's own case: a finding, not a manual check.
+  const word = await run(await project(t, { config: { timelapse_type: "smooth", print_sequence: "by object", wipe_tower_no_sparse_layers: "1", enable_prime_tower: "0" } }), { min_severity: "tip" });
+  for (const id of timelapse.slice(0, 2)) {
+    assert.ok(ids(word).includes(id), `${id} fires on "smooth"`);
+    assert.ok(!word.checklist.some((c) => c.rule_id === id));
+  }
+  // The checklist is only for what the engine cannot rule out: by-layer sequence already rules out rule 1, and tower-sparse-layers 0 rule 2.
+  const byLayer = await run(await project(t, { config: { timelapse_type: "1", print_sequence: "by layer", wipe_tower_no_sparse_layers: "0", enable_prime_tower: "0" } }), { min_severity: "tip" });
+  const listed = (r) => r.checklist.map((c) => c.rule_id).filter((id) => timelapse.includes(id));
+  assert.deepEqual(listed(byLayer), [timelapse[2]], "only the rule nothing else rules out");
+  // No timelapse_type in the file (or no settings at all, an STL): nothing to compare, so unchecked, never a stored value that was not read.
+  const absent = await run(await project(t, {}), { min_severity: "tip" });
+  assert.deepEqual(listed(absent), []);
+  const stl = path.join(scratch(t), "part.stl");
+  fs.writeFileSync(stl, "solid x\nendsolid x\n");
+  assert.deepEqual(listed(await run(stl, { min_severity: "tip" })), []);
+  // Rules whose literal can match are untouched: a numeric literal is a normal comparison.
+  assert.ok(!result.checklist.some((c) => c.rule_id === "bambu.drift.sequence-or-timelapse-changed"));
 });
 
 test("printer.* facts come from nozzle_diameter and printable_area; settings keys never reach inherited properties", async () => {

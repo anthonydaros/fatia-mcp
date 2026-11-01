@@ -47,7 +47,7 @@ export async function openProject(filePath: string): Promise<ProjectFiles> {
     return project;
   }
   try {
-    const config: unknown = JSON.parse(raw.replace(/^﻿/, ""));
+    const config: unknown = JSON.parse(raw.replace(/^\uFEFF/, ""));
     if (config && typeof config === "object" && !Array.isArray(config)) project.config = config as Record<string, unknown>;
     else project.configProblem = "Metadata/project_settings.config nao e um objeto JSON";
   } catch {
@@ -62,22 +62,53 @@ export function plateInstances(modelSettings: any, plateIndex: number): string[]
   return plate && asArray(plate.model_instance).map(i => `${meta(i, "object_id")}:${meta(i, "instance_id") ?? 0}`);
 }
 
-/** Objects on the plate and the distinct filaments their objects and parts are assigned to. */
-function plateUsage(modelSettings: any, plateIndex: number): { objects: number; filaments: number } | undefined {
+/** Objects on the plate and the distinct filament slots (1-based, as model_settings.config writes them) their objects and parts are assigned to; slots also holds the support filaments. */
+function plateUsage(modelSettings: any, plateIndex: number, config?: Record<string, unknown>): { objects: number; filaments: number; slots: number[] } | undefined {
   const instances = plateInstances(modelSettings, plateIndex);
   if (!instances) return undefined;
   const onPlate = new Set(instances.map(i => i.slice(0, i.lastIndexOf(":"))));
   const filaments = new Set<string>();
-  // shortcut: only the filaments assigned to objects and parts; painted colours and support filaments are not seen, so this can undercount.
+  const support = new Set<unknown>();
+  // shortcut: filaments assigned to objects and parts only (painted colours are not seen), so the count can undercount; project.filament_types handles paint in usedSlots.
   for (const object of asArray(modelSettings.object)) {
     if (!onPlate.has(String(object.id))) continue;
     filaments.add(String(meta(object, "extruder") ?? "1"));
+    const own = (key: string) => meta(object, key) ?? config?.[key]; // a per-object override beats the project value
+    if (own("enable_support") === "1") ["support_filament", "support_interface_filament"].forEach(k => support.add(own(k)));
     for (const part of asArray(object.part)) {
       const extruder = meta(part, "extruder");
       if (extruder !== undefined && (part.subtype ?? "normal_part") === "normal_part") filaments.add(String(extruder));
     }
   }
-  return { objects: instances.length, filaments: filaments.size };
+  return { objects: instances.length, filaments: filaments.size, slots: [...new Set([...filaments, ...support].map(Number))].sort((a, b) => a - b) };
+}
+
+const paintMemo = new WeakMap<ProjectFiles, Promise<boolean | undefined>>(); // one scan per opened project, however many facts ask
+/** True when a model file paints colours (so the filaments in use are not all listed in model_settings.config); undefined when the 3MF has no geometry to look at. */
+export function hasPaint(project: ProjectFiles): Promise<boolean | undefined> {
+  const search = async () => {
+    let geometry = false;
+    for (const name of project.names ?? []) {
+      if (!/^3D\/.*\.model$/i.test(name)) continue;
+      const bytes = await project.read?.(name); // searched as bytes: a big mesh is never turned into a string
+      if (bytes?.includes(' paint_color="')) return true; // Studio's colour painting; support and seam painting use other attributes
+      geometry ||= !!bytes?.includes("<triangle");
+    }
+    return geometry ? false : undefined; // a GUI-sliced 3MF carries no geometry, so nothing can be said about paint
+  };
+  if (!paintMemo.has(project)) paintMemo.set(project, search());
+  return paintMemo.get(project)!;
+}
+
+/**
+ * Per-slot settings (filament_type, ...) cut down to the slots the chosen plate uses (objects, parts and support filaments).
+ * When model_settings.config does not say which (no such plate, no usable slot) or the 3MF paints colours, all slots stay and the scope says so.
+ */
+async function usedSlots<T>(values: T[] | undefined, ctx: FactContext, project: ProjectFiles): Promise<{ values: T[]; scope: "plate" | "all_slots" } | undefined> {
+  if (!values) return undefined;
+  // An empty pick must not stand for the plate: "every element is PLA" is vacuously true of an empty list.
+  const used = (plateUsage(project.modelSettings, ctx.plateIndex, project.config)?.slots ?? []).flatMap(n => (Number.isInteger(n) && n >= 1 && n <= values.length ? [values[n - 1]] : []));
+  return used.length && !(await hasPaint(project)) ? { values: used, scope: "plate" } : { values, scope: "all_slots" };
 }
 
 /** The Studio that saved the 3MF; anything but a plain dotted version is treated as unknown (the value is third-party text). */
@@ -93,11 +124,15 @@ const DERIVED: Record<string, Derive> = {
   "printer.nozzle_diameter": (_c, _p, config) => list(config.nozzle_diameter),
   "printer.nozzle_count": (_c, _p, config) => list(config.nozzle_diameter)?.length,
   "printer.nozzle_diameters_differ": (_c, _p, config) => { const l = list(config.nozzle_diameter); return l && new Set(l.map(Number)).size > 1; },
-  "project.filament_types": (_c, _p, config) => list(config.filament_type),
+  // The filaments the chosen plate uses; project.filament_scope says whether that was readable.
+  "project.filament_types": async (ctx, project, config) => (await usedSlots(list(config.filament_type), ctx, project))?.values,
+  "project.filament_scope": async (ctx, project, config) => (await usedSlots(list(config.filament_type), ctx, project))?.scope,
   // Type and stickiness are compared at the same filament index, as the fact is declared.
-  "filament.low_stickiness_on_sticky_type_count": (_c, _p, config) => {
+  "filament.low_stickiness_on_sticky_type_count": async (ctx, project, config) => {
     const [types, stickiness] = [list(config.filament_type), list(config.filament_metal_stickiness)];
-    return types && stickiness ? types.filter((t, i) => STICKY_TYPES.has(String(t)) && ["None", "Low"].includes(String(stickiness[i]))).length : undefined;
+    if (!types || !stickiness) return undefined;
+    const pairs = (await usedSlots(types.map((t, i) => [t, stickiness[i]] as const), ctx, project))!.values;
+    return pairs.filter(([t, s]) => STICKY_TYPES.has(String(t)) && ["None", "Low"].includes(String(s))).length;
   },
   "project.source_printer": (_c, _p, config) => text(config.printer_model),
   "project.target_printer": ctx => targetName(ctx.targetPrinter),

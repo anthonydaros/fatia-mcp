@@ -50,7 +50,7 @@ import { isDualNozzleModel } from "./safety/limits.js";
 import { withPrinterOperation, withPrintSnapshot, uniquePrintName } from "./safety/artifact.js";
 import { detectProfilesRoot } from "./slicer/profile-flatten.js";
 import { openInSlicer } from "./slicer/open-in-slicer.js";
-import { slicerInfo } from "./slicer/slicer-info.js";
+import { keepVersion, slicerInfo } from "./slicer/slicer-info.js";
 import { KNOWLEDGE_TOOLS, consultKnowledge } from "./knowledge/tools.js";
 import { preflightCheck } from "./knowledge/preflight.js";
 import { getTuning } from "./tuning/loader.js";
@@ -1155,16 +1155,15 @@ const SERVER_INSTRUCTIONS = [
   "To get a part ready for the user to slice, call prepare_print_project: it slices with Bambu Studio, reads the G-code, adjusts and slices again by itself, and delivers a NEW unsliced 3MF (the original is never changed, nothing is printed). Put in its part context only what the user said about the part and leave the rest out, never inferred from the file. Show its verdict and its split between VERIFIED, PREDICTED ONLY and UNSEEN as it is: say what was tried and measured, never that every possibility was tested.",
 ].join(" ");
 
-// Read once per process: the version lookup runs plutil (macOS) or PowerShell (Windows).
-let installedStudioVersion: Promise<string | null> | undefined;
-const studioVersion = () => installedStudioVersion ??= (async () => {
+// Read once per process, but a null (Studio unreadable this time) is not kept: it would hide every version-limited rule until restart.
+const studioVersion = keepVersion(async () => {
   try {
     const info = await slicerInfo({ executable: resolveSlicerConfig({ slicer_type: "bambustudio" }).slicerPath, checkUpdates: false });
     return info.app_version as string | null;
   } catch {
     return null;
   }
-})();
+});
 // Not cached: acknowledging a version changes changed_since_last_seen. A broken slicer configuration means no version review.
 const studioInfo = async (): Promise<Record<string, unknown>> => {
   try {

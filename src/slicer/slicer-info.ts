@@ -79,6 +79,12 @@ export async function fetchReleases(fetchImpl: typeof fetch = fetch): Promise<Re
 export const normalizeVersion = (v: string) => v.trim().replace(/^v/i, "").replace(/\b0+(?=\d)/g, "");
 export const sameVersion = (a: string, b: string) => normalizeVersion(a) === normalizeVersion(b);
 
+/** Keeps the first real answer of a version lookup (it spawns plutil or PowerShell); a null (slicer unreadable just now) is asked again. */
+export function keepVersion(read: () => Promise<string | null>): () => Promise<string | null> {
+  let version: string | null = null;
+  return async () => (version ??= await read());
+}
+
 export function stateFilePath(): string {
   return path.resolve(process.env.SLICER_STATE_FILE?.trim() || path.join(os.homedir(), ".bambu-printer-mcp", "slicers.json"));
 }

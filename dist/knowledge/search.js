@@ -5,14 +5,16 @@ const B = 0.75;
 const W = { symptoms: 4, title: 3, tags: 3, rules: 2, body: 1 };
 /** Synonym-only query terms count half. */
 const SYNONYM_WEIGHT = 0.5;
-/** A topic of another printer keeps its place but loses half its score. */
+/** A topic of another printer keeps its place but loses half its score, unless the query names a printer the topic is for. */
 const OTHER_PRINTER = 0.5;
+/** Below this the best hit shares only some of the user's words: consult_knowledge flags it so the agent says the base barely touches the subject. */
+export const LOW_RELEVANCE = 0.45;
 /**
  * Below this share of the best score a query could reach (every one of its words matching), there is no answer.
  * Calibrated on the 159 eval questions and 28 free ones (all but two, which the base barely covers, score 0.24 or more)
- * against the 15 out-of-scope questions of tests/fixtures/knowledge/questions.json (0.215 at most). The gap is narrow:
+ * against the 30 out-of-scope questions of tests/fixtures/knowledge/questions.json (0.222 at most). The gap is narrow:
  * lexical overlap cannot tell an unrelated question that reuses a few domain words from a real one, so a second gate
- * (the best hit must cover two of the user's words) catches the single-coincidence cases.
+ * (the best hit must cover two of the user's words; numbers are not words) catches the single-coincidence cases.
  */
 export const MIN_RELEVANCE = 0.22;
 const STOPWORDS = new Set(("a o as os um uma uns umas de do da dos das em no na nos nas num numa por para pra com sem sob sobre e ou mas que se ao aos como mais menos muito muita muitos muitas pouco " +
@@ -47,8 +49,10 @@ export function tokenize(text) {
         const parts = tok.split(/[._]/);
         if (parts.length > 1)
             out.push(tok);
+        // A loop, not push(...parts): a hostile 100k-part token would overflow the argument stack.
         if (parts.length === 1 || parts.some(p => /[a-z]/.test(p)))
-            out.push(...parts);
+            for (const p of parts)
+                out.push(p);
     }
     return out.filter(t => !STOPWORDS.has(t)).map(stem);
 }
@@ -80,6 +84,7 @@ export function buildIndex(topics, rulesByTopic, synonyms) {
         docs, df,
         avgLen: docs.reduce((n, d) => n + d.len, 0) / (docs.length || 1),
         groups: synonyms.map(g => g.map(tokenize)),
+        printers: [...new Set(topics.flatMap(t => t.printers))],
     };
 }
 /**
@@ -112,6 +117,8 @@ export function search(index, query, options = {}) {
     let ceiling = 0;
     for (const t of own)
         ceiling += idf(t) * (K1 + 1);
+    // "a1 mini" and "a1mini" name a1-mini; a printer the user typed is never "another printer".
+    const named = new Set(index.printers.filter(p => own.has(p.replace("-", "")) || p.split("-").every(w => own.has(w))));
     const scored = [];
     let best = 0;
     for (const { topic, tf, len } of index.docs) {
@@ -126,7 +133,7 @@ export function search(index, query, options = {}) {
         if (score <= 0)
             continue;
         best = Math.max(best, score);
-        const elsewhere = options.printer && topic.printers.length > 0 && !topic.printers.includes(options.printer);
+        const elsewhere = options.printer && topic.printers.length > 0 && !topic.printers.includes(options.printer) && !topic.printers.some(p => named.has(p));
         scored.push({ topic, score: elsewhere ? score * OTHER_PRINTER : score });
     }
     scored.sort((a, b) => b.score - a.score || a.topic.id.localeCompare(b.topic.id));
@@ -135,8 +142,10 @@ export function search(index, query, options = {}) {
     // must cover two of the user's words, directly or through a synonym of theirs.
     const doc = scored.length ? index.docs.find(d => d.topic === scored[0].topic) : undefined;
     const covered = (word) => doc.tf.has(word) || [...via].some(([synonym, from]) => from.has(word) && doc.tf.has(synonym));
-    const shared = doc ? [...own].filter(covered).length : 0;
-    const needed = Math.min(2, Math.max(1, own.size - 1));
+    // Numbers ("2014", "0.4", "11") match by chance in any spec table, so they neither count as covered nor as words to cover.
+    const words = [...own].filter(w => /[a-z]/.test(w));
+    const shared = doc ? words.filter(covered).length : 0;
+    const needed = Math.min(2, Math.max(1, words.length - 1));
     return { hits: scored.slice(0, options.limit ?? 4), noMatch: relevance < MIN_RELEVANCE || shared < needed, relevance };
 }
 const indexes = new WeakMap();

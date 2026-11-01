@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { approvalFor, getKb, loadKbFrom } from "../dist/knowledge/loader.js";
+import { validateKnowledge } from "../scripts/validate-knowledge.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const KB = path.join(ROOT, "knowledge");
@@ -46,11 +47,27 @@ test("the shipped base loads, indexes and matches its manifest", () => {
 });
 
 test("a BOM and Windows line endings do not change what loads or the integrity check", (t) => {
-  const crlf = (text) => `﻿${text.replace(/\n/g, "\r\n")}`;
+  const crlf = (text) => `\uFEFF${text.replace(/\n/g, "\r\n")}`;
   const dir = copyKb(t, { "rules.json": crlf, "synonyms.json": crlf, "manifest.json": crlf });
   const kb = loadKbFrom(dir);
   assert.equal(kb.rules.length, 320);
   assert.equal(kb.integrity, "ok");
+});
+
+test("the build-time validator refuses auto_apply on a Blender-domain rule, whatever its stage", (t) => {
+  const dir = copyKb(t, { "rules.json": editRules((rules) => {
+    const rule = rules.find((r) => r.domain === "blender" && r.stage !== "blender-prep");
+    assert.ok(rule, "the base has a Blender-domain rule outside the blender-prep stage");
+    Object.assign(rule, { auto_apply: true, confidence: "preset", solution: { settings: { z_hop: "0.4" }, steps: [], message: "m" } });
+  }) });
+  assert.match(validateKnowledge(dir, undefined, { checkManifest: false }).errors.join("\n"), /auto_apply not allowed for Blender steps/);
+});
+
+test("no invisible U+FEFF is typed into the knowledge code or its tests (write the escape \\uFEFF)", () => {
+  for (const file of ["scripts/validate-knowledge.mjs", "tests/knowledge-loader.test.mjs", "src/knowledge/facts/settings.ts"]) {
+    const full = path.join(ROOT, file);
+    if (fs.existsSync(full)) assert.ok(!fs.readFileSync(full, "utf8").includes("\uFEFF"), `${file} holds a literal U+FEFF`);
+  }
 });
 
 test("an edited file, or a missing manifest, is a warning (integrity mismatch), not an error", (t) => {
@@ -106,6 +123,7 @@ test("approval is computed in code: only a definite setting with a strong source
   assert.equal(approvalFor({ ...rule, confidence: "hipotese" }), "needs_user_approval");
   assert.equal(approvalFor({ ...rule, auto_apply: false }), "needs_user_approval");
   assert.equal(approvalFor({ ...rule, stage: "blender-prep" }), "needs_user_approval");
+  assert.equal(approvalFor({ ...rule, domain: "blender" }), "needs_user_approval", "a Blender-domain rule is never auto_apply, whatever its stage");
   assert.equal(approvalFor({ ...rule, solution: { settings: null, steps: ["x"], message: "m" } }), "needs_user_approval");
   assert.equal(approvalFor({ ...rule, solution: { settings: {}, steps: ["x"], message: "m" } }), "needs_user_approval");
   assert.equal(loadKbFrom(KB).rules.filter((r) => approvalFor(r) === "auto_apply").length, 0, "no rule of the shipped base is auto_apply");

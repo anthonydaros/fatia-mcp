@@ -72,6 +72,11 @@ export async function fetchReleases(fetchImpl = fetch) {
 // "v02.08.04.57" and "2.8.4.57" name the same build.
 export const normalizeVersion = (v) => v.trim().replace(/^v/i, "").replace(/\b0+(?=\d)/g, "");
 export const sameVersion = (a, b) => normalizeVersion(a) === normalizeVersion(b);
+/** Keeps the first real answer of a version lookup (it spawns plutil or PowerShell); a null (slicer unreadable just now) is asked again. */
+export function keepVersion(read) {
+    let version = null;
+    return async () => (version ?? (version = await read()));
+}
 export function stateFilePath() {
     return path.resolve(process.env.SLICER_STATE_FILE?.trim() || path.join(os.homedir(), ".bambu-printer-mcp", "slicers.json"));
 }

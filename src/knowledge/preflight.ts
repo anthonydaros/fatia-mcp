@@ -144,6 +144,17 @@ const clip = (s: string) => (s.length > 80 ? `${s.slice(0, 79)}…` : s);
 const show = (v: FactValue): FactValue => (Array.isArray(v) ? v.slice(0, 16).map(x => (typeof x === "string" ? clip(x) : x)) : typeof v === "string" ? clip(v) : v);
 /** The leaf conditions of a rule that has a machine condition. */
 const leafList = (r: Rule) => [...leaves(r.detect.when as Condition)];
+/** Settings Studio stores as numbers ("0", "1") that some rules compare with a word ("smooth"): such a comparison never holds. */
+const STORED_AS_NUMBER: ReadonlySet<string> = new Set(["settings.timelapse_type"]);
+type Leaf = Extract<Condition, { fact: string }>;
+/** The leaf that keeps a condition from ever being true because its literal can not be what Studio stores, if any. */
+function unmatchable(c: Condition): Leaf | undefined {
+  if ("all" in c) return c.all.map(unmatchable).find(Boolean);
+  if ("any" in c) { const each = c.any.map(unmatchable); return each.every(Boolean) ? each[0] : undefined; }
+  if ("not" in c) return undefined;
+  const words = ([] as unknown[]).concat(c.value).every(v => typeof v === "string" && !/^\d+$/.test(v));
+  return STORED_AS_NUMBER.has(c.fact) && ["eq", "in", "any_eq", "contains"].includes(c.op) && words ? c : undefined;
+}
 const known = (facts: Facts, name: string) => facts[name] !== undefined && facts[name] !== null;
 const bump = (counts: Map<string, number>, reason: string) => counts.set(reason, (counts.get(reason) ?? 0) + 1);
 interface Row { rule_id: string; severity: Severity; confidence: Confidence; [key: string]: unknown }
@@ -253,7 +264,18 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
   const checklist: Row[] = [];
   for (const r of visible) {
     const visibleSeverity = shown(r);
-    if (r.detect.when) {
+    const stored = r.detect.when ? unmatchable(r.detect.when as Condition) : undefined;
+    // Only when the file has the value, the rule does not fire on it (a file that stores the literal itself, "smooth", is a finding) and no other part of the condition rules the rule out (then it is not_fired / unchecked as usual).
+    if (stored && known(facts, stored.fact) && evalCondition(r.detect.when as Condition, facts) !== true && evalCondition(r.detect.when as Condition, { ...facts, [stored.fact]: undefined }) !== false) {
+      // Not "not fired": the rule was never able to fire, so it goes to the user as a manual check.
+      if (!visibleSeverity) { hidden.below_min_severity++; continue; }
+      const current = r.detect.facts.filter(f => known(facts, f)).map(f => [f, show(facts[f] as FactValue)]);
+      checklist.push({
+        rule_id: r.id, severity: r.severity, confidence: r.confidence, title: r.title, why: r.problem,
+        note: `cannot be checked automatically: stored value differs (Studio stores ${stored.fact} as a number, the rule compares it with ${JSON.stringify(stored.value)})`,
+        ...(current.length ? { current_values: Object.fromEntries(current) } : {}),
+      });
+    } else if (r.detect.when) {
       const verdict = evalCondition(r.detect.when as Condition, facts);
       if (verdict === true) {
         if (!visibleSeverity) { hidden.below_min_severity++; continue; }

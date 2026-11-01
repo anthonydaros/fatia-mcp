@@ -57,7 +57,7 @@ export function tuningVersionForm(predicate) {
 }
 
 /** Text as hashed in the manifest: no BOM, LF line endings (same rule as src/knowledge/loader.ts). */
-export const canonical = (text) => text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+export const canonical = (text) => text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
 export const sha256 = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
 const isStr = (v) => typeof v === "string" && v.trim().length > 0;
@@ -138,7 +138,7 @@ export function validateKnowledge(dir = path.join(ROOT, "knowledge"), evalFile =
     else if (r.auto_apply) {
       if (!r.solution?.settings || !Object.keys(r.solution.settings).length) err(where, "auto_apply needs solution.settings");
       if (!AUTO_OK.has(r.confidence)) err(where, `auto_apply not allowed for confidence ${r.confidence}`);
-      if (r.stage === "blender-prep") err(where, "auto_apply not allowed for Blender steps");
+      if (r.stage === "blender-prep" || r.domain === "blender") err(where, "auto_apply not allowed for Blender steps");
     }
     if (!strArr(r.printers)) err(where, "printers must be a string array");
     if (r.applies_to !== null && (typeof r.applies_to !== "object" || Array.isArray(r.applies_to))) err(where, "applies_to must be an object or null");

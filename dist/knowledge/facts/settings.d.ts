@@ -8,6 +8,8 @@ export declare const targetName: (model: string) => string;
 export declare function openProject(filePath: string): Promise<ProjectFiles>;
 /** "object:instance" of each model_instance on one plate (plater_id is 1-based); undefined when model_settings.config has no such plate. */
 export declare function plateInstances(modelSettings: any, plateIndex: number): string[] | undefined;
+/** True when a model file paints colours (so the filaments in use are not all listed in model_settings.config); undefined when the 3MF has no geometry to look at. */
+export declare function hasPaint(project: ProjectFiles): Promise<boolean | undefined>;
 /** The Studio that saved the 3MF; anything but a plain dotted version is treated as unknown (the value is third-party text). */
 export declare function savedVersion(project: ProjectFiles): string | undefined;
 export declare const settingsProvider: FactProvider;

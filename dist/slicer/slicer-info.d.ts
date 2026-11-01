@@ -14,6 +14,8 @@ export declare function readProfileVersion(executable: string): string | null;
 export declare function fetchReleases(fetchImpl?: typeof fetch): Promise<Release[] | null>;
 export declare const normalizeVersion: (v: string) => string;
 export declare const sameVersion: (a: string, b: string) => boolean;
+/** Keeps the first real answer of a version lookup (it spawns plutil or PowerShell); a null (slicer unreadable just now) is asked again. */
+export declare function keepVersion(read: () => Promise<string | null>): () => Promise<string | null>;
 export declare function stateFilePath(): string;
 export interface SlicerInfoOptions {
     executable: string;
