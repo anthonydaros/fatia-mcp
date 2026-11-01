@@ -19,7 +19,7 @@ import { KNOWLEDGE_TOOLS, consultKnowledge } from "./knowledge/tools.js";
 import { preflightCheck } from "./knowledge/preflight.js";
 import { getTuning } from "./tuning/loader.js";
 import { prepareProject } from "./tuning/prepare.js";
-import { studioSlicer } from "./tuning/prepare-slice.js";
+import { studioAllPlatesSlicer, studioSlicer } from "./tuning/prepare-slice.js";
 import { PREPARE_TOOLS, parsePrepareArgs } from "./tuning/prepare-tool.js";
 import { studioRetargeter } from "./tuning/retarget.js";
 dotenv.config();
@@ -1172,6 +1172,10 @@ class BambuPrinterMCPServer {
                             retarget: studioRetargeter({ slicerPath, tempDir: TEMP_DIR, printerPreset, modelCode, manipulator, signal: extra.signal, allowSlice: !parsed.dryRun }),
                             slice: studioSlicer({
                                 manipulator, slicerPath, printerPreset, modelCode, plateIndex: parsed.plateIndex,
+                                bambuOptions: { bedType: resolveBambuStudioCliBedType(undefined), nozzleType: resolveNozzleType(undefined), nozzleVolumeType: resolveNozzleVolumeType(undefined) },
+                            }),
+                            sliceAll: studioAllPlatesSlicer({
+                                manipulator, slicerPath, printerPreset, modelCode,
                                 bambuOptions: { bedType: resolveBambuStudioCliBedType(undefined), nozzleType: resolveNozzleType(undefined), nozzleVolumeType: resolveNozzleVolumeType(undefined) },
                             }),
                             installedStudio: studioVersion,

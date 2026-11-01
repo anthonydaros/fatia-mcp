@@ -1,5 +1,6 @@
 import { type Collected } from "./facts.js";
 import type { GcodeScan, ScanValue } from "./gcode-scan.js";
+import { type LayoutMode, type LayoutRun, type SliceAll } from "./layout-stage.js";
 import { type MeshFacts } from "./mesh-facts.js";
 import { type PartContext } from "./part-context.js";
 import { type Retargeter, type SettingChange, type WriteResult } from "./project-writer.js";
@@ -7,10 +8,25 @@ import type { SliceArtifacts } from "./slice-facts.js";
 import type { ApplyResult, NoAction, RoundResult, Settings, StudioKeys, TuningAction, TuningItem } from "./types.js";
 export type StopReason = "done" | "stalled" | "exhausted" | "cycle" | "budget_slices" | "budget_minutes" | "cancelled" | "error" | "dry_run";
 export declare const STRONG_CONFIDENCES: string[];
+/** The layout stage's arguments (docs/TUNING.md, "Layout"). Absent means mode "auto" with the stage's own defaults. */
+export interface LayoutInput {
+    mode: LayoutMode;
+    /** Edge-to-edge distance between objects; default max(8, 2 x brim + 2 when the project has a brim). */
+    gapMm?: number;
+    /** Distance kept from the edge of the usable area; default 5. */
+    marginMm?: number;
+    /** CLI slices the candidates may use, separate from `maxSlices`; default 6. */
+    maxSlices?: number;
+    /** Minutes the candidates may take, separate from `maxMinutes`; default 12. */
+    maxMinutes?: number;
+}
 export interface PrepareInput {
     path: string;
-    /** 0-based. */
+    /** 0-based. After a layout change it means the NEW numbering when `plateIndexExplicit`; otherwise the plate with the longest predicted time is measured. */
     plateIndex: number;
+    /** The caller passed plate_index. Absent: true when plateIndex is not 0. */
+    plateIndexExplicit?: boolean;
+    layout?: LayoutInput;
     /** A valid bambu_model, e.g. "x2d". */
     model: string;
     partContext?: unknown;
@@ -52,7 +68,10 @@ export interface PrepareDeps {
     tempDir: string;
     /** Needed for an STL, a 3MF without settings, or a project made for another printer. */
     retarget?: Retargeter;
-    slice(project: string, signal?: AbortSignal): Promise<SliceOutcome>;
+    /** `plateIndex` (0-based) overrides the plate the slicer was built for: the layout stage renumbers the plates. */
+    slice(project: string, signal?: AbortSignal, plateIndex?: number): Promise<SliceOutcome>;
+    /** Slices every plate of a project in one CLI call; how the layout candidates are measured. Absent: they stay unmeasured. */
+    sliceAll?: SliceAll;
     installedStudio(): Promise<string | null>;
     /** preflight_check on a file; read-only. */
     preflight(args: Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -166,5 +185,12 @@ export interface RunData {
     mesh: MeshFacts;
     installed: string | null;
     warnings: string[];
+    layout: LayoutRun;
+    /** The plate (0-based, in the delivered project's numbering) the loop sliced and judged, and why. */
+    plate: {
+        index: number;
+        why: string;
+        kind: "default" | "explicit" | "explicit_new_numbering" | "longest_plate" | "first_plate_unmeasured";
+    };
 }
 export declare function prepareProject(input: PrepareInput, deps: PrepareDeps): Promise<Record<string, unknown>>;

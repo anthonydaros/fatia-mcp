@@ -14,6 +14,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { evalCondition } from "../knowledge/condition.js";
 import { openProject } from "../knowledge/facts/settings.js";
+import type { ProjectFiles } from "../knowledge/types.js";
 import { getKb } from "../knowledge/loader.js";
 import { printerId } from "../knowledge/tools.js";
 import type { Facts } from "../knowledge/types.js";
@@ -23,20 +24,37 @@ import { checkBlockValue } from "./config-block.js";
 import { applyTuning, eqv, nextRound } from "./engine.js";
 import { collectFacts, type Collected } from "./facts.js";
 import type { GcodeScan, ScanValue } from "./gcode-scan.js";
+import { failedLayout, runLayoutStage, type LayoutMode, type LayoutRun, type SliceAll } from "./layout-stage.js";
 import { meshFactsFromProject, meshFactsFromStl, type MeshFacts } from "./mesh-facts.js";
 import { parsePartContext, type PartContext } from "./part-context.js";
 import { buildReport } from "./prepare-report.js";
-import { writeTunedProject, type ChangeScope, type Retargeter, type SettingChange, type WriteResult } from "./project-writer.js";
+import { writeTunedProject, type ChangeScope, type Retargeter, type SettingChange, type WriteOptions, type WriteResult } from "./project-writer.js";
 import type { SliceArtifacts } from "./slice-facts.js";
 import type { ApplyResult, NoAction, RoundResult, Settings, StudioKeys, TuningAction, TuningItem, TuningOptions } from "./types.js";
 
 export type StopReason = "done" | "stalled" | "exhausted" | "cycle" | "budget_slices" | "budget_minutes" | "cancelled" | "error" | "dry_run";
 export const STRONG_CONFIDENCES = ["preset", "oficial", "bug conhecido"];
 
+/** The layout stage's arguments (docs/TUNING.md, "Layout"). Absent means mode "auto" with the stage's own defaults. */
+export interface LayoutInput {
+  mode: LayoutMode;
+  /** Edge-to-edge distance between objects; default max(8, 2 x brim + 2 when the project has a brim). */
+  gapMm?: number;
+  /** Distance kept from the edge of the usable area; default 5. */
+  marginMm?: number;
+  /** CLI slices the candidates may use, separate from `maxSlices`; default 6. */
+  maxSlices?: number;
+  /** Minutes the candidates may take, separate from `maxMinutes`; default 12. */
+  maxMinutes?: number;
+}
+
 export interface PrepareInput {
   path: string;
-  /** 0-based. */
+  /** 0-based. After a layout change it means the NEW numbering when `plateIndexExplicit`; otherwise the plate with the longest predicted time is measured. */
   plateIndex: number;
+  /** The caller passed plate_index. Absent: true when plateIndex is not 0. */
+  plateIndexExplicit?: boolean;
+  layout?: LayoutInput;
   /** A valid bambu_model, e.g. "x2d". */
   model: string;
   partContext?: unknown;
@@ -70,7 +88,10 @@ export interface PrepareDeps {
   tempDir: string;
   /** Needed for an STL, a 3MF without settings, or a project made for another printer. */
   retarget?: Retargeter;
-  slice(project: string, signal?: AbortSignal): Promise<SliceOutcome>;
+  /** `plateIndex` (0-based) overrides the plate the slicer was built for: the layout stage renumbers the plates. */
+  slice(project: string, signal?: AbortSignal, plateIndex?: number): Promise<SliceOutcome>;
+  /** Slices every plate of a project in one CLI call; how the layout candidates are measured. Absent: they stay unmeasured. */
+  sliceAll?: SliceAll;
   installedStudio(): Promise<string | null>;
   /** preflight_check on a file; read-only. */
   preflight(args: Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -150,6 +171,9 @@ export interface RunData {
   mesh: MeshFacts;
   installed: string | null;
   warnings: string[];
+  layout: LayoutRun;
+  /** The plate (0-based, in the delivered project's numbering) the loop sliced and judged, and why. */
+  plate: { index: number; why: string; kind: "default" | "explicit" | "explicit_new_numbering" | "longest_plate" | "first_plate_unmeasured" };
 }
 
 const sha256 = (bytes: Buffer) => crypto.createHash("sha256").update(bytes).digest("hex");
@@ -237,10 +261,16 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
   const before = sha256(sourceBytes);
   const isStl = /\.stl$/i.test(source);
   const declared = parsePartContext(input.partContext);
-  const project = isStl ? undefined : await openProject(source);
-  const plateNode = project?.modelSettings?.plate;
+  const originalProject = isStl ? undefined : await openProject(source);
+  let project = originalProject;
+  const plateNode = originalProject?.modelSettings?.plate;
   const plates = plateNode === undefined ? 0 : Array.isArray(plateNode) ? plateNode.length : 1;
-  if (plates > 0 && input.plateIndex >= plates) throw new Error(`plate_index ${input.plateIndex} is out of range: the 3MF has ${plates} plate(s), numbered from 0.`);
+  const layoutMode: LayoutMode = input.layout?.mode ?? "auto";
+  const explicitPlate = input.plateIndexExplicit ?? input.plateIndex !== 0;
+  // An explicit plate_index means the NEW numbering when the layout rewrites the plates (auto, not a dry run), so it is checked after the stage.
+  const layoutRewrites = layoutMode === "auto" && !input.dryRun && !isStl;
+  const outOfRange = (count: number) => new Error(`plate_index ${input.plateIndex} is out of range: the 3MF has ${count} plate(s), numbered from 0.`);
+  if (plates > 0 && input.plateIndex >= plates && !(layoutRewrites && explicitPlate)) throw outOfRange(plates);
 
   const warnings: string[] = [];
   const addWarnings = (list: string[]) => { for (const w of list) if (!warnings.includes(w)) warnings.push(w); };
@@ -252,9 +282,12 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
     let cached: ReturnType<Retargeter> | undefined;
     const retarget: Retargeter | undefined = deps.retarget && (src => cached ??= deps.retarget!(src).then(o => { retargetSlices += o.slices ?? 0; return o; }));
     const scopes = new Map<string, ChangeScope>();
+    // Once the layout stage has written a laid-out copy of P0, every candidate is built on it; the diffs and the hash stay against the user's file.
+    let writeSource = source;
+    let origin: WriteOptions["origin"];
     const write = (output: string, d: Delta) => writeTunedProject({
-      source, output, target: { printerPreset: deps.printerPreset }, changes: d.changes,
-      ...(Object.keys(d.overrides).length ? { objectOverrides: { settings: d.overrides } } : {}), retarget,
+      source: writeSource, output, target: { printerPreset: deps.printerPreset }, changes: d.changes,
+      ...(Object.keys(d.overrides).length ? { objectOverrides: { settings: d.overrides } } : {}), retarget, ...(origin ? { origin } : {}),
     });
     const aborted = () => input.signal?.aborted === true;
     let loopSlices = 0;
@@ -271,11 +304,52 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
     addWarnings(p0.warnings);
     const base = toSettings(await readConfig(p0.path));
     const installed = await deps.installedStudio().catch(() => null);
+
+    // 1b. The layout stage: are the objects on the target printer's plates, and is the number of plates the best one? Runs on P0.
+    progress("Checking the layout against the target printer's plates");
+    let layout: LayoutRun;
+    try {
+      layout = await runLayoutStage({
+        p0: p0.path, sourceConfig: originalProject?.config, mode: layoutMode, dryRun: input.dryRun, gapMm: input.layout?.gapMm, marginMm: input.layout?.marginMm,
+        maxSlices: input.layout?.maxSlices, maxMinutes: input.layout?.maxMinutes, work, sliceAll: deps.sliceAll, now, signal: input.signal, progress,
+      });
+    } catch (error) {
+      if (aborted()) throw error;
+      // A defect in the layout stage must not cost the tuning: the project stays as it is and the report says why.
+      layout = failedLayout(layoutMode, `the layout stage failed: ${(error as Error).message.slice(0, 300)}`);
+      warnings.push(`A etapa de layout falhou (${(error as Error).message.slice(0, 200)}); o projeto segue com o layout que tinha.`);
+    }
+    let plateIndex = input.plateIndex;
+    let plateWhy = explicitPlate ? "plate_index as the caller passed it" : "the default plate (the first)";
+    let plateKind: RunData["plate"]["kind"] = explicitPlate ? "explicit" : "default";
+    if (layout.status === "applied" && layout.file) {
+      writeSource = layout.file;
+      origin = { path: source, retarget: p0.retarget };
+      const count = layout.plates_after ?? 1;
+      if (explicitPlate) {
+        if (input.plateIndex >= count) throw outOfRange(count);
+        plateWhy = "plate_index as the caller passed it, in the NEW numbering of the laid-out project";
+        plateKind = "explicit_new_numbering";
+      } else if (layout.measured_plate) {
+        plateIndex = layout.measured_plate.index;
+        plateWhy = layout.measured_plate.why;
+        plateKind = "longest_plate";
+      } else {
+        plateIndex = 0;
+        plateWhy = "the first plate of the laid-out project (the candidates were not measured, so the longest plate is unknown)";
+        plateKind = "first_plate_unmeasured";
+      }
+      // The facts read the laid-out files; the settings facts that describe the ORIGINAL project (its printer) still read the original's settings.
+      const laid = await openProject(layout.file);
+      project = { ...laid, config: originalProject?.config, configProblem: originalProject?.configProblem } as ProjectFiles;
+      for (let k = warnings.length - 1; k >= 0; k--) if (/^The source printer's bed/.test(warnings[k])) warnings.splice(k, 1); // now a layout issue, fixed
+    } else if (plates > 0 && plateIndex >= plates) throw outOfRange(plates);
+
     const mesh = isStl
       ? await meshFactsFromStl(source, { settings: base, signal: input.signal })
-      : await meshFactsFromProject(project!, input.plateIndex, { settings: base, signal: input.signal });
+      : await meshFactsFromProject(project!, plateIndex, { settings: base, signal: input.signal });
     const collect = (out?: SliceOutcome): Promise<Collected> => collectFacts({
-      project, plateIndex: input.plateIndex, targetModel: input.model, settingsBase: base, mesh, declared, actions: deps.tuning.actions,
+      project, plateIndex, targetModel: input.model, settingsBase: base, mesh, declared, actions: deps.tuning.actions,
       installedStudio: async () => installed, source: path.basename(source), ...(out ? { gcode: out.gcode, slice: out.slice } : {}),
     });
     const engineOptions = (unavailable: string[]): TuningOptions => ({
@@ -300,7 +374,7 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
         try {
           const t = now();
           loopSlices++; // an attempt counts, whether or not it succeeds
-          const out = await deps.slice(p0.path, input.signal);
+          const out = await deps.slice(writeSource === source ? p0.path : layout.file!, input.signal, plateIndex);
           lastSliceMs = now() - t;
           const collected = await collect(out);
           const measure = measureOf(collected, out.ms ?? lastSliceMs, {});
@@ -364,7 +438,7 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
           progress(`Slicing round ${n}`);
           const t = now();
           loopSlices++;
-          const out = await deps.slice(file, input.signal);
+          const out = await deps.slice(file, input.signal, plateIndex);
           lastSliceMs = now() - t;
           collected = await collect(out);
           const config = await readConfig(file);
@@ -432,7 +506,7 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
     const check = delivered?.path ?? source;
     if (stop.reason !== "cancelled") try {
       const context = { ...(declared.kind ? { object_kind: declared.kind } : {}), ...(declared.mold_kind === "rigid" || declared.mold_kind === "silicone" ? { mold_kind: declared.mold_kind } : {}) };
-      const result = await deps.preflight({ file_path: check, bambu_model: input.model, plate_index: input.plateIndex, min_severity: "blocker", max_findings: 50, context });
+      const result = await deps.preflight({ file_path: check, bambu_model: input.model, plate_index: plateIndex, min_severity: "blocker", max_findings: 50, context });
       const findings = (Array.isArray(result.findings) ? result.findings : []) as Array<Record<string, unknown>>;
       preflightRun = { checked: check, blockers: findings.filter(f => f.severity === "blocker"), unchecked: result.unchecked };
     } catch (error) {
@@ -450,6 +524,7 @@ export async function prepareProject(input: PrepareInput, deps: PrepareDeps): Pr
       input, tuning: deps.tuning, printerPreset: deps.printerPreset, declared, source: { path: source, sha256_before: before, sha256_after: after }, p0, base,
       baseline, baselineError, rounds, items, stop, slices: { loop: loopSlices, retarget: retargetSlices, max: input.maxSlices },
       minutes: Math.round(((now() - started) / 60_000) * 100) / 100, best: input.dryRun ? undefined : best, bestWhy, pending, delivered, preflight: preflightRun, mesh, installed, warnings,
+      layout, plate: { index: plateIndex, why: plateWhy, kind: plateKind },
     });
   } finally {
     await removeQuietly(work);

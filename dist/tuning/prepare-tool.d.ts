@@ -1,3 +1,4 @@
+import type { LayoutInput } from "./prepare.js";
 export declare const PREPARE_TOOLS: readonly [{
     readonly name: "prepare_print_project";
     readonly description: string;
@@ -12,7 +13,7 @@ export declare const PREPARE_TOOLS: readonly [{
             readonly plate_index: {
                 readonly type: "integer";
                 readonly minimum: 0;
-                readonly description: "0-based plate of a multi-plate 3MF to slice and judge. Default 0.";
+                readonly description: "0-based plate of a multi-plate 3MF to slice and judge. Default 0, or the plate with the longest predicted time after a layout change. When passed, it means the NEW numbering if the layout rewrote the plates.";
             };
             readonly bambu_model: {
                 readonly type: "string";
@@ -62,7 +63,36 @@ export declare const PREPARE_TOOLS: readonly [{
             };
             readonly dry_run: {
                 readonly type: "boolean";
-                readonly description: "Plan only: no slicing, nothing delivered. Default false.";
+                readonly description: "Plan only: no slicing, nothing delivered (the layout is analysed and planned, its candidates unmeasured). Default false.";
+            };
+            readonly layout: {
+                readonly type: "string";
+                readonly enum: readonly ["auto", "check_only", "off"];
+                readonly description: "auto (default): fix the layout, deciding the number of plates by measurement. check_only: report the issues and the plan, change nothing. off: skip the layout stage.";
+            };
+            readonly layout_gap_mm: {
+                readonly type: "number";
+                readonly minimum: 0;
+                readonly maximum: 100;
+                readonly description: "Edge-to-edge gap between objects on a plate. Default max(8, 2 x brim width + 2 when the project has a brim).";
+            };
+            readonly layout_margin_mm: {
+                readonly type: "number";
+                readonly minimum: 0;
+                readonly maximum: 50;
+                readonly description: "Distance kept from the edge of the usable area. Default 5.";
+            };
+            readonly layout_max_slices: {
+                readonly type: "integer";
+                readonly minimum: 1;
+                readonly maximum: 20;
+                readonly description: "CLI slices the layout candidates may use (one per candidate, all its plates). Separate from max_slices. Default 6.";
+            };
+            readonly layout_max_minutes: {
+                readonly type: "number";
+                readonly minimum: 1;
+                readonly maximum: 240;
+                readonly description: "Wall-clock minutes the layout candidates may take. Separate from max_minutes. Default 12.";
             };
         };
         readonly required: readonly ["path"];
@@ -77,6 +107,8 @@ export declare const PREPARE_TOOLS: readonly [{
 export interface PrepareArgs {
     path: string;
     plateIndex: number;
+    plateIndexExplicit: boolean;
+    layout: LayoutInput;
     model?: string;
     partContext?: unknown;
     maxSlices: number;

@@ -159,6 +159,9 @@ function decide(run, views) {
         notReady.push({ code: "nothing_measured", text: "Nenhuma rodada foi fatiada e medida com sucesso: não há projeto entregue." });
     if (run.source.sha256_before !== run.source.sha256_after)
         notReady.push({ code: "source_changed", text: "O arquivo original mudou durante a execução." });
+    const layout = run.layout;
+    if (layout.unfixed.length)
+        notReady.push({ code: "layout_unfixed", text: `Problema(s) de layout que a ferramenta não corrigiu (${layout.status === "check_only" ? "layout: check_only só relata" : layout.status === "locked" ? "há mesa travada" : layout.status === "blocked" ? "algum objeto não cabe em nenhuma mesa" : "não aplicado"}): ${layout.unfixed.slice(0, 3).map(i => i.text).join(" ")}${layout.unfixed.length > 3 ? ` (e mais ${layout.unfixed.length - 3})` : ""}` });
     const caveats = [];
     const add = (code, text) => caveats.push({ code, text });
     if (stop === "budget_slices" || stop === "budget_minutes")
@@ -191,6 +194,15 @@ function decide(run, views) {
     const usedDeclared = declared.filter(f => views.some(v => { const a = run.tuning.actions.find(x => x.id === v.action); return a && factsRead(a).has(f); }));
     if (usedDeclared.length)
         add("declared_unchecked", `Fatos declarados por você que decidiram mudanças e que nenhuma medição confere: ${usedDeclared.join(", ")}.`);
+    if (layout.status === "applied") {
+        add("layout_estimate_only", `O layout (${layout.plates_before_count} -> ${layout.plates_after} mesas) foi escolhido ${layout.unmeasured ? "SEM medição (o fatiador não mediu os candidatos)" : "pela estimativa de tempo do fatiador"}; falha que perde a mesa inteira, aderência e resfriamento real não entram nessa conta.`);
+        if (layout.budget.stopped_early)
+            add("layout_budget", `A avaliação dos candidatos de layout parou antes do fim (${layout.budget.stopped_early}); foi aplicado o melhor já medido.`);
+    }
+    if (layout.status === "locked")
+        add("layout_locked", "Há mesa travada: a ferramenta não avaliou nem moveu os objetos dela, e não mudou o número de mesas.");
+    if (layout.status === "failed")
+        add("layout_skipped", `A etapa de layout não rodou: ${layout.reason}.`);
     if (run.preflight.error)
         add("preflight_unavailable", `O preflight_check não pôde julgar o arquivo (${run.preflight.error}): bloqueadores de estrutura e volume não foram conferidos.`);
     const verdict = notReady.length ? "not_ready" : stop === "done" && caveats.length === 0 ? "ready" : "ready_with_caveats";
@@ -223,6 +235,8 @@ export function buildReport(run) {
     if (worse)
         warnings.push("O projeto entregue tem MAIS travels que cruzam extrusão do que o projeto sem ajustes: confira antes de usar.");
     const predictedOnly = views.filter(v => v.verification.status === "predicted_only").map(v => ({ key: v.key, to: v.to, action: v.action, confidence: v.confidence, why: v.why, basis: v.verification.note, src: v.src }));
+    if (run.layout.status === "applied")
+        predictedOnly.push({ key: "layout", to: `${run.layout.plates_after} mesa(s)`, action: "layout", confidence: null, why: run.layout.chosen?.reason ?? null, basis: "escolhido pela estimativa de tempo do fatiador; não vale como medição de impressão real", src: [] });
     const verifiedChanges = views.filter(v => v.verification.status === "verified").map(v => ({ key: v.key, to: v.to, action: v.action, outcome: v.verification.outcome, by: v.verification.by, reached_slice: v.reached_slice }));
     const evidence = collected?.evidence ?? {};
     const unseenFacts = (collected?.unavailable ?? []).slice(0, 40).map(f => ({ fact: f, why: evidence[f]?.notes ?? "" }));
@@ -246,6 +260,7 @@ export function buildReport(run) {
         actions_skipped_for_lack_of_a_part_description: undescribed?.count ?? 0,
         weak_rules: weakShare === null ? "" : `${weakShare}% das regras de Bambu Studio da base são fracas (relato, hipótese ou não verificado): o guia sugere, nenhuma medição própria confirmou.`,
         no_printer: "Nenhuma impressora foi usada para validar: empenamento, aderência, queda de peça e qualidade real da superfície não são medidos por fatiamento.",
+        layout: run.layout.not_verified,
     };
     const stopOut = {
         reason: run.stop.reason, text: STOP_TEXT[run.stop.reason], detail: run.stop.detail, rounds_measured: run.rounds.filter(r => r.measure).length,
@@ -285,7 +300,7 @@ export function buildReport(run) {
         } : null,
         source: { path: run.source.path, sha256_before: run.source.sha256_before, sha256_after: run.source.sha256_after, unchanged: run.source.sha256_before === run.source.sha256_after },
         printer: { model: run.input.model, preset: run.printerPreset, studio_installed: run.installed },
-        part: { plate_index: run.input.plateIndex, declared: run.declared, mesh: { size_x_mm: run.mesh.facts["mesh.size_x_mm"] ?? null, size_y_mm: run.mesh.facts["mesh.size_y_mm"] ?? null, height_mm: run.mesh.facts["mesh.height_mm"] ?? null, triangles: run.mesh.stats.triangles }, questions_for_the_user: suggestDeclarations(run.mesh.facts) },
+        part: { plate_index: run.plate.index, plate_why: run.plate.why, plate_kind: run.plate.kind, declared: run.declared, mesh: { size_x_mm: run.mesh.facts["mesh.size_x_mm"] ?? null, size_y_mm: run.mesh.facts["mesh.size_y_mm"] ?? null, height_mm: run.mesh.facts["mesh.height_mm"] ?? null, triangles: run.mesh.stats.triangles }, questions_for_the_user: suggestDeclarations(run.mesh.facts) },
         diff: {
             retarget: ref ? { applied: ref.retarget.applied, reason: ref.retarget.reason, printer_ids: ref.retarget.printer_ids, kept: ref.retarget.kept.slice(0, 30), not_kept: ref.retarget.not_kept.slice(0, 30), changed_keys_count: ref.retarget.changed_keys.length, changed_keys_shown: Math.min(30, ref.retarget.changed_keys.length), changed_keys: ref.retarget.changed_keys.slice(0, 30) } : run.p0.retarget,
             tuning: diffTuning,
@@ -293,6 +308,7 @@ export function buildReport(run) {
             unchanged_requested: ref?.unchanged_keys ?? [],
         },
         metrics: { baseline_error: run.baselineError ?? null, rows: metricRows(run, planRound), note: "plate.weight_g pode ou não incluir descarte e torre: compare só entre fatiamentos deste mesmo projeto." },
+        layout: { ...run.layout, issues_count: run.layout.issues.length, issues: run.layout.issues.slice(0, 60) },
         history,
         suggestions_not_applied: suggestions,
         skipped: { for_undescribed_part: undescribed ? { count: undescribed.count, text: undescribedText, by_fact: undescribed.by_fact } : null, declare_to_enable: declare, other: otherSkips },
@@ -335,6 +351,7 @@ function resumo(run, report, views, d) {
         lines.push(`- Arquivo novo, sem fatiar (o original não foi tocado): \`${run.delivered.path}\` — ${run.delivered.opened ? "aberto no Bambu Studio" : "não aberto no Studio"}. Rodada entregue: ${run.best?.round}.`);
     else
         lines.push(`- Nenhum arquivo foi entregue. O original não foi tocado.`);
+    lines.push(...layoutLines(run.layout, run.plate));
     if (views.length) {
         lines.push("", `### Mudanças (${views.length})`);
         for (const v of views.slice(0, 14))
@@ -363,4 +380,51 @@ function resumo(run, report, views, d) {
         lines.push("", "### Avisos", ...report.warnings.slice(0, 5).map((w) => `- ${w}`));
     lines.push("", `> ${READY_MEANS}`);
     return lines.join("\n");
+}
+const clock = (s) => (s >= 3600 ? `${Math.floor(s / 3600)} h ${String(Math.round((s % 3600) / 60)).padStart(2, "0")} min` : `${Math.round(s / 60)} min`);
+const KIND_PT = {
+    outside_plate: "fora da sua mesa", straddling: "cruzando a borda da mesa", between_plates: "entre mesas", outside_nozzle_area: "fora do alcance do bico", overlap: "colidindo/juntos demais",
+    too_tall: "altos demais", bed_changed: "mesa da impressora de origem diferente", locked_plate: "mesa travada", plate_assignment: "sem mesa (ou em duas)", blocker: "não cabem",
+};
+/** The short Portuguese layout block of the summary ("17 mesas -> 4 mesas, ..."). Empty when the stage was off or found nothing to say. */
+function layoutLines(layout, plate) {
+    if (layout.status === "off" || (layout.status === "skipped" && !layout.reason))
+        return [];
+    const lines = ["", "### Layout das mesas"];
+    const kinds = new Map();
+    for (const i of layout.issues)
+        kinds.set(i.kind, (kinds.get(i.kind) ?? 0) + 1);
+    const found = [...kinds].map(([k, n]) => `${n} ${KIND_PT[k] ?? k}`).join(", ");
+    if (layout.status === "skipped")
+        return [...lines, `- Não rodou: ${layout.reason}.`];
+    if (layout.status === "failed")
+        return [...lines, `- Não rodou: ${layout.reason}.`];
+    if (layout.status === "unchanged")
+        return [...lines, `- Nada a mudar: ${layout.reason}.${found ? ` Observado: ${found}.` : ""}`];
+    if (layout.status === "applied") {
+        const c = layout.chosen;
+        const mine = layout.candidates.find(x => x.id === c.id);
+        const classes = c.plates.reduce((m, p) => m.set(`${p.class}|${p.colour}`, (m.get(`${p.class}|${p.colour}`) ?? 0) + 1), new Map());
+        lines.push(`- ${layout.plates_before_count} mesas -> ${layout.plates_after} mesas (${[...classes].map(([k, n]) => `${k.split("|")[1]} em ${n}`).join("; ")}); uma cor por mesa, sem mistura.${found ? ` Problemas achados: ${found}.` : ""}`);
+        const rows = layout.candidates.filter(x => x.measured);
+        if (rows.length) {
+            lines.push(`- Escolha medida pelo fatiador (soma das mesas): ${c.reason}.`, "", "| candidato | mesas | objetos por mesa | tempo total | mesa mais longa | peso | travels que cruzam, por mesa |", "|---|---|---|---|---|---|---|");
+            for (const x of layout.candidates) {
+                lines.push(`| ${x.id}${x.id === c.id ? " (escolhido)" : ""} | ${x.plates} | ${x.objects_per_plate.join("/")} | ${x.measured ? clock(x.total_time_s) : `não medido (${x.not_measured_reason})`} | ${x.measured ? clock(x.longest_plate_s) : "-"} | ${x.weight_g !== undefined ? `${x.weight_g} g` : "-"} | ${x.measured ? (x.crossing_per_plate ?? []).map(n => n ?? "?").join("/") : "-"} |`);
+            }
+            lines.push("");
+        }
+        else
+            lines.push(`- Os candidatos NÃO foram medidos (${layout.candidates[0]?.not_measured_reason ?? "sem fatiador"}): foi aplicado o plano padrão (menos mesas).`);
+        if (layout.budget.stopped_early)
+            lines.push(`- A avaliação parou cedo (${layout.budget.stopped_early}).`);
+        const why = { longest_plate: "a de maior tempo previsto no projeto com o novo layout", explicit_new_numbering: "a que você pediu em plate_index, na numeração nova", first_plate_unmeasured: "a primeira (os candidatos não foram medidos, então não se sabe qual é a mais longa)", explicit: "a que você pediu em plate_index", default: "a primeira" }[plate.kind];
+        lines.push(`- Ajuste medido na mesa ${plate.index + 1}: ${why}.`);
+        lines.push("- Não verificado: é estimativa do fatiador, não impressão; uma falha perde a mesa inteira; aderência e resfriamento reais não são simulados; o Studio (interface) não foi aberto para conferir.");
+        return lines;
+    }
+    lines.push(`- ${layout.status === "check_only" ? "layout: check_only (nada mudou)" : layout.status === "dry_run" ? "dry_run (nada fatiado nem mudado)" : layout.status === "locked" ? "Mesa travada: nada foi mudado" : "Nenhum layout aplicado"}.${found ? ` Problemas achados: ${found}.` : ""} ${layout.reason ?? ""}`);
+    if (layout.chosen)
+        lines.push(`- Plano: ${layout.candidates.find(x => x.id === layout.chosen.id)?.label ?? layout.chosen.id}.`);
+    return lines;
 }

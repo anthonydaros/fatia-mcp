@@ -16,6 +16,9 @@ import { getTuning } from "../dist/tuning/loader.js";
 import { prepareProject } from "../dist/tuning/prepare.js";
 import { studioRetargeter } from "../dist/tuning/retarget.js";
 import { parsePrepareArgs, PREPARE_TOOLS } from "../dist/tuning/prepare-tool.js";
+import { openProject } from "../dist/knowledge/facts/settings.js";
+import { analyzeLayout, geometryFromConfig, readLayoutModel } from "../dist/tuning/layout.js";
+import { buildLayoutProject, h2dConfig, scatteredSpec, x2dConfig } from "./fixtures/layout-project.mjs";
 
 const SERVER = path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), "dist", "index.js");
 const X2D = "Bambu Lab X2D 0.4 nozzle";
@@ -87,11 +90,11 @@ async function setup(t, { config, model } = {}) {
   return { dir, source, out: path.join(dir, "out") };
 }
 /** script: one entry per slice call (an outcome, an Error to throw, or a function(call) returning either); the last entry repeats. */
-function harness({ dir, source, out }, { actions, script, noAction = [], preflight, open, now, retarget, input = {} }) {
+function harness({ dir, source, out }, { actions, script, noAction = [], preflight, open, now, retarget, sliceAll, input = {} }) {
   const calls = [];
   const opened = [];
-  const slice = async (file, signal) => {
-    const call = { n: calls.length, file: path.basename(file), cfg: await readCfg(file), signal };
+  const slice = async (file, signal, plate) => {
+    const call = { n: calls.length, file: path.basename(file), cfg: await readCfg(file), signal, plate };
     calls.push(call);
     let step = script[Math.min(call.n, script.length - 1)];
     if (typeof step === "function") step = await step(call);
@@ -100,7 +103,7 @@ function harness({ dir, source, out }, { actions, script, noAction = [], preflig
   };
   const deps = {
     tuning: { actions, noAction }, printerPreset: X2D, tempDir: path.join(dir, "tmp"), slice, installedStudio: async () => "02.08.04.57",
-    preflight: preflight ?? (async () => ({ findings: [] })), openInStudio: open ?? (async file => { opened.push(file); return { opened: true, file_path: file }; }), ...(now ? { now } : {}), ...(retarget ? { retarget } : {}),
+    preflight: preflight ?? (async () => ({ findings: [] })), openInStudio: open ?? (async file => { opened.push(file); return { opened: true, file_path: file }; }), ...(now ? { now } : {}), ...(retarget ? { retarget } : {}), ...(sliceAll ? { sliceAll } : {}),
   };
   const args = { path: source, plateIndex: 0, model: "x2d", maxSlices: 12, maxMinutes: 20, outputDir: out, openInStudio: false, apply: "recommended", dryRun: false, ...input };
   return { calls, opened, run: () => prepareProject(args, deps) };
@@ -611,13 +614,18 @@ test("the report carries untouched risks, unseen facts and the honest statement;
 });
 
 test("parsePrepareArgs applies the defaults and refuses a typo or a wrong type", () => {
-  assert.deepEqual(parsePrepareArgs({ path: "/x/a.3mf" }), { path: "/x/a.3mf", plateIndex: 0, model: undefined, partContext: undefined, maxSlices: 12, maxMinutes: 20, outputDir: undefined, outputName: undefined, openInStudio: true, apply: "recommended", dryRun: false });
+  assert.deepEqual(parsePrepareArgs({ path: "/x/a.3mf" }), { path: "/x/a.3mf", plateIndex: 0, plateIndexExplicit: false, layout: { mode: "auto", gapMm: undefined, marginMm: undefined, maxSlices: undefined, maxMinutes: undefined }, model: undefined, partContext: undefined, maxSlices: 12, maxMinutes: 20, outputDir: undefined, outputName: undefined, openInStudio: true, apply: "recommended", dryRun: false });
   assert.throws(() => parsePrepareArgs({}), /Missing required parameter: path/);
   assert.throws(() => parsePrepareArgs({ path: "a.3mf", file_path: "b" }), /Unknown argument "file_path"/);
   assert.throws(() => parsePrepareArgs({ path: "a.3mf", max_slices: 1 }), /max_slices must be an integer from 2 to 50/);
   assert.throws(() => parsePrepareArgs({ path: "a.3mf", max_minutes: 0 }), /max_minutes/);
   assert.throws(() => parsePrepareArgs({ path: "a.3mf", apply: "all" }), /apply must be/);
   assert.throws(() => parsePrepareArgs({ path: "a.3mf", dry_run: "yes" }), /dry_run must be true or false/);
+  assert.deepEqual(parsePrepareArgs({ path: "a.3mf", plate_index: 0, layout: "check_only", layout_gap_mm: 10, layout_margin_mm: 3, layout_max_slices: 2, layout_max_minutes: 5.5 }).layout, { mode: "check_only", gapMm: 10, marginMm: 3, maxSlices: 2, maxMinutes: 5.5 });
+  assert.equal(parsePrepareArgs({ path: "a.3mf", plate_index: 0 }).plateIndexExplicit, true, "an explicit 0 is still explicit");
+  assert.throws(() => parsePrepareArgs({ path: "a.3mf", layout: "yes" }), /layout must be "auto", "check_only" or "off"/);
+  assert.throws(() => parsePrepareArgs({ path: "a.3mf", layout_gap_mm: -1 }), /layout_gap_mm must be a number from 0 to 100/);
+  assert.throws(() => parsePrepareArgs({ path: "a.3mf", layout_max_slices: 0 }), /layout_max_slices must be an integer from 1 to 20/);
 });
 
 // ---------------------------------------------------------------- through the server (no Bambu Studio needed: a dry run of an X2D project slices nothing)
@@ -697,4 +705,212 @@ test("studioRetargeter: allowSlice false refuses a retarget that needs a real sl
   assert.equal(calls.length, 1);
   assert.equal(outcome.slices, 1);
   assert.equal(outcome.archive.toString(), "exported");
+});
+
+// ---------------------------------------------------------------- the layout stage inside the loop
+const loopConfig = (extra = {}) => x2dConfig({ top_shell_layers: "3", seam_position: "aligned", layer_height: "0.2", detect_overhang_wall: "1", ...extra });
+/** The scattered project (a Frame and eight grey boxes on nine plates) as the user's source, made for the printer `config` names. */
+async function layoutEnv(t, { spec = scatteredSpec(), config = loopConfig() } = {}) {
+  const env = await setup(t);
+  await fs.writeFile(env.source, await buildLayoutProject({ ...spec, config }));
+  return env;
+}
+/** sliceAll answering per candidate: `plates * 1000` seconds per plate unless `time(id, plates, index)` says otherwise. */
+function candidateSlicer(time = (id, plates) => 1000 * plates, { fail = [] } = {}) {
+  const calls = [];
+  const sliceAll = async file => {
+    const base = path.basename(file);
+    const id = base === "p0.3mf" ? "as_is" : /^layout-(.+)\.3mf$/.exec(base)[1];
+    const model = await readLayoutModel(await openProject(file));
+    calls.push({ id, plates: model.plates.length });
+    if (fail.includes(id)) throw new Error("no");
+    return model.plates.map((p, i) => ({ plate: i + 1, time_s: time(id, model.plates.length, i), weight_g: 50, crossing: 0, filament_maps: [1, 1], warnings: [] }));
+  };
+  return { calls, sliceAll };
+}
+const laidOut = async file => {
+  const model = await readLayoutModel(await openProject(file));
+  return { model, analysis: analyzeLayout(model, geometryFromConfig(x2dConfig()), { minGapMm: 2 }) };
+};
+const ACTIONS = () => [definite("tune.def", { top_shell_layers: "5" })];
+
+test("layout stage in the loop: scattered 9 plates become 3, measured, then the baseline and the tuning use the laid-out project and the longest plate; the report has the table", async t => {
+  // The user's file was made for the H2D: the retarget (a fake export) is real work, and the bed warning becomes a layout issue.
+  const env = await layoutEnv(t, { config: h2dConfig({ top_shell_layers: "3", seam_position: "aligned", layer_height: "0.2", brim_type: "no_brim" }) });
+  const donor = path.join(env.dir, "donor.3mf");
+  await fs.writeFile(donor, await buildLayoutProject({ objects: [{ id: 2, name: "x", size: [1, 1, 1], at: [5, 5] }], plates: [["2:0"]], config: loopConfig() }));
+  const retarget = async () => ({ archive: await fs.readFile(donor), report: null, edited: [], slices: 0 });
+  const before = sha(await fs.readFile(env.source));
+  const fake = candidateSlicer((id, plates, i) => (id === "plus1" ? 800 * plates : 1000 * plates) + (i === 1 ? 500 : 0)); // plate 2 is the longest everywhere
+  const progress = [];
+  const h = harness(env, { actions: ACTIONS(), script: [crossing(0, { time: 3600 }), crossing(0, { time: 3700 })], retarget, sliceAll: fake.sliceAll, input: { onProgress: p => progress.push(p.message) } });
+  const r = await h.run();
+
+  assert.equal(r.layout.status, "applied");
+  assert.deepEqual(fake.calls.map(c => [c.id, c.plates]), [["fewest", 3], ["plus1", 4], ["plus2", 5], ["authored_rebased", 9]]);
+  assert.deepEqual(r.layout.candidates.map(c => [c.id, c.plates, c.objects_per_plate.length, c.measured, c.total_time_s, c.longest_plate_s, c.weight_g, c.crossing_per_plate.length]),
+    [["fewest", 3, 3, true, 3 * 1000 * 3 + 500, 3500, 150, 3], ["plus1", 4, 4, true, 4 * 800 * 4 + 500, 3700, 200, 4], ["plus2", 5, 5, true, 5 * 5000 + 500, 5500, 250, 5], ["authored_rebased", 9, 9, true, 9 * 9000 + 500, 9500, 450, 9]]);
+  assert.equal(r.layout.chosen.id, "fewest");
+  assert.deepEqual(r.layout.candidates.filter(c => c.chosen).map(c => c.id), ["fewest"]);
+  assert.deepEqual([r.layout.plates_before_count, r.layout.plates_after], [9, 3]);
+  assert.ok(r.layout.issues.some(i => i.kind === "bed_changed" && i.evidence.source_bed_mm[0] === 350), "the old bed warning is now an issue with its fix");
+  assert.ok(!r.warnings.some(w => /source printer's bed/.test(w)), "and no longer a bare string once fixed");
+  assert.deepEqual(r.layout.budget, { slices_used: 4, max_slices: 6, minutes_used: r.layout.budget.minutes_used, max_minutes: 12, stopped_early: null });
+  assert.ok(progress.some(m => /Layout: slicing candidate fewest/.test(m)) && progress.some(m => /Checking the layout/.test(m)), "the call reports the layout stage");
+
+  // The loop: its own budget is separate; the baseline slices the laid-out project, on the longest plate (plate 2 = index 1).
+  assert.deepEqual(r.stop.slices_used, { loop: 2, retarget: 0, total: 2, max: 12 });
+  assert.deepEqual(h.calls.map(c => [c.file, c.plate]), [["layout-fewest.3mf", 1], ["round-0.3mf", 1]]);
+  assert.deepEqual([r.part.plate_index, r.layout.measured_plate.number], [1, 2]);
+  assert.match(r.part.plate_why, /longest predicted time/);
+  assert.equal(h.calls[1].cfg.top_shell_layers, "5");
+
+  // The deliverable: the laid-out project with the tuned key, proven clean, one colour per plate, diffs against the user's H2D original.
+  const { model, analysis } = await laidOut(r.delivered.path);
+  assert.equal(analysis.clean, true, JSON.stringify(analysis.issues.map(i => i.text)));
+  assert.equal(model.plates.length, 3);
+  for (const plate of model.plates) assert.equal(new Set(plate.keys.map(k => model.objects.find(o => o.key === k).classKey)).size, 1, "no plate mixes colours");
+  assert.equal((await readCfg(r.delivered.path)).top_shell_layers, "5");
+  const zip = await JSZip.loadAsync(await fs.readFile(r.delivered.path));
+  assert.deepEqual(Object.keys(zip.files).filter(n => /^Metadata\/(?:(?:plate|plate_no_light|top|pick)_\d+|[^/]*_small)\.png$/.test(n)), [], "the stale plate pictures are gone");
+  assert.equal(r.diff.retarget.reason, "printer-differs", "the retarget summary survives the laid-out source");
+  assert.equal(r.diff.retarget.printer_ids.before.printer, "Bambu Lab H2D 0.4 nozzle");
+  assert.ok(r.diff.combined_vs_original.keys.some(k => k.key === "printer_settings_id" && k.from === "Bambu Lab H2D 0.4 nozzle"), "the combined diff is against the user's original");
+  assert.ok(r.diff.combined_vs_original.keys.some(k => k.key === "top_shell_layers" && k.from === "3" && k.to === "5"));
+  await assertSourceUntouched(env.source, before, r);
+  assert.equal(r.source.sha256_before, before);
+
+  // Verdict and wording: a layout chosen on estimates is a caveat and a PREDICTED ONLY line; the summary says what happened to the plates.
+  assert.ok(r.caveats.some(c => c.code === "layout_estimate_only" && /9 -> 3 mesas/.test(c.text)));
+  assert.ok(r.predicted_only.some(p => p.key === "layout" && /3 mesa/.test(p.to)));
+  assert.ok(r.unseen.layout.some(l => /failure ruins a whole plate/.test(l)));
+  assert.notEqual(r.verdict, "ready");
+  assert.match(r.resumo, /### Layout das mesas/);
+  assert.match(r.resumo, /9 mesas -> 3 mesas \(black em 1; grey em 2\); uma cor por mesa, sem mistura/);
+  assert.match(r.resumo, /Escolha medida pelo fatiador \(soma das mesas\): fewest: lowest total predicted time/);
+  assert.match(r.resumo, /\| candidato \| mesas \| objetos por mesa \| tempo total \| mesa mais longa \| peso \| travels que cruzam, por mesa \|/);
+  assert.match(r.resumo, /\| fewest \(escolhido\) \| 3 \| 1\/4\/4 \| 2 h 38 min \| 58 min \| 150 g \| 0\/0\/0 \|/);
+  assert.match(r.resumo, /\| authored_rebased \| 9 \| 1\/1\/1\/1\/1\/1\/1\/1\/1 \| /);
+  assert.match(r.resumo, /Ajuste medido na mesa 2/);
+});
+
+test("an explicit plate_index means the NEW numbering after a layout; one past the new count is refused with the new count", async t => {
+  const env = await layoutEnv(t);
+  const fake = candidateSlicer();
+  const h = harness(env, { actions: [], script: [crossing(0)], sliceAll: fake.sliceAll, input: { plateIndex: 2, plateIndexExplicit: true } });
+  const r = await h.run();
+  assert.equal(h.calls[0].plate, 2);
+  assert.equal(r.part.plate_index, 2);
+  assert.match(r.part.plate_why, /NEW numbering/);
+  const env2 = await layoutEnv(t);
+  await assert.rejects(harness(env2, { actions: [], script: [crossing(0)], sliceAll: candidateSlicer().sliceAll, input: { plateIndex: 3, plateIndexExplicit: true } }).run(), /plate_index 3 is out of range: the 3MF has 3 plate\(s\)/);
+  // with the layout off the original count applies
+  const env3 = await layoutEnv(t);
+  await assert.rejects(harness(env3, { actions: [], script: [crossing(0)], input: { plateIndex: 9, plateIndexExplicit: true, layout: { mode: "off" } } }).run(), /the 3MF has 9 plate\(s\)/);
+});
+
+test("layout check_only reports the issues and the plan, changes nothing (the baseline slices P0 as it is) and makes the verdict not_ready", async t => {
+  const env = await layoutEnv(t);
+  const fake = candidateSlicer();
+  const h = harness(env, { actions: [], script: [crossing(0)], sliceAll: fake.sliceAll, input: { layout: { mode: "check_only" } } });
+  const r = await h.run();
+  assert.deepEqual(fake.calls, [], "no candidate is sliced");
+  assert.equal(r.layout.status, "check_only");
+  assert.ok(r.layout.issues.length >= 5);
+  assert.equal(r.layout.chosen.id, "fewest");
+  assert.deepEqual(h.calls.map(c => [c.file, c.plate]), [["p0.3mf", 0]]);
+  assert.equal(r.verdict, "not_ready");
+  assert.ok(r.not_ready_reasons.some(x => x.code === "layout_unfixed" && /check_only/.test(x.text)));
+  const { model } = await laidOut(r.delivered.path);
+  assert.equal(model.plates.length, 9, "the delivered project keeps its nine plates");
+  assert.match(r.resumo, /layout: check_only \(nada mudou\)/);
+});
+
+test("layout off skips the stage (and keeps the old bed warning); dry_run plans the layout without slicing anything", async t => {
+  const env = await layoutEnv(t, { config: h2dConfig({ top_shell_layers: "3", seam_position: "aligned", layer_height: "0.2" }) });
+  const donor = path.join(env.dir, "donor.3mf");
+  await fs.writeFile(donor, await buildLayoutProject({ objects: [{ id: 2, name: "x", size: [1, 1, 1], at: [5, 5] }], plates: [["2:0"]], config: loopConfig() }));
+  const retarget = async () => ({ archive: await fs.readFile(donor), report: null, edited: [], slices: 0 });
+  const fake = candidateSlicer();
+  const off = await harness(env, { actions: [], script: [crossing(0)], retarget, sliceAll: fake.sliceAll, input: { layout: { mode: "off" } } }).run();
+  assert.equal(off.layout.status, "off");
+  assert.deepEqual(fake.calls, []);
+  assert.ok(off.warnings.some(w => /source printer's bed/.test(w)));
+  assert.doesNotMatch(off.resumo, /Layout das mesas/);
+
+  const h = harness(env, { actions: [], script: [new Error("a dry run must not slice")], retarget, sliceAll: fake.sliceAll, input: { dryRun: true } });
+  const dry = await h.run();
+  assert.deepEqual([h.calls.length, fake.calls.length], [0, 0], "dry_run slices nothing, layout candidates included");
+  assert.equal(dry.layout.status, "dry_run");
+  assert.ok(dry.layout.candidates.every(c => c.measured === false && /dry_run/.test(c.not_measured_reason)));
+  assert.equal(dry.layout.unmeasured, true);
+  assert.match(dry.layout.chosen.reason, /not a measured choice/);
+  assert.equal(dry.delivered, null);
+});
+
+test("a locked plate and an object that fits no plate are not fixed: nothing is laid out and the verdict is not_ready", async t => {
+  const locked = scatteredSpec();
+  locked.locked = [4];
+  const env = await layoutEnv(t, { spec: locked });
+  const fake = candidateSlicer();
+  const r = await harness(env, { actions: [], script: [crossing(0)], sliceAll: fake.sliceAll }).run();
+  assert.equal(r.layout.status, "locked");
+  assert.deepEqual(fake.calls, []);
+  assert.equal(r.verdict, "not_ready");
+  assert.ok(r.not_ready_reasons.some(x => x.code === "layout_unfixed" && /mesa travada/.test(x.text)));
+  assert.ok(r.caveats.some(c => c.code === "layout_locked"));
+  assert.equal((await laidOut(r.delivered.path)).model.plates.length, 9, "the plates are as they were");
+
+  const plank = scatteredSpec();
+  plank.objects.push({ id: 40, name: "Plank", size: [300, 20, 20], at: [100, 100], extruder: 2 });
+  plank.plates.push(["40:0"]);
+  const env2 = await layoutEnv(t, { spec: plank });
+  const b = await harness(env2, { actions: [], script: [crossing(0)], sliceAll: fake.sliceAll }).run();
+  assert.equal(b.layout.status, "blocked");
+  assert.equal(b.verdict, "not_ready");
+  assert.ok(b.not_ready_reasons.some(x => x.code === "layout_unfixed" && /Plank/.test(x.text) && /nenhuma mesa|algum objeto não cabe/.test(x.text)));
+});
+
+test("a layout nobody could measure is applied as the planner's default and says so; a budget that stops the candidates early is a caveat", async t => {
+  const env = await layoutEnv(t);
+  const r = await harness(env, { actions: [], script: [crossing(0)] }).run();
+  assert.equal(r.layout.status, "applied");
+  assert.equal(r.layout.unmeasured, true);
+  assert.deepEqual(r.layout.candidates.map(c => c.measured), [false, false, false, false]);
+  assert.match(r.layout.candidates[0].not_measured_reason, /no slicer was available/);
+  assert.equal(r.part.plate_index, 0);
+  assert.ok(r.caveats.some(c => c.code === "layout_estimate_only" && /SEM medição/.test(c.text)));
+  assert.match(r.resumo, /Os candidatos NÃO foram medidos/);
+
+  const env2 = await layoutEnv(t);
+  const fake = candidateSlicer();
+  const b = await harness(env2, { actions: [], script: [crossing(0)], sliceAll: fake.sliceAll, input: { layout: { mode: "auto", maxSlices: 1 } } }).run();
+  assert.deepEqual(fake.calls.map(c => c.id), ["fewest"]);
+  assert.equal(b.layout.budget.stopped_early, "layout slice budget of 1 reached");
+  assert.ok(b.caveats.some(c => c.code === "layout_budget"));
+  assert.match(b.resumo, /A avaliação parou cedo/);
+});
+
+test("a project with no layout problem is left exactly as it is and the report says so", async t => {
+  const spec = { objects: [{ id: 2, name: "Solo", size: [50, 50, 20], at: [100, 100] }], plates: [["2:0"]], config: loopConfig() };
+  const env = await layoutEnv(t, { spec });
+  const fake = candidateSlicer();
+  const h = harness(env, { actions: [], script: [crossing(0)], sliceAll: fake.sliceAll });
+  const r = await h.run();
+  assert.equal(r.layout.status, "unchanged");
+  assert.deepEqual(fake.calls, []);
+  assert.deepEqual(h.calls.map(c => c.file), ["p0.3mf"]);
+  assert.notEqual(r.verdict, "not_ready", "an untouched layout does not count against the project");
+  assert.ok(!r.caveats.some(c => /^layout/.test(c.code)));
+  assert.match(r.resumo, /Nada a mudar: no layout problem found/);
+});
+
+test("the tool describes the layout stage and its arguments", () => {
+  const tool = PREPARE_TOOLS[0];
+  assert.match(tool.description, /Layout \(automatic by default, layout: auto\)/);
+  assert.match(tool.description, /one colour \(filament set\) per plate and never mixed/);
+  assert.match(tool.description, /the call reports progress, layout stage included/);
+  assert.match(tool.description, /NEW numbering/);
+  assert.deepEqual(tool.inputSchema.properties.layout.enum, ["auto", "check_only", "off"]);
+  for (const k of ["layout_gap_mm", "layout_margin_mm", "layout_max_slices", "layout_max_minutes"]) assert.ok(tool.inputSchema.properties[k], k);
 });
