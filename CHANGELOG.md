@@ -12,6 +12,7 @@
 - Resolve scratch, model, profile and filament paths before the CLI, porting the relative-path correction from David Montgomery's upstream 1.1.44 (9f2c1ef). No printer is contacted.
 - Enable existing bounded analyzers through preflight checks.gcode and checks.mesh=fast, with per-fact evidence and incomplete measurements left unknown. Rebuild the knowledge manifest from checked-in JSON and fixtures without external kb directories.
 - Run CI on Linux, macOS and Windows; explicitly skip POSIX fake-executable fixtures on Windows. Avoid forwarding npm 11's lifecycle-only allow-scripts flag into nested project installs.
+- Handle native Windows short paths in the release hook; make preload imports, CRLF fixtures, output filenames and MCP test cleanup portable.
 
 
 ### Added

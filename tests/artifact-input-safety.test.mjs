@@ -17,21 +17,22 @@ async function workspace(t) {
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   return dir;
 }
-async function clientIn(t, dir) {
+async function clientIn(dir) {
   const client = new Client({ name: 'artifact-input-test', version: '1' });
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [path.join(ROOT, 'dist/index.js')], cwd: dir,
     env: { PATH: process.env.PATH || '', HOME: dir, USERPROFILE: dir, MCP_TRANSPORT: 'stdio', BAMBU_MODEL: '', TEMP_DIR: '' }, stderr: 'pipe' }));
-  t.after(() => client.close());
   return client;
 }
 
 test('save_template refuses an existing destination without changing its bytes', async t => {
-  const dir = await workspace(t), client = await clientIn(t, dir);
-  const source = path.join(dir, 'source.json'), destination = path.join(dir, 'settings.json');
-  await fs.writeFile(source, '{"new":true}'); await fs.writeFile(destination, '{"sentinel":true}');
-  const result = await client.callTool({ name: 'save_template', arguments: { source_path: source, template_name: 'settings', template_dir: dir } });
-  assert.equal(result.isError, true);
-  assert.equal(await fs.readFile(destination, 'utf8'), '{"sentinel":true}');
+  const dir = await workspace(t), client = await clientIn(dir);
+  try {
+    const source = path.join(dir, 'source.json'), destination = path.join(dir, 'settings.json');
+    await fs.writeFile(source, '{"new":true}'); await fs.writeFile(destination, '{"sentinel":true}');
+    const result = await client.callTool({ name: 'save_template', arguments: { source_path: source, template_name: 'settings', template_dir: dir } });
+    assert.equal(result.isError, true);
+    assert.equal(await fs.readFile(destination, 'utf8'), '{"sentinel":true}');
+  } finally { await client.close(); }
 });
 
 test('concurrent and repeated STL edits preserve every earlier result', async t => {
@@ -58,14 +59,16 @@ test('STL transformations reject invalid numeric inputs before exporting', async
 });
 
 test('MCP rejects wrong argument types instead of exporting a NaN mesh', async t => {
-  const dir = await workspace(t), client = await clientIn(t, dir);
-  const source = path.join(dir, 'cube.stl'); await fs.copyFile(path.join(ROOT, 'test/sample_cube.stl'), source);
-  const bad = await client.callTool({ name: 'scale_stl', arguments: { stl_path: source, scale_x: 'oops' } });
-  assert.equal(bad.isError, true);
-  assert.match(bad.content[0].text, /scale_x|argument|number/i);
-  const good = await client.callTool({ name: 'scale_stl', arguments: { stl_path: source, scale_x: 2 } });
-  assert.notEqual(good.isError, true);
-  assert.doesNotMatch(await fs.readFile(good.content[0].text, 'utf8'), /NaN/);
+  const dir = await workspace(t), client = await clientIn(dir);
+  try {
+    const source = path.join(dir, 'cube.stl'); await fs.copyFile(path.join(ROOT, 'test/sample_cube.stl'), source);
+    const bad = await client.callTool({ name: 'scale_stl', arguments: { stl_path: source, scale_x: 'oops' } });
+    assert.equal(bad.isError, true);
+    assert.match(bad.content[0].text, /scale_x|argument|number/i);
+    const good = await client.callTool({ name: 'scale_stl', arguments: { stl_path: source, scale_x: 2 } });
+    assert.notEqual(good.isError, true);
+    assert.doesNotMatch(await fs.readFile(good.content[0].text, 'utf8'), /NaN/);
+  } finally { await client.close(); }
 });
 
 test('finite scale factors that overflow vertex storage cannot export an invalid STL', async t => {

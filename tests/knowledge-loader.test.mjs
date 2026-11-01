@@ -47,7 +47,7 @@ test("the shipped base loads, indexes and matches its manifest", () => {
 });
 
 test("a BOM and Windows line endings do not change what loads or the integrity check", (t) => {
-  const crlf = (text) => `\uFEFF${text.replace(/\n/g, "\r\n")}`;
+  const crlf = (text) => `\uFEFF${text.replace(/\r?\n/g, "\r\n")}`;
   const dir = copyKb(t, { "rules.json": crlf, "synonyms.json": crlf, "manifest.json": crlf });
   const kb = loadKbFrom(dir);
   assert.equal(kb.rules.length, 320);

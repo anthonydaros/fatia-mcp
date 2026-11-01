@@ -57,7 +57,7 @@ ${realSlice ? "" : `STLManipulator.prototype.sliceSTL = async function (file, _t
 `);
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: ["--import", preload, path.join(root, "dist/index.js")],
+    args: ["--import", pathToFileURL(preload).href, path.join(root, "dist/index.js")],
     cwd: directory,
     env: {
       ...process.env, MCP_TRANSPORT: "stdio", BAMBU_MODEL: "p1s",

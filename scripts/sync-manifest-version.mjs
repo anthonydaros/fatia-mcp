@@ -32,7 +32,7 @@ if (process.env.npm_lifecycle_event === "version" && process.env.npm_config_git_
   } catch {
     // npm version also works outside a Git checkout.
   }
-  if (gitRoot && fs.realpathSync(gitRoot) === fs.realpathSync(root)) {
+  if (gitRoot && fs.realpathSync.native(gitRoot) === fs.realpathSync.native(root)) {
     execFileSync("git", ["add", "--", ...releaseFiles], { cwd: root, stdio: "inherit" });
   }
 }

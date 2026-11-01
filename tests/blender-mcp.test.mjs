@@ -168,7 +168,7 @@ test("Blender rejects absent or invalid standard command configuration without s
 
 test("Blender standard edit previews without launching and exports a verified new STL", async (t) => {
   const peer = await start(t);
-  const output = path.join(peer.directory, 'edited model "quoted".stl');
+  const output = path.join(peer.directory, process.platform === "win32" ? "edited model (spaces).stl" : 'edited model "quoted".stl');
   const request = { stl_path: sample, output_path: output, operations: ["decimate:0.5"], user_prompt: "Reduce this mesh", execute: false };
   const preview = await peer.call("blender_mcp_edit_model", request);
   assert.equal(preview.isError, undefined, errorText(preview));

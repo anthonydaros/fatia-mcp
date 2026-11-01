@@ -68,7 +68,7 @@ test("the loader reads, validates and indexes the shipped tuning data", () => {
 });
 
 test("a BOM, Windows line endings or an edited file change nothing but the integrity flag", (t) => {
-  const crlf = (text) => `﻿${text.replace(/\n/g, "\r\n")}`;
+  const crlf = (text) => `﻿${text.replace(/\r?\n/g, "\r\n")}`;
   const dir = copyKb(t);
   for (const n of ["tuning/tuning.json", "tuning/no_action.json", "manifest.json"]) fs.writeFileSync(path.join(dir, n), crlf(fs.readFileSync(path.join(dir, n), "utf8")));
   assert.equal(loadTuningFrom(path.join(dir, "tuning"), loadKbFrom(dir)).integrity, "ok");
