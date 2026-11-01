@@ -1,6 +1,7 @@
 import { open } from 'node:fs/promises';
+import { pipeline, Readable, Transform } from 'node:stream';
 import { promisify, TextDecoder } from 'node:util';
-import { inflateRaw } from 'node:zlib';
+import { createInflateRaw, inflateRaw } from 'node:zlib';
 import JSZip from 'jszip';
 
 // Fixed inspection limits, not caller-overridable printer safety options.
@@ -9,17 +10,18 @@ const MAX_ENTRY_BYTES = 256 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 512 * 1024 * 1024;
 const inflate = promisify(inflateRaw);
 const utf8 = new TextDecoder('utf-8', { fatal: true });
-const fail = (message: string): never => { throw new Error(`Print archive safety: ${message}`); };
+const safetyError = (message: string) => new Error(`Print archive safety: ${message}`);
+const fail = (message: string): never => { throw safetyError(message); };
 const crcTable = Uint32Array.from({ length: 256 }, (_, index) => {
   let value = index;
   for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0);
   return value >>> 0;
 });
-function crc32(bytes: Buffer): number {
-  let crc = 0xffffffff;
-  for (const byte of bytes) crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 0xff];
-  return (crc ^ 0xffffffff) >>> 0;
+function crc32Step(crc: number, bytes: Uint8Array): number {
+  for (let i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ crcTable[(crc ^ bytes[i]) & 0xff];
+  return crc;
 }
+function crc32(bytes: Buffer): number { return (crc32Step(0xffffffff, bytes) ^ 0xffffffff) >>> 0; }
 
 /** Read no more than the fixed print-artifact limit, even if the file grows. */
 export async function readBoundedPrintFile(filePath: string): Promise<Buffer> {
@@ -178,6 +180,39 @@ export async function loadSafe3mfArchive(bytes: Buffer): Promise<JSZip> {
     zip.file(entry.name, data, { dir: entry.name.endsWith('/'), createFolders: false });
   }
   return zip;
+}
+
+/**
+ * One entry of a verified archive as a stream of inflated chunks, so a 40 MB+ plate G-code is never held whole. Every check of
+ * loadSafe3mfArchive applies (the whole archive is validated first); inflation stops past the declared size, and the declared size
+ * and CRC are checked at the end, where a mismatch errors the stream.
+ */
+export function streamSafe3mfEntry(bytes: Buffer, name: string): Readable {
+  const entry = parseEntries(bytes).find(item => item.name === name);
+  if (!entry) return fail(`archive has no entry '${name}'`);
+  let size = 0;
+  let crc = 0xffffffff;
+  const check = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      size += chunk.length;
+      if (size > entry.uncompressed) return done(safetyError(`entry inflation exceeds its declared size: '${name}'`));
+      crc = crc32Step(crc, chunk);
+      done(null, chunk);
+    },
+    flush(done) {
+      if (size !== entry.uncompressed) return done(safetyError(`uncompressed entry size mismatch for '${name}'`));
+      done(((crc ^ 0xffffffff) >>> 0) === entry.crc ? null : safetyError(`entry CRC mismatch for '${name}'`));
+    },
+  });
+  function* slices(data: Buffer) { for (let i = 0; i < data.length; i += 64 * 1024) yield data.subarray(i, i + 64 * 1024); }
+  const source = Readable.from(slices(entry.data!), { objectMode: false });
+  const noop = () => {}; // errors reach the consumer through the returned stream
+  return entry.method === 0 ? pipeline(source, check, noop) : pipeline(source, createInflateRaw({ chunkSize: 64 * 1024 }), check, noop);
+}
+
+/** streamSafe3mfEntry for a file on disk (the compressed archive is read, bounded; the entry is not inflated into one buffer). */
+export async function streamSafe3mfEntryFromFile(filePath: string, name: string): Promise<Readable> {
+  return streamSafe3mfEntry(await readBoundedPrintFile(filePath), name);
 }
 
 export async function readSafe3mfArchive(filePath: string): Promise<{ bytes: Buffer; zip: JSZip }> {
