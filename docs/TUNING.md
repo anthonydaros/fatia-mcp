@@ -2,12 +2,13 @@
 
 `prepare_print_project` takes a part (a 3MF project or an STL) and delivers a **new, unsliced project 3MF** with tuned slicing parameters. You open it in Bambu Studio, press slice and print yourself. The tool never prints, never contacts a printer, and never modifies the original (its SHA-256 is taken before and after). Internally it slices with the Bambu Studio CLI and reads the G-code, so the tuning is checked against what the slicer actually produced, not only against rules. Blender is not part of this loop.
 
-Code: `src/tuning/prepare.ts` (the loop), `prepare-report.ts` (verdict and report), `prepare-slice.ts` (the real slice step), `prepare-tool.ts` (the MCP definition). It is built on the engine (`engine.ts`), the writer (`project-writer.ts`, [TUNING-WRITER.md](./TUNING-WRITER.md)), the G-code scanner and the fact collector ([TUNING-FACTS.md](./TUNING-FACTS.md)).
+Code: `src/tuning/prepare.ts` (the loop), `prepare-report.ts` (verdict and report), `prepare-slice.ts` (the real slice steps), `prepare-tool.ts` (the MCP definition), `layout.ts`, `layout-plan.ts`, `layout-writer.ts` and `layout-stage.ts` (the layout stage). It is built on the engine (`engine.ts`), the writer (`project-writer.ts`, [TUNING-WRITER.md](./TUNING-WRITER.md)), the G-code scanner and the fact collector ([TUNING-FACTS.md](./TUNING-FACTS.md)).
 
 ## The loop
 
 1. **P0.** The project for the target printer with nothing tuned (a project made for the same printer is P0 as it is; another printer's project, an STL, or a 3MF without settings is retargeted first). Its settings are the engine's base.
-2. **Baseline.** P0 is sliced once and scanned. This is the "before" of the report. It is not engine state: the engine never sees it, except when round 0 turns out to change nothing (the candidate is then P0 itself, and the baseline's measurements stand for it without another slice).
+1b. **Layout.** Between P0 and the baseline, [the layout stage](#layout) checks the objects against the target printer's plates and, when something is wrong or a better number of plates exists, writes a laid-out copy of P0 that the baseline and every later round are built on.
+2. **Baseline.** P0 (laid out, if the layout stage changed it) is sliced once and scanned. This is the "before" of the report. It is not engine state: the engine never sees it, except when round 0 turns out to change nothing (the candidate is then P0 itself, and the baseline's measurements stand for it without another slice).
 3. **Round 0.** Facts known before any slice (the project's settings, the mesh, the declared part facts) go to `applyTuning`. The result is written as a candidate project, sliced, scanned.
 4. **Round k.** The facts of the last slice go to `nextRound`: ladders step one level (z-hop and travel, support, thin features), choices and definite actions stay as they were. The new settings are written, sliced, scanned.
 5. **Stop** at the first of: `done` (no trigger fires and the engine has nothing to change), `stalled` (nothing to change and not done, for example a trigger that needs a fact nobody declared), `exhausted` (every ladder that still fires is out of steps), `cycle` (the next candidate has the settings hash of an earlier round, caught before it is sliced), `budget_slices`, `budget_minutes`, `cancelled`, `error` (a slice failed), or `dry_run`.
@@ -15,6 +16,69 @@ Code: `src/tuning/prepare.ts` (the loop), `prepare-report.ts` (verdict and repor
 7. **Deliver.** The best round is written again to `output_dir` (default `prepared/` under the server's `TEMP_DIR`; never beside the source; a name that exists gets a numeric suffix, nothing is overwritten). The source's SHA-256 is checked. `preflight_check` judges the deliverable too. It cannot read `mesh.size_*` from a 3MF, so the structure, volume and mesh blocker rules (for example `bambu.x2d.main-volume-exceeded`) are evaluated by the loop itself, on the mesh and project facts it already holds, in the same pass as the G-code blocker rules; a blocker rule whose facts are missing is listed under `unseen`, never passed silently. If the deliverable cannot be written (an unwritable `output_dir`), the run ends as `error` with the whole report and history, and nothing is delivered. The file is then opened, unsliced, in Bambu Studio unless `open_in_studio` is false; a failure to open is a warning.
 
 Every candidate is written by `writeTunedProject` from the original source, re-opened and checked by the writer, and sliced through the existing pipeline (`planProjectSettings` plus `sliceSTL`, one folder per slice, cancellation kills the CLI). The sliced 3MF is deleted after the scan; only the report keeps the numbers. The knowledge-base overlay is always laid on top of the project's own settings: the original is never the only source.
+
+## Layout
+
+A project made for another printer (or by hand) keeps its objects at the world coordinates its author gave them, but Bambu Studio puts plate *i* of the **target** printer on its own grid: `cols = ceil(sqrt(plateCount))`, a cell of the bed size times 1.2, and the plate's origin at `(col x cellX, -row x cellY)`. The 17-plate H2D sample (bed 350 x 320, cell 420 x 384) retargeted to the X2D (256 x 256, cell 307.2) keeps every object where it was: 15 of the 17 lie outside their X2D plate, between plates or across an edge. The retarget alone never moved anything (it only warned), so the tool now has a layout stage, automatic by default, that detects this and fixes it.
+
+Argument `layout`: `"auto"` (default), `"check_only"` (analysis and plan only: it reports the issues and the plan, slices nothing, writes nothing, and the delivered project keeps its layout) or `"off"` (skip the stage; the old string warning stays). `layout_gap_mm`, `layout_margin_mm`, `layout_max_slices` and `layout_max_minutes` below. A `dry_run` runs the analysis and the planner and never slices: the candidates are listed unmeasured, the choice is the planner's default and the report says so; the layout is not applied.
+
+### 1. Analysis (`layout.ts`)
+
+Every printable build item gets its world bounding box (item and component transforms applied, as `mesh-read.ts` does), its filament slots (the part-level extruder of each normal part, else the object's) and its colour class (the sorted slots, plus `+paint` for a painted object). The plate comes from `model_settings.config`; the target geometry comes from the retargeted project: `printable_area`, `printable_height`, `extruder_printable_area` and `extruder_printable_height` per nozzle, and the filament-to-nozzle map `filament_map`. The issues, each with evidence and its fix:
+
+| kind | meaning |
+|---|---|
+| `outside_plate` | the object is on no part of its plate (it stands on another plate, or in no plate at all) |
+| `straddling` | it sticks out of its plate's edge (the edges and millimetres are in the evidence) |
+| `between_plates` | it touches only other plates, partly (in the gap between plates, at a corner) |
+| `outside_nozzle_area` | inside the bed but outside the area its nozzle can reach (the X2D's second nozzle cannot reach x below 20.5) |
+| `overlap` | two neighbours on a plate are closer than the minimum (2 mm, or twice the brim width when the project has a brim: brims touching) |
+| `too_tall` | taller than the lowest height limit of its nozzles |
+| `bed_changed` | the source printer's bed differs from the target's (the old "bed is larger" warning, now with its fix) |
+| `locked_plate` | a plate is locked in `model_settings.config` |
+| `plate_assignment` | an instance is on no plate or on two |
+| `blocker` | the planner could not fit the object in any bin (below) |
+
+The analysis also reports each plate's utilisation (the objects' bounding-box areas over the bed area). A locked plate is never touched and its objects are not judged; since the grid depends on the number of plates, the stage changes nothing at all while any plate is locked.
+
+### 2. Policy and planner (`layout-plan.ts`)
+
+- **One colour class per plate, never mixed.** The class is the set of filament slots; with `filament_map_mode` automatic a plate that mixed colours would also need filament swaps on every layer (the retargeted project has `enable_prime_tower` 0 in the sample).
+- **Rotations: only 0 and 90 degrees about Z**, about the object's bounding-box centre. The authors' tilt (the sample's compartments are tilted 45 degrees about X) is kept.
+- **Gap and margin.** Default gap `max(8 mm, 2 x brim width + 2 mm)` when the project has a brim (`brim_type` other than `no_brim` and a positive `brim_width`; the sample's `auto_brim` of 5 mm gives 12 mm), else 8 mm; default margin to the edge of the usable area 5 mm. Configurable: `layout_gap_mm`, `layout_margin_mm`.
+- **The bin of a class** is the printable rectangle of the nozzle its filaments map to (the intersection when it uses several) and the lowest height limit of those nozzles. An object that fits no bin in either rotation, or is taller than the limit, is a `blocker`: reported, nothing moves, no layout is applied, and the verdict is `not_ready`.
+- **Packing** is MaxRects with best-short-side-fit over four item orders (area, longest side, height, shortest side); the fewest plates any order finds is the minimum (the report also gives the area lower bound). Used extents are centred on the plate. At most 500 objects (more is refused as a failure, not a crash) and a work counter against hostile input.
+- **Candidates** (default 3 whole-project layouts, plus the reference): the fewest plates; then +1 and +2 plates for the largest class (by footprint x height) with the objects spread by estimated print volume (longest first into the lightest plate that still has room); and the **reference**, the project as the authors laid it out moved onto the target's grid (each plate keeps its objects and their positions relative to the plate; one that no longer fits is centred; unavailable when it cannot be made valid), built when the project has at most 20 plates (past that a clean project is left alone and a project with problems gets no reference).
+
+### 3. Cost-benefit by measurement
+
+Every candidate is written (and proven, below) and sliced with the Studio CLI in **one call** (`--slice 0`, all its plates). Each plate's predicted time and weight come from the slice result, its G-code is scanned (`gcode.unprotected_travel_crossing_count`), and the nozzle each filament was sliced on is read from `slice_info.config` (`filament_maps`; a mismatch with the project's `filament_map` would show there). The choice:
+
+1. the lowest **total** predicted time (the sum over plates is what one printer needs);
+2. candidates within 3% of that total are tied: the smaller longest-plate time, then fewer objects on the fullest plate, then fewer plates, then the candidate's order;
+3. the **reference** (the authors' layout moved onto the target's grid, one object per plate in the sample) is measured and listed, but it counts only when its total is more than 3% below every proposal's: with one object per plate its longest plate is the longest single object, so by construction it would win every tie, and the slicer's estimate does not price starting and clearing 17 plates or 17 first layers that must stick (measured on the sample, the 4, 5, 6 and 17 plate layouts differ by under 1% in total time);
+4. a project that already has no layout problem keeps its layout (it is the incumbent) unless another candidate is more than 3% faster in total; with no problem and no more plates than the planner needs, nothing is sliced at all.
+
+The report's `layout.candidates` lists all of them (plates, objects per plate, colour classes, per-plate time, total, longest plate, weight, crossing travels per plate, nozzle maps as sliced, and why one was not measured) and `layout.chosen.reason` says why the winner won.
+
+**Budget.** The layout has its own slicing budget, separate from `max_slices`: `layout_max_slices` (default 6, one per candidate) and `layout_max_minutes` (default 12, checked before each slice with the last slice's duration, like the loop). If it stops candidate evaluation early the best measured candidate is applied and the report says so (`layout.budget.stopped_early`, caveat `layout_budget`). With no candidate measured (no slicer, every slice failed) the planner's default, the fewest plates, is applied and the report says it was not measured. The reference is measured last because it has the most plates.
+
+**What the estimate does not capture** (it is in the report as `layout.not_verified` and `unseen.layout`): a failure ruins a whole plate, and more objects on one plate is more at risk when one detaches or a travel knocks one over; bed adhesion, warping and real cooling of tall thin walls on a crowded plate are not simulated; and if the filament-to-nozzle grouping is automatic, Studio may regroup at slice time.
+
+### 4. The written project (`layout-writer.ts`)
+
+The laid-out project is made from P0 by text splicing only: the `transform` of each `<item>` in `3D/3dmodel.model` (new `tx`, `ty`; for a quarter turn `M' = M x Rz(90)` in the row-vector convention with `t' = (t - c) x Rz + c'`, `c` the old bounding-box centre; `tz` never changes so every object stays on the bed) and the `<plate>` blocks of `Metadata/model_settings.config`, rebuilt from the first plate (new `plater_id` and `plater_name` such as "Frame - black" or "Filament 2 - grey (2/3)", `locked` false, `filament_map_mode` as in the template, the four picture lines dropped, each `model_instance` copied with its `identify_id`). The stale plate pictures (`plate_N.png`, `plate_no_light_N.png`, `top_N.png`, `pick_N.png`, `*_small.png`) are removed with their relationship entries, `filament_sequence.json` keeps one empty entry per plate, and every other entry keeps its bytes, place and compression. `wipe_tower_x/_y` are left alone (Studio keeps them too). The source is never written, an existing output is never overwritten, and a project that already holds slice results is refused.
+
+The output is then **opened again and analysed again**: zero outside, straddling or overlapping objects, every object on exactly one plate, the plate count as planned, the object count and the total mesh volume unchanged (1e-6 relative), every object's centre, size and height where the plan put them, every other entry byte-identical. A failed check deletes the output and is an error.
+
+### 5. In the loop
+
+The loop's writer takes the laid-out copy as its source (`writeTunedProject({ source, origin })`): `origin` keeps the retarget summary, the combined diff and the SHA-256 checks against the user's file. The tuning loop still measures **one plate**: after a layout change it is the plate with the longest predicted time, unless the caller passed `plate_index`, which then means the new numbering (`part.plate_index` and `part.plate_why` say which). The verdict: a layout the tool could not fix (blocker, locked plate, `check_only` with issues standing) is `not_ready` (`layout_unfixed`); a layout chosen on slicer estimates is the caveat `layout_estimate_only` and a line under `predicted_only`; a stop by the layout budget is `layout_budget`; a locked plate is `layout_locked`. The Portuguese `resumo` has a short block ("17 mesas -> 4 mesas, ...").
+
+### Not verified
+
+No GUI was run: that Studio shows the plates as written, keeps the objects where they were put and does not complain about the missing plate pictures (the model's `Thumbnail_Middle` metadata still names `Metadata/plate_1.png`) follows from the file format and the CLI and is unconfirmed. The packer works on bounding boxes: a tilted object's box is larger than its footprint, so plates are less full than they could be. A bed that is not a rectangle is approximated by its bounding box (a note says so). The grid formula was measured on the 17-plate H2D sample and Studio's CLI output, not on every printer.
 
 ## Budget
 

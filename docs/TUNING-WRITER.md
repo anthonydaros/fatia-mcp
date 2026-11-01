@@ -47,6 +47,10 @@ An STL, or a 3MF without settings, has no plan: a real slice with the printer's 
 - Keys outside the printer allowlist or G-code keys are reported in `not_kept`, never carried; a tuning that needs one must widen `MACHINE_EDITS` on purpose.
 - `expectedBlockElements` lines a project list up with the extruders and filaments in the G-code; a list that does not line up is reported as unverified, never as ok.
 
+## A laid-out source (`origin`)
+
+When the layout stage has written a laid-out copy of P0 (see "Layout" in TUNING.md), the loop builds every candidate on that copy: `writeTunedProject({ source: laidOut, origin: { path: original, retarget } })`. The copy is already for the target printer, so nothing is retargeted again; `origin` makes the SHA-256 checks (before and after) cover the user's file as well as the copy, the combined diff go from the user's original to the delivered project, and the retarget summary be the one the first P0 write produced.
+
 ## Use
 
 ```ts
