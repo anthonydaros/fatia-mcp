@@ -95,6 +95,7 @@ Exemplos que você pode copiar e adaptar:
 | Preparar uma peça | “Use o Fatia MCP: prepare este STL para minha impressora. Confirme meu modelo, bico e mesa antes de fatiar.” |
 | Entender um problema | “Use o Fatia MCP: por que essa peça pode descolar da mesa? Explique o que você conseguiu verificar.” |
 | Conferir um arquivo baixado | “Use o Fatia MCP: analise este 3MF antes de eu imprimir e mostre o que precisa de revisão.” |
+| Comparar impressoras | “Use o Fatia MCP: compare este 3MF na A1 e na X2D, mantendo a qualidade configurada. Mostre tempo, material e custo estimados; meu filamento custa R$ 100/kg.” |
 | Comparar posições | “Use o Fatia MCP: compare esta peça deitada e em pé. Mostre tempo, material e suportes estimados.” |
 | Encontrar desperdício | “Use o Fatia MCP: analise este arquivo já fatiado e explique quanto material foi para suportes, torre e purga, quando for possível medir.” |
 | Conferir o rolo | “Use o Fatia MCP: tenho 120 g disponíveis no rolo do slot 1. Isso basta para duas cópias deste projeto?” |
@@ -117,7 +118,7 @@ Ao terminar a preparação:
 - **Analisar antes de imprimir:** conferir configurações, dimensões, regras de preparação e problemas de topologia da malha.
 - **Editar peças:** redimensionar, girar, centralizar, apoiar uma face na mesa e extrair objetos de um 3MF.
 - **Preparar projetos:** fatiar com o Bambu Studio, comparar ajustes e organizar mesas. Fatiar significa calcular as camadas e os movimentos previstos para imprimir.
-- **Comparar alternativas:** mostrar estimativas para diferentes configurações ou orientações e salvar projetos separados para você revisar.
+- **Comparar alternativas:** mostrar estimativas para duas impressoras, diferentes configurações ou orientações e salvar projetos separados para você revisar.
 - **Planejar material e custo:** consultar consumo registrado no arquivo fatiado, comparar com o estoque que você informar e calcular custos com seus preços.
 - **Criar testes:** gerar peças de encaixe e projetos de calibração para fluxo, temperatura e retração.
 - **Usar o Blender, se configurado:** encaminhar operações de edição para uma conexão separada com o Blender.
@@ -207,6 +208,40 @@ Exemplo técnico do modo conservador de otimização:
 ```
 
 Para autorizar uma redução específica, use `optimization.constraints`, por exemplo `{"min_infill_density":8}`. Isso permite testar até esse piso de configuração; não comprova resistência física. Para reorientar uma instância, acrescente `"allow_reorientation":true` e `"targets":[{"plate_index":2,"item_index":1}]`, usando os índices retornados pela listagem de objetos, não nomes ambíguos. Sem autorização, a orientação original é mantida.
+
+### Qual impressora compensa para este projeto?
+
+Peça no chat: **“Use o Fatia MCP: compare este projeto na A1 e na X2D e diga qual compensa mais.”** O Fatia prepara duas cópias independentes e fatia todas as mesas de cada uma, usando os perfis exatos da instalação e o mesmo tamanho de bico configurado. O original permanece preservado.
+
+O relatório mostra a mais rápida, a que usa menos material e, quando você informar preços, a de menor **custo desta impressão**. Informe o preço do filamento por quilo; se quiser incluir energia, informe a tarifa e a potência média estimada de cada impressora. Também é possível informar um custo de máquina por hora para as duas. Valores ausentes permanecem desconhecidos, e os componentes incluídos no custo aparecem no relatório.
+
+O objetivo padrão equilibra tempo com os custos informados; sem preço de material, equilibra tempo e consumo, sem concluir qual é financeiramente melhor. Você pode pedir prioridade em tempo, material ou custo. Diferenças de até 3% são tratadas como empate. A comparação não calcula o retorno da compra de uma impressora e não garante o mesmo acabamento físico.
+
+Se um modelo não tiver perfil instalado, o projeto não couber, faltar uma mesa fatiada ou as configurações não puderem ser verificadas, o relatório explica a limitação e não recomenda um vencedor. O teste mantém posição, orientação, parâmetros de qualidade e perfis de altura salvos; não reorganiza as mesas automaticamente. Ajustes por objeto e perfis de altura variável ainda não têm comprovação efetiva neste modo: as estimativas aparecem, mas esses casos ficam sem recomendação de vencedor.
+
+Exemplo técnico, na ferramenta existente `compare_slice_scenarios`:
+
+```json
+{
+  "path": "/caminho/projeto.3mf",
+  "printers": [
+    {"bambu_model": "a1", "power_w": 100},
+    {"bambu_model": "x2d", "power_w": 200}
+  ],
+  "material_price_per_kg": 100,
+  "electricity_price_per_kwh": 1,
+  "currency": "BRL",
+  "objective": "balanced",
+  "max_slices": 6,
+  "max_minutes": 10
+}
+```
+
+Os valores de potência acima são exemplos de entrada, não medições dessas impressoras. Use `printers` para comparar modelos ou `scenarios` para comparar ajustes de uma impressora; os modos não podem ser misturados. O orçamento inclui tentativas de fatiamento que falham e eventuais fatiamentos necessários para adaptar o projeto.
+
+### Análise com menos leituras repetidas
+
+O Fatia coleta o cabeçalho de configurações durante a própria análise do G-code. Isso elimina uma leitura adicional do arquivo por mesa, mantendo a verificação integral de integridade e o cancelamento. Nos testes de contagem de leituras, uma mesa passou de 3 para 2 leituras do arquivo, e duas mesas de 5 para 3. O ganho de tempo real depende do tamanho do arquivo, do disco e do custo do fatiamento no Studio.
 
 ### Codinomes das impressoras Bambu Lab
 

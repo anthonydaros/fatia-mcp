@@ -40,6 +40,7 @@ import { COMPARE_PROJECT_TOOLS, compareProjects } from "./workflows/compare-proj
 import { GEOMETRY_TOOLS, extractObjects, createFitTest } from "./workflows/geometry.js";
 import { COST_TOOLS, estimatePrintCost } from "./workflows/cost.js";
 import { SCENARIO_TOOLS, compareSliceScenarios } from "./workflows/scenarios.js";
+import { comparePrinterModels } from "./workflows/printer-comparison.js";
 import { ORIENTATION_TOOLS, comparePrintOrientations } from "./workflows/orientations.js";
 import { WASTE_TOOLS, analyzePrintWaste } from "./workflows/waste.js";
 import { CALIBRATION_TOOLS, createCalibrationProject } from "./workflows/calibration.js";
@@ -1464,6 +1465,27 @@ class BambuPrinterMCPServer {
           }
           case "compare_print_orientations":
           case "compare_slice_scenarios": {
+            if (name === "compare_slice_scenarios" && args?.printers === undefined && args?.scenarios === undefined) throw Error('Supply scenarios or printers for comparison');
+            if (name === "compare_slice_scenarios" && args?.printers !== undefined) {
+              const { slicerPath } = resolveSlicerConfig({ slicer_type: "bambustudio" });
+              result = await comparePrinterModels(args, {
+                tempDir: TEMP_DIR, outputDir: OUTPUT_DIR, signal: extra.signal,
+                target: async requested => {
+                  const model = validateBambuModel(requested);
+                  const printerPreset = BAMBU_MODEL_PRESETS[model](DEFAULT_NOZZLE_DIAMETER);
+                  const modelCode = FILAMENT_MODEL_CODES[model];
+                  await resolveBblMachineProfile(detectProfilesRoot(slicerPath), printerPreset);
+                  return {
+                    printerPreset,
+                    retarget: studioRetargeter({ slicerPath, tempDir: TEMP_DIR, printerPreset, modelCode, manipulator: this.stlManipulator }),
+                    sliceAll: studioAllPlatesSlicer({ manipulator: this.stlManipulator, slicerPath, printerPreset, modelCode,
+                      bambuOptions: { bedType: resolveBambuStudioCliBedType(undefined), nozzleType: resolveNozzleType(undefined), nozzleVolumeType: resolveNozzleVolumeType(undefined) },
+                    }),
+                  };
+                },
+              });
+              break;
+            }
             const model = await this.resolveBambuModel(args?.bambu_model as string | undefined);
             const { slicerPath } = resolveSlicerConfig({ slicer_type: "bambustudio" });
             const printerPreset = BAMBU_MODEL_PRESETS[model](DEFAULT_NOZZLE_DIAMETER);

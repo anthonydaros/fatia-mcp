@@ -31,3 +31,8 @@ test('cost does not claim whole-project coverage when plate membership is missin
  const {file}=await project(t);const zip=await JSZip.loadAsync(await fs.readFile(file));zip.remove('Metadata/model_settings.config');await fs.writeFile(file,await zip.generateAsync({type:'nodebuffer'}));
  const r=await estimatePrintCost({path:file,material_price_per_kg:100});assert.equal(r.coverage.status,'unknown');assert.equal(r.per_project.total_cost,null);assert.equal(r.known_sliced_subset.total_cost,3);
 });
+
+test('process scenarios reject printer-only cost and ranking arguments instead of ignoring them',async t=>{
+ const {dir,file}=await project(t);
+ for(const extra of [{objective:'cost'},{material_price_per_kg:100},{currency:'BRL'},{printers:[]}])await assert.rejects(compareSliceScenarios({path:file,scenarios:[{name:'base',settings:{}}],...extra},{printerPreset:preset,tempDir:dir,outputDir:dir,slice:async()=>{throw Error('must not slice')}}),/cannot be combined/);
+});

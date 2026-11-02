@@ -8,20 +8,28 @@ import { openProject } from "../knowledge/facts/settings.js";
 import { streamSafe3mfEntryFromFile } from "../safety/archive.js";
 import { removeQuietly } from "../stl/stl-manipulator.js";
 import { readConfigBlock } from "./config-block.js";
-import { scanPlateGcode } from "./gcode-scan.js";
+import { scanGcodeStream } from "./gcode-scan.js";
 import { scanHints, sliceFacts } from "./slice-facts.js";
 const list = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
 const HEAD_BYTES = 4 * 2 ** 20; // the CONFIG_BLOCK is at the top of the G-code
-async function head(stream, bytes) {
+async function scanWithConfig(output, plateIndex, options) {
+    const name = `Metadata/plate_${plateIndex + 1}.gcode`;
+    const stream = await streamSafe3mfEntryFromFile(output, name);
     const chunks = [];
     let size = 0;
-    for await (const chunk of stream) {
-        chunks.push(chunk);
-        size += chunk.length;
-        if (size >= bytes)
-            break; // leaving the loop destroys the stream
+    async function* captureHead() {
+        for await (const chunk of stream) {
+            if (size < HEAD_BYTES) {
+                const prefix = chunk.subarray(0, HEAD_BYTES - size);
+                chunks.push(Buffer.from(prefix));
+                size += prefix.length;
+            }
+            yield chunk;
+        }
     }
-    return Buffer.concat(chunks).toString("utf8", 0, bytes);
+    // Consume through EOF so the scanner and archive size/CRC checks still verify the entire plate.
+    const gcode = await scanGcodeStream(captureHead(), { source: `${path.basename(output)}:${name}`, ...options });
+    return { gcode, block: readConfigBlock(Buffer.concat(chunks, size).toString("utf8")) };
 }
 /** A project file in, the scanned plate out (`plateIndex` overrides the one the slicer was built with: the layout stage renumbers the plates). Throws when the CLI fails or is cancelled. */
 export function studioSlicer(o) {
@@ -37,9 +45,7 @@ export function studioSlicer(o) {
                 filamentSequence = JSON.parse((await opened.read?.("Metadata/filament_sequence.json"))?.toString("utf8") ?? "");
             }
             catch { /* absent or unreadable: the grouping fact stays blind */ }
-            const gcodeName = `Metadata/plate_${plateIndex + 1}.gcode`;
-            const gcode = await scanPlateGcode(output, plateIndex, { signal, ...scanHints(opened.sliceInfo, plateIndex) });
-            const block = readConfigBlock(await head(await streamSafe3mfEntryFromFile(output, gcodeName), HEAD_BYTES));
+            const { gcode, block } = await scanWithConfig(output, plateIndex, { signal, ...scanHints(opened.sliceInfo, plateIndex) });
             return { gcode, slice: { sliceInfo: opened.sliceInfo, filamentSequence, source: path.basename(output) }, block, ms: Date.now() - started };
         }
         finally {
@@ -62,12 +68,11 @@ export function studioAllPlatesSlicer(o) {
                 if (!Number.isInteger(info.index) || info.index < 1)
                     continue;
                 const plateIndex = info.index - 1;
-                const gcode = await scanPlateGcode(output, plateIndex, { signal, ...scanHints(opened.sliceInfo, plateIndex) });
+                const { gcode, block } = await scanWithConfig(output, plateIndex, { signal, ...scanHints(opened.sliceInfo, plateIndex) });
                 const facts = sliceFacts({ plateIndex, sliceInfo: opened.sliceInfo, gcode, source: path.basename(output) }).facts;
                 const node = list(opened.sliceInfo?.plate).find(p => list(p?.metadata).some(m => m?.key === "index" && Number(m.value) === info.index));
                 const maps = list(node?.metadata).find(m => m?.key === "filament_maps")?.value;
                 const crossing = gcode.facts["gcode.unprotected_travel_crossing_count"];
-                const block = readConfigBlock(await head(await streamSafe3mfEntryFromFile(output, `Metadata/plate_${info.index}.gcode`), HEAD_BYTES));
                 out.push({
                     gcode_complete: gcode.complete, block, metrics: gcode.facts, observed_extrusion: summarizeObservedExtrusion(gcode),
                     plate: info.index, time_s: typeof facts["plate.time_s"] === "number" ? facts["plate.time_s"] : null, weight_g: typeof facts["plate.weight_g"] === "number" ? facts["plate.weight_g"] : null,
