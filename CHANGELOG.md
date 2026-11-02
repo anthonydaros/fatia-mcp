@@ -6,6 +6,7 @@
 - Expand bounded scenario comparisons, scoped settings and layer policies, and single-instance orientation within multi-plate projects.
 - Add optional conservative optimization with global budgets, measured alternatives and explicit quality configuration constraints.
 - Document installation and the Muttley workflow in Portuguese; retain printer-free operation and all 32 tools.
+- Recognize 14 officially documented printer codenames, including X2D/N6, with installed profiles taking precedence over the dated offline reference. Scope orientation geometry limits to the selected plate while preserving unrelated resources.
 
 ## [1.1.46] – 2026-11-01
 

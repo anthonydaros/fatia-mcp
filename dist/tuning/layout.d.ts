@@ -83,7 +83,7 @@ export interface LayoutModel {
 }
 export declare const classKeyOf: (slots: number[], painted: boolean) => string;
 /** Every printable object with its world box and the plates model_settings.config assigns it to. Throws MeshReadError (no geometry...) or LayoutLimitError. */
-export declare function readLayoutModel(project: ProjectFiles): Promise<LayoutModel>;
+export declare function readLayoutModel(project: ProjectFiles, plateIndex?: number | null): Promise<LayoutModel>;
 export type IssueKind = "outside_plate" | "straddling" | "between_plates" | "outside_nozzle_area" | "overlap" | "too_tall" | "bed_changed" | "locked_plate" | "plate_assignment" | "blocker";
 export interface LayoutIssue {
     kind: IssueKind;

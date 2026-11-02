@@ -150,8 +150,8 @@ function signedVolume(pos: Float64Array, idx: Uint32Array): number {
 }
 
 /** Every printable object with its world box and the plates model_settings.config assigns it to. Throws MeshReadError (no geometry...) or LayoutLimitError. */
-export async function readLayoutModel(project: ProjectFiles): Promise<LayoutModel> {
-  const read = await readProjectMesh(project, null);
+export async function readLayoutModel(project: ProjectFiles, plateIndex: number | null = null): Promise<LayoutModel> {
+  const read = await readProjectMesh(project, plateIndex);
   if (read.objects.length > MAX_LAYOUT_OBJECTS) throw new LayoutLimitError(`the project has ${read.objects.length} objects; the layout stage accepts at most ${MAX_LAYOUT_OBJECTS}`);
   const settings = new Map(asArray(project.modelSettings?.object).map(o => [String(o.id), o]));
   const plateNodes = asArray(project.modelSettings?.plate);

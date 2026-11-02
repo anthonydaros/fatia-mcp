@@ -15,3 +15,21 @@ test('sampled proposal search belongs to the wallclock budget and cannot start l
  assert.equal(spent,true);assert.equal(r.stop_reason,'budget_minutes');assert.equal(calls,0);assert.equal(r.slices,0);
 });
 test('target small preview is dropped while another plate preview is preserved',async t=>{const{file,dir}=await fixture(t);const z=await JSZip.loadAsync(await fs.readFile(file));z.file('Metadata/plate_1_small.png','stale-target');z.file('Metadata/plate_2_small.png','keep-other');await fs.writeFile(file,await z.generateAsync({type:'nodebuffer'}));const out=await writeOrientationCandidate(file,path.join(dir,'preview.3mf'),{plateIndex:0,itemIndex:0,rotation});const saved=await JSZip.loadAsync(await fs.readFile(out.path));assert.equal(saved.file('Metadata/plate_1_small.png'),null);assert.equal(await saved.file('Metadata/plate_2_small.png').async('string'),'keep-other');});
+
+test('orientation inspects only its plate while preserving an oversized unrelated plate',async t=>{
+ const{file,dir}=await fixture(t),z=await JSZip.loadAsync(await fs.readFile(file));
+ const main=await z.file('3D/3dmodel.model').async('string');
+ const components='<component objectid="3" p:path="/3D/Objects/large.model"/>'.repeat(3001);
+ z.file('3D/3dmodel.model',main.replace('</resources>',`<object id="2"><components>${components}</components></object></resources>`).replace('<item objectid="1" transform="1 0 0 0 1 0 0 0 1 80 80 0"/>','<item objectid="2" transform="1 0 0 0 1 0 0 0 1 270 30 0"/>'));
+ z.file('3D/Objects/large.model','<model unit="millimeter"><resources><object id="3"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="2" y="0" z="0"/><vertex x="0" y="3" z="0"/></vertices><triangles>'+ '<triangle v1="0" v2="1" v3="2"/>'.repeat(1000)+'</triangles></mesh></object></resources></model>');
+ z.file('Metadata/model_settings.config','<config><object id="1"/><object id="2"/><plate><metadata key="plater_id" value="1"/><model_instance><metadata key="object_id" value="1"/><metadata key="instance_id" value="0"/></model_instance></plate><plate><metadata key="plater_id" value="2"/><model_instance><metadata key="object_id" value="2"/><metadata key="instance_id" value="0"/></model_instance></plate></config>');
+ await fs.writeFile(file,await z.generateAsync({type:'nodebuffer'}));
+ await assert.rejects(readProjectMesh(await openProject(file),null),e=>e.code==='too_large');
+ const out=await writeOrientationCandidate(file,path.join(dir,'small.3mf'),{plateIndex:0,itemIndex:0,rotation});
+ const saved=await JSZip.loadAsync(await fs.readFile(out.path));
+ assert.deepEqual(await saved.file('3D/Objects/large.model').async('nodebuffer'),await z.file('3D/Objects/large.model').async('nodebuffer'));
+ const before=await z.file('3D/3dmodel.model').async('string'),after=await saved.file('3D/3dmodel.model').async('string');
+ assert.equal(after.split('<build>')[0],before.split('<build>')[0]);
+ assert.equal(after.match(/<item objectid="2"[^>]*\/>/)[0],before.match(/<item objectid="2"[^>]*\/>/)[0]);
+ await assert.rejects(writeOrientationCandidate(file,path.join(dir,'large.3mf'),{plateIndex:1,itemIndex:1,rotation}),e=>e.code==='too_large');
+});

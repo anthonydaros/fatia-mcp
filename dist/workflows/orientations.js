@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { parseStringPromise } from 'xml2js';
 import { asArray, meta, openProject, plateInstances } from '../knowledge/facts/settings.js';
 import { readBoundedPrintFile, loadSafe3mfArchive } from '../safety/archive.js';
 import { readProjectMesh } from '../tuning/mesh-read.js';
@@ -72,10 +73,18 @@ async function orientationTarget(source, plate, index) {
         if (b)
             requireMillimeters(b);
     }
-    const mesh = await readProjectMesh(project, null), here = mesh.objects.filter(o => members.includes(`${o.objectId}:${o.instance}`));
-    for (const object of mesh.objects)
-        if (plates.filter(p => plateInstances(project.modelSettings, Number(meta(p, 'plater_id')) - 1)?.includes(`${object.objectId}:${object.instance}`)).length !== 1)
+    // Validate build membership without expanding meshes on unrelated plates.
+    const root = (await project.read('3D/3dmodel.model'))?.toString('utf8'), build = root?.match(/<build\b[^>]*>[\s\S]*?<\/build>/)?.[0];
+    if (!build)
+        throw Error('Missing model build items');
+    const counts = new Map();
+    for (const node of asArray((await parseStringPromise(build, { explicitArray: false, mergeAttrs: true })).build?.item)) {
+        const id = String(node.objectid), instance = counts.get(id) ?? 0;
+        counts.set(id, instance + 1);
+        if (String(node.printable) !== '0' && plates.filter(p => plateInstances(project.modelSettings, Number(meta(p, 'plater_id')) - 1)?.includes(`${id}:${instance}`)).length !== 1)
             throw Error('Only one printable plate assignment per item is supported; membership is ambiguous');
+    }
+    const mesh = await readProjectMesh(project, plate), here = mesh.objects.filter(o => members.includes(`${o.objectId}:${o.instance}`));
     if (here.length !== members.length)
         throw Error('Plate membership contains missing or non-printable geometry');
     const item = index === undefined ? (here.length === 1 ? here[0] : undefined) : here.find(o => o.itemIndex === index);
@@ -96,7 +105,7 @@ export async function writeOrientationCandidate(source, output, options, signal)
     const offset = [center[0] - (rotated.lo[0] / 2 + rotated.hi[0] / 2), center[1] - (rotated.lo[1] / 2 + rotated.hi[1] / 2), -rotated.lo[2]];
     if (![...rotated.lo, ...rotated.hi, ...offset].every(Number.isFinite))
         throw Error('Rotated geometry must contain finite coordinates');
-    const geo = geometryFromConfig(project.config ?? {}), layout = await readLayoutModel(project);
+    const geo = geometryFromConfig(project.config ?? {}), layout = await readLayoutModel(project, options.plateIndex);
     const target = layout.objects.find(o => o.itemIndex === item.itemIndex);
     const makeBox = () => ({ x0: rotated.lo[0] + offset[0], y0: rotated.lo[1] + offset[1], x1: rotated.hi[0] + offset[0], y1: rotated.hi[1] + offset[1], z0: 0, z1: rotated.hi[2] - rotated.lo[2] });
     let box = makeBox();
@@ -134,7 +143,9 @@ export async function writeOrientationCandidate(source, output, options, signal)
     const prepared = await writeTunedProject({ source, output, target: { printerPreset: String(project.config?.printer_settings_id) }, changes: [] });
     try {
         const zip = await loadSafe3mfArchive(await readBoundedPrintFile(prepared.path));
-        const model = await zip.file('3D/3dmodel.model').async('string');
+        // The root resource/build bytes are copied from the source; splice only the selected
+        // transform. Other plates need no geometry expansion to prove preservation.
+        const model = (await project.read('3D/3dmodel.model')).toString('utf8');
         zip.file('3D/3dmodel.model', spliceItemTransforms(model, new Map([[item.itemIndex, { objectId: item.objectId, move: tokens => {
                         const values = tokens.map(Number), next = [];
                         if (values.length !== 12 || !values.every(Number.isFinite))
@@ -159,7 +170,12 @@ export async function writeOrientationCandidate(source, output, options, signal)
                 zip.file(name, next);
         }
         await fs.writeFile(prepared.path, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }));
-        const verified = await readProjectMesh(await openProject(prepared.path), null);
+        for (const name of (project.names ?? []).filter(n => n.toLowerCase().endsWith('.model') && n !== '3D/3dmodel.model')) {
+            const before = await project.read(name), after = await zip.file(name)?.async('nodebuffer');
+            if (!before || !after || !before.equals(after))
+                throw Error('Orientation changed a model resource');
+        }
+        const verified = await readProjectMesh(await openProject(prepared.path), options.plateIndex);
         if (verified.objects.length !== mesh.objects.length)
             throw Error('Orientation changed object count');
         for (const before of mesh.objects) {

@@ -10,7 +10,7 @@ import { preflightCheck } from '../dist/knowledge/preflight.js';
 async function dir(t){const d=await fs.mkdtemp(path.join(os.tmpdir(),'muttley-report-'));t.after(()=>fs.rm(d,{recursive:true,force:true}));return d;}
 test('printer IDs come from selected profile tree; unknown IDs stay unknown',async t=>{
  const d=await dir(t);await fs.mkdir(path.join(d,'BBL/machine'),{recursive:true});await fs.writeFile(path.join(d,'BBL/machine/A1.json'),JSON.stringify({type:'machine_model',name:'Bambu Lab A1',model_id:'N2S'}));
- const index=await loadPrinterIdentities(d);assert.equal(resolvePrinterIdentity('N2S',index).canonical_model,'Bambu Lab A1');assert.equal(resolvePrinterIdentity('N2S',[]).canonical_model,null);
+ const index=await loadPrinterIdentities(d);assert.equal(resolvePrinterIdentity('N2S',index).canonical_model,'Bambu Lab A1');assert.equal(resolvePrinterIdentity('N2S',[]).canonical_model,'Bambu Lab A1');
  const evidence=printerEvidence({printer_settings_id:'Bambu Lab A1 0.4 nozzle'},{plate:{metadata:[{key:'printer_model_id',value:'N2S'}]}},index,'Bambu Lab A1');assert.equal(evidence.sliced[0].matches_target,true);
 });
 test('keep report distinguishes project, default and selected values',async()=>{
@@ -31,4 +31,36 @@ test('comparison reports matching aliases and unknown sliced identity without gu
 test('printer_default reports actual Standard values rather than mapped Fine preset',async()=>{
  const p=await buildProjectSettingsPlan({printerPreset:'A1',modelCode:'A1',config:{printer_settings_id:'A1',print_settings_id:'Fine',layer_height:'0.16'},machine:{default_print_profile:'Standard',default_filament_profile:['PLA']},leaf:(kind,name)=>name==='Fine'?{}:undefined,flatProcess:async name=>({layer_height:name==='Fine'?'0.12':'0.20'})});
  const r=settingsReport(p,'printer_default');assert.equal(r.details.find(d=>d.key==='layer_height').selected_value,'0.20');assert.ok(r.not_kept.every(s=>!s.includes('— mantido')));
+});
+
+test('bundled model references recognize official IDs, names and model aliases without installed profiles',()=>{
+ for(const value of ['N6',' n6 ','X2D','bambu lab x2d',' Bambu Lab X2D 0.4 nozzle ']){
+  const r=resolvePrinterIdentity(value,[]);assert.equal(r.canonical_model,'Bambu Lab X2D');assert.equal(r.source,'bundled_reference');
+ }
+ assert.equal(resolvePrinterIdentity(' X1C ',[]).canonical_model,'Bambu Lab X1 Carbon');
+ assert.equal(resolvePrinterIdentity('BL-P001',[]).canonical_model,'Bambu Lab X1 Carbon');
+ assert.equal(resolvePrinterIdentity('a1mini',[]).canonical_model,'Bambu Lab A1 mini');
+ assert.equal(resolvePrinterIdentity('O1C',[]).canonical_model,null);
+ assert.equal(resolvePrinterIdentity('unknown-code',[]).source,'unknown');
+});
+test('selected profiles are authoritative and conflicts never guess',()=>{
+ const changed=[{name:'Bambu Lab X2D',model_id:'FUTURE-ID'}];
+ assert.equal(resolvePrinterIdentity('FUTURE-ID',changed).source,'installed_profile');
+ assert.equal(resolvePrinterIdentity('N6',changed).canonical_model,null);
+ assert.equal(resolvePrinterIdentity('x2d',changed).source,'installed_profile');
+ const duplicate=[{name:'Bambu Lab A1',model_id:'N6'},{name:'Bambu Lab X2D',model_id:'N6'}];
+ assert.equal(resolvePrinterIdentity('N6',duplicate).canonical_model,null);
+ assert.equal(resolvePrinterIdentity('N6',[{name:'Bambu Lab Future',model_id:'N6'}]).canonical_model,'Bambu Lab Future');
+});
+
+test('every versioned official reference has an unambiguous ID and short alias',async()=>{
+ const {PRINTER_REFERENCE,PRINTER_REFERENCE_VERSION}=await import('../dist/slicer/printer-reference.js');
+ assert.equal(PRINTER_REFERENCE_VERSION,'2026-11-02');assert.equal(PRINTER_REFERENCE.length,14);
+ for(const p of PRINTER_REFERENCE){
+  assert.equal(resolvePrinterIdentity(p.model_id,[]).canonical_model,p.name);
+  assert.equal(resolvePrinterIdentity(p.model_key,[]).canonical_model,p.name);
+  assert.equal(resolvePrinterIdentity(p.name,[]).canonical_model,p.name);
+  assert.equal(resolvePrinterIdentity(p.model_key,[p]).source,'installed_profile');
+  assert.ok(p.source.startsWith('https://github.com/bambulab/BambuStudio/'));
+ }
 });

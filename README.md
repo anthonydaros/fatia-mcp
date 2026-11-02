@@ -192,7 +192,7 @@ Para conferir a instalação sem fatiar, execute `fatia-mcp --check` se instalou
 
 O preflight oferece `detail: "brief"` para um resumo. Os checks pendentes são separados por próximo passo; as sondas de Blender do preflight ainda não estão implementadas. A análise rápida de geometria não equivale a uma verificação completa de saúde da malha.
 
-O relatório de configurações distingue o valor salvo, o padrão da impressora e o valor selecionado. “Mantido” significa que a escolha do projeto foi preservada; comparar com o padrão não significa que ele foi aplicado. Identificadores internos também são resolvidos pelos perfis instalados: por exemplo, `N2S` identifica uma A1.
+O relatório de configurações distingue o valor salvo, o padrão da impressora e o valor selecionado. “Mantido” significa que a escolha do projeto foi preservada; comparar com o padrão não significa que ele foi aplicado. Identificadores internos também são traduzidos para os nomes das impressoras, usando os perfis da instalação selecionada e a referência abaixo.
 
 A análise de desperdício mostra massas observadas por função, incluindo o material não classificado. Uma soma parcial não é um total garantido; valores de purga continuam desconhecidos quando a contabilização é ambígua.
 
@@ -207,6 +207,33 @@ Exemplo técnico do modo conservador de otimização:
 ```
 
 Para autorizar uma redução específica, use `optimization.constraints`, por exemplo `{"min_infill_density":8}`. Isso permite testar até esse piso de configuração; não comprova resistência física. Para reorientar uma instância, acrescente `"allow_reorientation":true` e `"targets":[{"plate_index":2,"item_index":1}]`, usando os índices retornados pela listagem de objetos, não nomes ambíguos. Sem autorização, a orientação original é mantida.
+
+### Codinomes das impressoras Bambu Lab
+
+Alguns arquivos 3MF guardam um código interno no lugar do nome que aparece na impressora. Por exemplo, `N2S` significa **A1** e `N6` significa **X2D**. O Fatia reconhece o código, o nome completo e o nome curto, sem diferenciar maiúsculas e minúsculas.
+
+Referência verificada em **2 de novembro de 2026**, nos arquivos oficiais do Bambu Studio:
+
+| Impressora | Código interno | Nome curto | Fonte oficial |
+|---|---|---|---|
+| A1 mini | `N1` | `a1mini` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20A1%20mini.json) |
+| A1 | `N2S` | `a1` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20A1.json) |
+| A2L | `N9` | `a2l` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20A2L.json) |
+| H2C | `O1C2` | `h2c` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20H2C.json) |
+| H2D Pro | `O1E` | `h2dpro` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20H2D%20Pro.json) |
+| H2D | `O1D` | `h2d` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20H2D.json) |
+| H2S | `O1S` | `h2s` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20H2S.json) |
+| P1P | `C11` | `p1p` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20P1P.json) |
+| P1S | `C12` | `p1s` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20P1S.json) |
+| P2S | `N7` | `p2s` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20P2S.json) |
+| X1 Carbon | `BL-P001` | `x1c` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20X1%20Carbon.json) |
+| X1 | `BL-P002` | `x1` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20X1.json) |
+| X1E | `C13` | `x1e` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20X1E.json) |
+| X2D | `N6` | `x2d` | [Perfil Bambu Studio](https://github.com/bambulab/BambuStudio/blob/master/resources/profiles/BBL/machine/Bambu%20Lab%20X2D.json) |
+
+Os perfis da instalação selecionada têm prioridade. Quando não houver informação instalada sobre um modelo, o Fatia usa esta referência versionada. Se houver conflito ou o código for desconhecido, o resultado continua desconhecido; a ferramenta não escolhe uma impressora por aproximação.
+
+Reconhecer o codinome ajuda a ler e comparar projetos. Para fatiar, continua sendo obrigatório selecionar um modelo aceito pelo Fatia e ter o perfil exato de impressora e bico instalado. **X1 e A2L são reconhecidas nesta tabela, mas não estão habilitadas para fatiamento.** Essa tradução não adiciona conexão ou controle da impressora.
 
 ## Onde ficam os arquivos
 
