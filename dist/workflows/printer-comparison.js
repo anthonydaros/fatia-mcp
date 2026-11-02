@@ -186,7 +186,7 @@ export async function comparePrinterModels(args, deps) {
                 reserve();
                 const measured = await target.sliceAll(written.path, controller.signal);
                 active();
-                row.plates = measured;
+                row.plates = measured.map(({ plate, time_s, weight_g, gcode_complete, warnings, crossing, filament_maps }) => ({ plate, time_s, weight_g, gcode_complete, warnings, crossing, filament_maps }));
                 candidate = await openProject(written.path);
                 row.ineligible_reasons.push(...await preserved(source, candidate));
                 const ids = measured.map(p => p.plate), expected = sourcePlates.map(p => p.plate);

@@ -241,7 +241,7 @@ Os valores de potência acima são exemplos de entrada, não medições dessas i
 
 ### Análise com menos leituras repetidas
 
-O Fatia coleta o cabeçalho de configurações durante a própria análise do G-code. Isso elimina uma leitura adicional do arquivo por mesa, mantendo a verificação integral de integridade e o cancelamento. Nos testes de contagem de leituras, uma mesa passou de 3 para 2 leituras do arquivo, e duas mesas de 5 para 3. O ganho de tempo real depende do tamanho do arquivo, do disco e do custo do fatiamento no Studio.
+O Fatia coleta o cabeçalho de configurações durante a própria análise do G-code. Isso elimina uma leitura adicional do arquivo por mesa, mantendo a verificação integral de integridade e o cancelamento. Nos testes de contagem de leituras, uma mesa passou de 3 para 2 leituras do arquivo, e duas mesas de 5 para 3. A comparação também evita devolver blocos internos completos de G-code no relatório: as configurações continuam sendo verificadas, mas o chat recebe as estimativas e provas relevantes. O ganho de tempo real depende do tamanho do arquivo, do disco e do custo do fatiamento no Studio.
 
 ### Codinomes das impressoras Bambu Lab
 

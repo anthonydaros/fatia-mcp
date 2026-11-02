@@ -76,3 +76,11 @@ test('cancellation during final report write removes owned deliveries',async t=>
  t.after(()=>{fs.writeFile=original});
  const r=await comparePrinterModels(f.args,f.deps);assert.equal(r.stop_reason,'cancelled');assert.equal(r.recommendation.bambu_model,null);assert.ok(r.printers.every(p=>p.output_path===null));assert.deepEqual(await fs.readdir(f.deps.outputDir),['keep']);
 });
+
+test('comparison report omits internal CONFIG_BLOCK payloads while retaining plate estimates and proof',async t=>{
+ const f=await fixture(t),target=f.deps.target;
+ f.deps.target=async model=>{const d=await target(model),slice=d.sliceAll;d.sliceAll=async(...a)=>(await slice(...a)).map(p=>({...p,block:{...p.block,internal_script:'x'.repeat(1024*1024)}}));return d;};
+ const r=await comparePrinterModels(f.args,f.deps);
+ assert.ok(r.printers.every(p=>p.eligible));assert.ok(Buffer.byteLength(JSON.stringify(r))<100000,'four MiB of internal scripts stay outside the response');
+ for(const row of r.printers){assert.ok(row.setting_checks.every(c=>c.ok));for(const p of row.plates){assert.ok(p.time_s>0);assert.equal(Object.hasOwn(p,'block'),false);}}
+});

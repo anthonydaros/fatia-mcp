@@ -124,7 +124,7 @@ export async function comparePrinterModels(args:Record<string,unknown>,deps:Prin
         let candidate=await openProject(written.path);row.ineligible_reasons.push(...await preserved(source,candidate));
         if(row.ineligible_reasons.length)continue;
         reserve();const measured=await target.sliceAll(written.path,controller.signal);active();
-        row.plates=measured;
+        row.plates=measured.map(({plate,time_s,weight_g,gcode_complete,warnings,crossing,filament_maps})=>({plate,time_s,weight_g,gcode_complete,warnings,crossing,filament_maps}));
         candidate=await openProject(written.path);row.ineligible_reasons.push(...await preserved(source,candidate));
         const ids=measured.map(p=>p.plate),expected=sourcePlates.map(p=>p.plate);
         if(ids.length!==expected.length||new Set(ids).size!==ids.length||expected.some(p=>!ids.includes(p)))row.ineligible_reasons.push('incomplete_plate_coverage');

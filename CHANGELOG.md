@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Compare two printer models through compare_slice_scenarios with whole-project coverage, preserved quality settings and explicit operating-cost assumptions. Keep the existing 32 tools and process-scenario mode.
-- Capture bounded G-code configuration headers during the verified full scan, eliminating one redundant archive read per plate without weakening CRC or cancellation checks.
+- Capture bounded G-code configuration headers during the verified full scan, eliminating one redundant archive read per plate without weakening CRC or cancellation checks. Omit internal CONFIG_BLOCK payloads from printer-comparison responses while retaining selected-setting proof.
 
 - Clarify preserved settings, resolve installed printer identities and show observed waste categories without hiding unknown material. Add actionable preflight summaries and installation diagnostics.
 - Expand bounded scenario comparisons, scoped settings and layer policies, and single-instance orientation within multi-plate projects.
