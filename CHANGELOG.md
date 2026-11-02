@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Clarify preserved settings, resolve installed printer identities and show observed waste categories without hiding unknown material. Add actionable preflight summaries and installation diagnostics.
+- Expand bounded scenario comparisons, scoped settings and layer policies, and single-instance orientation within multi-plate projects.
+- Add optional conservative optimization with global budgets, measured alternatives and explicit quality configuration constraints.
+- Document installation and the Muttley workflow in Portuguese; retain printer-free operation and all 32 tools.
+
 ## [1.1.46] – 2026-11-01
 
 - Add five tools for bounded orientation comparisons, evidence-based print waste, separate calibration projects, caller-supplied filament availability and mesh topology health. Preserve all 27 existing tools; the MCP surface now contains 32.

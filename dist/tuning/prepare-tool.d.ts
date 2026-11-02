@@ -1,3 +1,4 @@
+import { type OptimizationOptions } from './optimization-options.js';
 import type { LayoutInput } from "./prepare.js";
 export declare const PREPARE_TOOLS: readonly [{
     readonly name: "prepare_print_project";
@@ -29,6 +30,82 @@ export declare const PREPARE_TOOLS: readonly [{
                         enum: ("none" | "rigid" | "silicone" | "keychain" | "pix_plate" | "face_down_plate" | "other" | "functional" | "high_load")[];
                     } | {
                         type: string;
+                    };
+                };
+            };
+            readonly optimization: {
+                type: string;
+                additionalProperties: boolean;
+                description: string;
+                properties: {
+                    objective: {
+                        type: string;
+                        enum: string[];
+                        default: string;
+                        description: string;
+                    };
+                    constraints: {
+                        type: string;
+                        additionalProperties: boolean;
+                        description: string;
+                        properties: {
+                            [k: string]: {
+                                type: string;
+                                minimum: number;
+                                maximum: number;
+                                description: string;
+                            };
+                        };
+                    };
+                    candidates: {
+                        type: string;
+                        minItems: number;
+                        maxItems: number;
+                        description: string;
+                        items: {
+                            type: string;
+                            additionalProperties: boolean;
+                            required: string[];
+                            properties: {
+                                name: {
+                                    type: string;
+                                    minLength: number;
+                                    maxLength: number;
+                                };
+                                settings: {
+                                    type: string;
+                                    additionalProperties: boolean;
+                                    properties: any;
+                                };
+                            };
+                        };
+                    };
+                    allow_reorientation: {
+                        type: string;
+                        default: boolean;
+                        description: string;
+                    };
+                    targets: {
+                        type: string;
+                        maxItems: number;
+                        description: string;
+                        items: {
+                            type: string;
+                            additionalProperties: boolean;
+                            required: string[];
+                            properties: {
+                                plate_index: {
+                                    type: string;
+                                    minimum: number;
+                                    maximum: number;
+                                };
+                                item_index: {
+                                    type: string;
+                                    minimum: number;
+                                    maximum: number;
+                                };
+                            };
+                        };
                     };
                 };
             };
@@ -111,6 +188,7 @@ export declare const PREPARE_TOOLS: readonly [{
     };
 }];
 export interface PrepareArgs {
+    optimization?: OptimizationOptions;
     path: string;
     plateIndex: number;
     plateIndexExplicit: boolean;

@@ -155,7 +155,7 @@ O código atual oferece **32 ferramentas**. Uma versão publicada anteriormente 
 | `list_3mf_plate_objects` | Lista os objetos de uma mesa do projeto. |
 | `compare_projects` | Compara dois projetos 3MF e mostra diferenças. |
 | `compare_slice_scenarios` | Compara até seis opções de configurações por fatiamento. |
-| `compare_print_orientations` | Compara até seis rotações de uma peça. Exige um 3MF compatível com uma mesa e um item imprimível. |
+| `compare_print_orientations` | Compara até seis rotações da instância selecionada em um 3MF compatível, inclusive com várias peças e mesas. |
 | `analyze_print_waste` | Analisa o material por função no G-code de uma mesa. Valores de purga ambíguos permanecem desconhecidos. |
 | `estimate_print_cost` | Estima custo com base no consumo registrado e nos preços informados. |
 | `check_filament_availability` | Compara o consumo por slot com as gramas disponíveis que você informar. |
@@ -185,6 +185,28 @@ O código atual oferece **32 ferramentas**. Uma versão publicada anteriormente 
 | `blender_mcp_edit_model` | Prepara ou executa uma edição de STL pelo Blender, com saída separada. |
 
 </details>
+
+## Análise e otimização com mais contexto
+
+Para conferir a instalação sem fatiar, execute `fatia-mcp --check` se instalou o executável, ou `node /caminho/completo/fatia-mcp/dist/index.js --check`. O diagnóstico consulta o servidor e o Bambu Studio, sem abrir a interface nem reconhecer atualizações. Ele não consegue confirmar se o aplicativo de chat já recarregou as ferramentas: reinicie o assistente após registrar ou atualizar o MCP.
+
+O preflight oferece `detail: "brief"` para um resumo. Os checks pendentes são separados por próximo passo; as sondas de Blender do preflight ainda não estão implementadas. A análise rápida de geometria não equivale a uma verificação completa de saúde da malha.
+
+O relatório de configurações distingue o valor salvo, o padrão da impressora e o valor selecionado. “Mantido” significa que a escolha do projeto foi preservada; comparar com o padrão não significa que ele foi aplicado. Identificadores internos também são resolvidos pelos perfis instalados: por exemplo, `N2S` identifica uma A1.
+
+A análise de desperdício mostra massas observadas por função, incluindo o material não classificado. Uma soma parcial não é um total garantido; valores de purga continuam desconhecidos quando a contabilização é ambígua.
+
+Nas comparações, é possível selecionar a mesa e a instância de uma peça. Peça explicitamente para permitir movimentação ou reorientação; as outras peças devem permanecer intactas. Perfis de altura variável e ajustes por objeto são preservados por padrão. Para trocar por altura uniforme, informe esse objetivo e o escopo; a confirmação depende do G-code, não apenas do valor salvo na configuração.
+
+O modo opcional de otimização de `prepare_print_project` procura equilíbrio entre tempo e material. Sem limites adicionais, preserva paredes, densidades, camadas e limites de velocidade externa do projeto. Mudanças que reduzam esses limites e reorientações precisam ser explicitamente permitidas. A busca tem orçamento e pode terminar sem encontrar uma melhoria; não garante o melhor resultado possível nem resistência ou acabamento físico.
+
+Exemplo técnico do modo conservador de otimização:
+
+```json
+{"path":"/caminho/projeto.3mf","bambu_model":"a1","optimization":{"objective":"balanced"},"open_in_studio":false,"max_slices":12,"max_minutes":20}
+```
+
+Para autorizar uma redução específica, use `optimization.constraints`, por exemplo `{"min_infill_density":8}`. Isso permite testar até esse piso de configuração; não comprova resistência física. Para reorientar uma instância, acrescente `"allow_reorientation":true` e `"targets":[{"plate_index":2,"item_index":1}]`, usando os índices retornados pela listagem de objetos, não nomes ambíguos. Sem autorização, a orientação original é mantida.
 
 ## Onde ficam os arquivos
 
@@ -217,7 +239,7 @@ O assistente deve informar o caminho do resultado. Se quiser outro destino, peç
 | O Bambu Studio não é encontrado | Informe onde ele está instalado. O assistente pode configurar `SLICER_PATH`. |
 | Falta o perfil da impressora | Confira a instalação e os perfis do Bambu Studio. Use o perfil exato do modelo e do bico. |
 | O assistente pede o modelo | Informe o modelo real. Isso é necessário para selecionar as configurações de fatiamento. |
-| Uma comparação recusa o arquivo | Prepare primeiro um 3MF para a impressora escolhida. A comparação de orientações exige uma mesa e um item imprimível. |
+| Uma comparação recusa o arquivo | Prepare primeiro um 3MF para a impressora escolhida. Para comparar orientações, informe a mesa e selecione o item quando houver várias peças. |
 | O custo ou estoque aparece como desconhecido | Use um projeto já fatiado e confira se todas as mesas e os consumos por material estão registrados. |
 | O processamento demora | Peças grandes e várias alternativas exigem mais trabalho. Peça menos opções ou um orçamento menor de fatiamentos. |
 
@@ -227,7 +249,7 @@ Para editar com Blender, é preciso instalar e configurar uma conexão Blender M
 
 ## Guias técnicos
 
-Os guias abaixo têm os detalhes de configuração e funcionamento, atualmente em inglês:
+Os guias abaixo têm os detalhes de configuração e funcionamento; o guia de fatiamento permanece em inglês:
 
 - [Instalação, variáveis e configuração manual](./docs/SETUP.md)
 - [Fatiamento, perfis e compatibilidade](./docs/SLICING.md)

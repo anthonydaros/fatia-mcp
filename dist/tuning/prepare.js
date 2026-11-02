@@ -1,3 +1,4 @@
+import { optimizeProject } from './optimize.js';
 // prepare_print_project: the plan-slice-measure-adjust loop. A part goes in (3MF project or STL); a NEW unsliced project 3MF with tuned parameters comes out,
 // together with a report that says what was changed, what was measured and what was only predicted. The original is never written, nothing is printed,
 // no printer is contacted. Slicing goes through the Bambu Studio CLI only (injected as deps.slice), one candidate per round.
@@ -67,7 +68,7 @@ const hashOf = (d) => sha256(Buffer.from(JSON.stringify([d.changes.map(c => [c.k
  * on a 3MF (it cannot read mesh.size_* from one), so they are evaluated here on the facts the collector already holds; a rule whose facts are missing is
  * listed as undecidable, never silently passed.
  */
-function factBlockers(facts, model) {
+export function factBlockers(facts, model) {
     const hits = [];
     const unknown = [];
     const clear = [];
@@ -119,6 +120,8 @@ function defaultName(source) {
     return `${path.basename(source).replace(/(\.gcode)?\.(3mf|stl)$/i, "")}_tuned.3mf`;
 }
 export async function prepareProject(input, deps) {
+    if (input.optimization !== undefined)
+        return optimizeProject(input, deps);
     const now = deps.now ?? Date.now;
     const started = now();
     if (input.selectRound !== undefined && (!Number.isInteger(input.selectRound) || input.selectRound < 0 || input.selectRound > 49))

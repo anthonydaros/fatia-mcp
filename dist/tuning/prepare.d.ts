@@ -1,3 +1,5 @@
+import { type OptimizationOptions } from './optimization-options.js';
+import type { Facts } from "../knowledge/types.js";
 import { type Collected } from "./facts.js";
 import type { GcodeScan, ScanValue } from "./gcode-scan.js";
 import { type LayoutMode, type LayoutRun, type PlateMeasure, type SliceAll } from "./layout-stage.js";
@@ -21,6 +23,7 @@ export interface LayoutInput {
     maxMinutes?: number;
 }
 export interface PrepareInput {
+    optimization?: OptimizationOptions | Record<string, unknown>;
     path: string;
     /** 0-based. After a layout change it means the NEW numbering when `plateIndexExplicit`; otherwise the plate with the longest predicted time is measured. */
     plateIndex: number;
@@ -76,7 +79,7 @@ export interface PrepareDeps {
     sliceAll?: SliceAll;
     installedStudio(): Promise<string | null>;
     /** preflight_check on a file; read-only. */
-    preflight(args: Record<string, unknown>): Promise<Record<string, unknown>>;
+    preflight(args: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>>;
     openInStudio(file: string): Promise<unknown>;
     now?(): number;
     studioKeys?: StudioKeys;
@@ -212,4 +215,14 @@ export interface RunData {
         kind: "default" | "explicit" | "explicit_new_numbering" | "longest_plate" | "first_plate_unmeasured";
     };
 }
+/**
+ * Blocker rules the run's own facts decide: the G-code ones, plus the 3MF-structure and mesh ones (volume, prime tower). preflight_check cannot judge those
+ * on a 3MF (it cannot read mesh.size_* from one), so they are evaluated here on the facts the collector already holds; a rule whose facts are missing is
+ * listed as undecidable, never silently passed.
+ */
+export declare function factBlockers(facts: Facts, model: string): {
+    hits: BlockerHit[];
+    unknown: BlockerUnknown[];
+    clear: string[];
+};
 export declare function prepareProject(input: PrepareInput, deps: PrepareDeps): Promise<Record<string, unknown>>;

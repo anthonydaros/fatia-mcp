@@ -20,7 +20,9 @@ async function hasNozzleStats(archive) {
     }
 }
 export function studioRetargeter(o) {
-    return async (source) => {
+    return async (source, context) => {
+        const signal = context?.signal ?? o.signal;
+        signal?.throwIfAborted();
         const manipulator = o.manipulator ?? new STLManipulator(o.tempDir);
         const plan = source.toLowerCase().endsWith(".3mf")
             ? await manipulator.planProjectSettings(source, o.slicerPath, o.printerPreset, o.modelCode)
@@ -30,10 +32,11 @@ export function studioRetargeter(o) {
             if (!exportOnly) {
                 if (o.allowSlice === false)
                     throw new Error(`${path.basename(source)} has no project settings the Studio export can retarget without slicing; a dry run cannot build its plan.`);
+                context?.beforeSlice?.();
                 slices++;
             }
             // Plate 1 only: the settings are global, and slicing every plate of a big project would cost minutes for nothing.
-            const exported = await manipulator.sliceSTL(source, "bambustudio", o.slicerPath, undefined, undefined, o.printerPreset, { projectPlan: plan, exportOnly, ...(plan && !exportOnly ? { slicePlate: 1 } : {}) }, o.signal);
+            const exported = await manipulator.sliceSTL(source, "bambustudio", o.slicerPath, undefined, undefined, o.printerPreset, { projectPlan: plan, exportOnly, ...(plan && !exportOnly ? { slicePlate: 1 } : {}) }, signal);
             try {
                 return await fs.readFile(exported);
             }

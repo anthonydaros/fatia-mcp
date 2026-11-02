@@ -31,6 +31,8 @@ test('32-tool MCP dispatches new read/write workflows and validates nested scena
     assert.ok(await fs.stat(extracted.objects[0].file_path));
     const comparison = await call('compare_projects', { project_a: file, project_b: file });
     assert.equal(comparison.identical, true);
+    const chosen = await call('compare_projects', { project_a: file, project_b: file, bambu_model: 'a1' });
+    assert.equal(chosen.projects[0].conditions.printer.target.raw, 'a1');
     const cost = await call('estimate_print_cost', { path: file, material_price_per_kg: 100 });
     assert.equal(cost.per_project.material_cost, 1);
     const health = await call('analyze_mesh_health', { path: file });

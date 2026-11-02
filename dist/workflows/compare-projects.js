@@ -8,6 +8,7 @@ export const COMPARE_PROJECT_TOOLS = [{
         name: 'compare_projects',
         description: 'Read-only comparison of two 3MF projects: saved settings, filament assignments, plates, object geometry, dimensions and world placement. Missing evidence remains unknown.',
         inputSchema: { type: 'object', properties: {
+                bambu_model: { type: 'string', description: 'Optional chosen target for identity checks; otherwise the configured model. Read-only: no slicing.' },
                 project_a: { type: 'string', description: 'Path to the first 3MF.' },
                 project_b: { type: 'string', description: 'Path to the second 3MF.' },
             }, required: ['project_a', 'project_b'], additionalProperties: false },

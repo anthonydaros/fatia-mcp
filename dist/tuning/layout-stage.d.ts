@@ -10,6 +10,10 @@ export declare const LAYOUT_DEFAULTS: {
 };
 /** What the slicer predicted for one plate of a candidate. null: not available. */
 export interface PlateMeasure {
+    observed_extrusion?: ReturnType<typeof import("../workflows/waste.js").summarizeObservedExtrusion>;
+    gcode_complete?: boolean;
+    block?: Record<string, string>;
+    metrics?: Record<string, import("./gcode-scan.js").ScanValue>;
     /** 1-based. */
     plate: number;
     time_s: number | null;

@@ -1,3 +1,4 @@
+import {summarizeObservedExtrusion} from '../workflows/waste.js';
 // The real slice step of prepare_print_project: one candidate project through the existing pipeline (the same plan + sliceSTL a "keep" slice_stl uses,
 // one folder per slice, cancellation kills the CLI), then everything the facts need is read from the sliced 3MF and the 41 MB result is deleted.
 // Nothing here prints or contacts a printer.
@@ -84,7 +85,9 @@ export function studioAllPlatesSlicer(o: Omit<StudioSliceOptions, "plateIndex">)
         const node = list(opened.sliceInfo?.plate).find(p => list(p?.metadata).some(m => m?.key === "index" && Number(m.value) === info.index));
         const maps = list(node?.metadata).find(m => m?.key === "filament_maps")?.value;
         const crossing = gcode.facts["gcode.unprotected_travel_crossing_count"];
+        const block = readConfigBlock(await head(await streamSafe3mfEntryFromFile(output, `Metadata/plate_${info.index}.gcode`), HEAD_BYTES));
         out.push({
+          gcode_complete: gcode.complete, block, metrics: gcode.facts, observed_extrusion: summarizeObservedExtrusion(gcode),
           plate: info.index, time_s: typeof facts["plate.time_s"] === "number" ? facts["plate.time_s"] : null, weight_g: typeof facts["plate.weight_g"] === "number" ? facts["plate.weight_g"] : null,
           crossing: typeof crossing === "number" ? crossing : null,
           ...(typeof maps === "string" ? { filament_maps: maps.trim().split(/\s+/).map(Number).filter(Number.isFinite) } : {}),

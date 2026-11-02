@@ -1428,7 +1428,7 @@ class BambuPrinterMCPServer {
           case "compare_projects": {
             let profilesRoot: string | undefined;
             try { profilesRoot = detectProfilesRoot(resolveSlicerConfig({ slicer_type: "bambustudio" }).slicerPath); } catch { /* Inspection works without an installed slicer. */ }
-            result = await compareProjects(args ?? {}, { profilesRoot, targetModel: DEFAULT_BAMBU_MODEL || undefined, signal: extra.signal });
+            result = await compareProjects(args ?? {}, { profilesRoot, targetModel: typeof args?.bambu_model === "string" ? args.bambu_model : DEFAULT_BAMBU_MODEL || undefined, signal: extra.signal });
             break;
           }
           case "extract_3mf_objects":
@@ -1503,7 +1503,7 @@ class BambuPrinterMCPServer {
                 bambuOptions: { bedType: resolveBambuStudioCliBedType(undefined), nozzleType: resolveNozzleType(undefined), nozzleVolumeType: resolveNozzleVolumeType(undefined) },
               }),
               installedStudio: studioVersion,
-              preflight: a => preflightCheck(a, this.preflightDeps(extra.signal)),
+              preflight: (a, signal) => preflightCheck(a, this.preflightDeps(signal ?? extra.signal)),
               openInStudio: file => openInSlicer(file, slicerPath),
             });
             break;
