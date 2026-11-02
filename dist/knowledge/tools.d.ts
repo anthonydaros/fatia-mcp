@@ -56,6 +56,11 @@ export declare const KNOWLEDGE_TOOLS: readonly [{
         readonly type: "object";
         readonly additionalProperties: false;
         readonly properties: {
+            readonly detail: {
+                readonly type: "string";
+                readonly enum: readonly ["brief", "full"];
+                readonly description: "brief summarizes actionable findings and counts; full preserves complete lists. Default full.";
+            };
             readonly file_path: {
                 readonly type: "string";
                 readonly description: "Local .3mf (also .gcode.3mf), .stl, .obj, .step, .stp or .gcode file.";
