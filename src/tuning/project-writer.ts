@@ -3,6 +3,7 @@
 // (same name, same order, same compression); project_settings.config and model_settings.config are spliced as text (see project-text.ts).
 // The written file is re-opened and checked before it is handed back: a difference nobody asked for is an error, not a warning.
 // Design and measurements: docs/TUNING-WRITER.md.
+import {applyScopedSettings,type ScopedSettings,type UniformLayers} from '../workflows/scoped-settings.js';
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -41,7 +42,7 @@ export interface RetargetOutcome {
   /** Real CLI slices the retarget needed (an STL, or a project whose export had no nozzle stats); the export alone is not a slice. */
   slices?: number;
 }
-export type Retargeter = (source: string) => Promise<RetargetOutcome>;
+export type Retargeter = (source: string, context?: {beforeSlice?:()=>void;signal?:AbortSignal}) => Promise<RetargetOutcome>;
 
 export interface WriteOptions {
   source: string;
@@ -50,6 +51,8 @@ export interface WriteOptions {
   target: { printerPreset: string };
   changes?: SettingChange[];
   objectOverrides?: ObjectOverrides;
+  objectSettings?: ScopedSettings[];
+  uniformLayerHeight?: UniformLayers;
   /** Required for an STL, a 3MF without project settings, or a project made for another printer. See studioRetargeter. */
   retarget?: Retargeter;
   /**
@@ -271,6 +274,12 @@ export async function writeTunedProject(o: WriteOptions): Promise<WriteResult> {
     const result = setObjectSettings(modelNext, targets, o.objectOverrides.settings);
     modelNext = result.xml;
     objectEdits.push(...result.edits);
+  }
+  if ((o.objectSettings?.length || o.uniformLayerHeight)) {
+    if (modelNext === undefined) throw Error('Project has no per-object settings metadata');
+    const scoped = await applyScopedSettings(baseZip, modelNext, o.objectSettings ?? [], o.uniformLayerHeight);
+    modelNext = scoped.modelText; objectEdits.push(...scoped.edits);
+    for (const [name, data] of scoped.rewritten) rewritten.set(name, data);
   }
   if (modelNext !== modelSettings) rewritten.set(MODEL_SETTINGS, modelNext!);
   const sliceInfo = await text(baseZip, SLICE_INFO);

@@ -43,6 +43,31 @@ export interface TravelOrigin {
     crossing: number;
 }
 export interface GcodeScanDetails {
+    objectObservations?: Record<string, {
+        complete: boolean;
+        layer_heights_complete: boolean;
+        extrusion_segments: number;
+        outer_wall_speed_max_mm_s?: number;
+        inner_wall_speed_max_mm_s?: number;
+        outer_wall_acceleration_max_mm_s2?: number;
+        inner_wall_acceleration_max_mm_s2?: number;
+        min_layer_height_mm?: number;
+        max_layer_height_mm?: number;
+    }>;
+    layerHeights?: {
+        all: {
+            min_mm: number | null;
+            max_mm: number | null;
+            complete: boolean;
+            layers_observed: number;
+            excludes_first_layer: true;
+        };
+        objects?: Record<number, {
+            min_mm: number;
+            max_mm: number;
+            complete: boolean;
+        }>;
+    };
     header: {
         studioVersion?: string;
         estimatedTimeS?: number;

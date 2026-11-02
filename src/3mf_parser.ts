@@ -1,3 +1,5 @@
+import {buildItems} from './workflows/scoped-settings.js';
+import {asArray,meta} from './knowledge/facts/settings.js';
 import JSZip from 'jszip';
 import { readSafe3mfArchive } from './safety/archive.js';
 import { parseStringPromise } from 'xml2js';
@@ -279,16 +281,28 @@ export async function readSliceResults(filePath: string) {
 export async function analyze3MFPlateObjects(
     filePath: string,
     plateIndex: number = 0
-): Promise<ThreeMFPlateObjects> {
+): Promise<ThreeMFPlateObjects & {build_items:Array<{item_index:number;object_id:string;instance:number;name:string}>|null;build_items_problem:string|null}> {
     const { zip } = await readSafe3mfArchive(filePath);
     const plateName = `Metadata/plate_${plateIndex + 1}.json`;
     const plateFile = zip.file(plateName);
 
-    if (!plateFile) {
-        throw new Error(`3MF is missing ${plateName}; cannot list plate objects.`);
-    }
-
-    const plateJson = JSON.parse(await plateFile.async('string'));
+    if(!Number.isInteger(plateIndex)||plateIndex<0)throw Error('plateIndex must be nonnegative integer');
+    let build_items:Array<{item_index:number;object_id:string;instance:number;name:string}>|null=null;
+    let build_items_problem:string|null=null;
+    if(zip.file('3D/3dmodel.model')){
+      const raw=await zip.file('Metadata/model_settings.config')?.async('string');
+      if(!raw)throw Error('Missing authoritative plate membership metadata');
+      const settings=(await parseStringPromise(raw,{explicitArray:false,mergeAttrs:true})).config;
+      const plates=asArray(settings?.plate).filter(p=>Number(meta(p,'plater_id'))===plateIndex+1);
+      if(plates.length!==1)throw Error('Missing or ambiguous plate membership');
+      const members=asArray(plates[0].model_instance).map(o=>`${meta(o,'object_id')}:${meta(o,'instance_id')??0}`);
+      if(members.some(k=>!/^\d+:\d+$/.test(k))||new Set(members).size!==members.length)throw Error('Malformed plate membership');
+      const counts=new Map<string,number>();
+      build_items=(await buildItems(zip)).flatMap((item,item_index)=>{const instance=counts.get(item.objectId)??0;counts.set(item.objectId,instance+1);if(!members.includes(`${item.objectId}:${instance}`))return[];const object=asArray(settings.object).find(o=>String(o.id)===item.objectId);return[{item_index,object_id:item.objectId,instance,name:String(meta(object,'name')??`object ${item.objectId}`)}];});
+      if(build_items.length!==members.length)throw Error('Plate references an unavailable build item');
+    }else build_items_problem='Geometry/build identities are absent in this sliced export';
+    if(!plateFile&&build_items===null)throw new Error(`3MF is missing ${plateName}; cannot list plate objects.`);
+    const plateJson = plateFile?JSON.parse(await plateFile.async('string')):{};
     const bboxObjects = Array.isArray(plateJson?.bbox_objects) ? plateJson.bbox_objects : [];
     const sliceInfoObjects: Array<{ id: number; name: string | null }> = [];
     const sliceInfo = zip.file('Metadata/slice_info.config');
@@ -329,7 +343,7 @@ export async function analyze3MFPlateObjects(
     }
 
     return {
-        plateIndex,
+        plateIndex,build_items,build_items_problem,
         objects: bboxObjects
             .map((object: any, index: number) => {
                 const sliceObject = sliceInfoObjects[index];

@@ -36,4 +36,12 @@ export declare function readSliceResults(filePath: string): Promise<{
         error_code: any;
     }[];
 }[]>;
-export declare function analyze3MFPlateObjects(filePath: string, plateIndex?: number): Promise<ThreeMFPlateObjects>;
+export declare function analyze3MFPlateObjects(filePath: string, plateIndex?: number): Promise<ThreeMFPlateObjects & {
+    build_items: Array<{
+        item_index: number;
+        object_id: string;
+        instance: number;
+        name: string;
+    }> | null;
+    build_items_problem: string | null;
+}>;

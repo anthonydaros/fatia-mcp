@@ -38,6 +38,7 @@ const WALLS = new Set(["Outer wall", "Inner wall", "Overhang wall", "Floating ve
 const OBSTACLES = new Set([...WALLS, "Support", "Support interface", "Support transition", "Top surface", "Bridge", "Bottom surface", "Internal solid infill", "Gap infill"]);
 const CURL = new Set(["Overhang wall", "Bridge", "Top surface"]);
 const INFILL = new Set(["Sparse infill", "Internal solid infill", "Bottom surface", "Top surface"]);
+const MODEL_ROLES = new Set([...WALLS, "Top surface", "Bottom surface", "Internal solid infill", "Gap infill", "Sparse infill", "Ironing"]);
 const KNOWN = new Set([...OBSTACLES, "Sparse infill", "Custom", "Skirt", "Brim", "Ironing", "Prime tower", "Flush", "Travel"]);
 const MARKERS = ["; WIPE_TOWER_START", "; NOZZLE_CHANGE_START", "; FLUSH_START", "; VFLUSH_START", "; CP_TOOLCHANGE_WIPE"];
 const LIFT_NAME = ["", "Spiral Lift", "Normal Lift", "Slope Lift"];
@@ -122,6 +123,10 @@ export function createGcodeScanner(options = {}) {
     let minTravel = [], filMinTravel = [], fmap = [], maxVol = [], areaFil = [], gPerMm = [], polys = [];
     // motion state
     let x = 0, y = 0, z = 0, f = 0, relE = true, relXYZ = false, lastE = 0, accel = 0, tool = 0;
+    let currentObject, objectLabelsValid = true;
+    const objectObservations = new Map();
+    let layerHeightLayers = 0, lastHeightLayer = -1, lastModelLayer = -1, modelHeightMarkersValid = true;
+    let minLayerHeight = Infinity, maxLayerHeight = -Infinity;
     let layer = -1, layerZ = 0, layerH = 0, width = 0, lcPending = false, lines = 0, longLines = 0, badWords = 0;
     const toolsSeen = new Set();
     let toolChanges = 0;
@@ -532,8 +537,42 @@ export function createGcodeScanner(options = {}) {
         const dxy = arc ? arcLen(x, y, nx, ny, I, J, cmd === 2) : Math.hypot(nx - x, ny - y);
         // timelapse park moves (SKIPPABLE blocks) and machine start/end code move the nozzle but are not travels of the part
         if (skippable) { /* position only */ }
-        else if (hasE && e > 0 && (dxy > 0 || arc))
+        else if (hasE && e > 0 && (dxy > 0 || arc)) {
+            if (printing && layer > 0 && MODEL_ROLES.has(feats[cur].name)) {
+                if (lastHeightLayer !== layer || !Number.isFinite(layerH) || layerH <= 0)
+                    modelHeightMarkersValid = false;
+                else {
+                    minLayerHeight = Math.min(minLayerHeight, layerH);
+                    maxLayerHeight = Math.max(maxLayerHeight, layerH);
+                    if (lastModelLayer !== layer) {
+                        layerHeightLayers++;
+                        lastModelLayer = layer;
+                    }
+                }
+            }
+            if (printing && currentObject) {
+                const observation = objectObservations.get(currentObject);
+                if (observation) {
+                    observation.extrusion_segments++;
+                    const role = feats[cur].name;
+                    const prefix = role === 'Outer wall' ? 'outer' : role === 'Inner wall' ? 'inner' : undefined;
+                    if (prefix) {
+                        const speed = `${prefix}_wall_speed_max_mm_s`, acceleration = `${prefix}_wall_acceleration_max_mm_s2`;
+                        if (f > 0)
+                            observation[speed] = Math.max(observation[speed] ?? 0, f / 60);
+                        if (accel > 0)
+                            observation[acceleration] = Math.max(observation[acceleration] ?? 0, accel);
+                    }
+                    if (layer > 0 && MODEL_ROLES.has(role) && lastHeightLayer !== layer)
+                        observation.heightMarkersComplete = false;
+                    if (layer > 0 && MODEL_ROLES.has(role) && layerH > 0 && lastHeightLayer === layer) {
+                        observation.min_layer_height_mm = Math.min(observation.min_layer_height_mm ?? Infinity, layerH);
+                        observation.max_layer_height_mm = Math.max(observation.max_layer_height_mm ?? -Infinity, layerH);
+                    }
+                }
+            }
             extrusion(dxy, e, nx, ny, arc);
+        }
         else if (!printing) { /* position only */ }
         else if (hasE && e < 0) {
             if (!inRun)
@@ -683,12 +722,46 @@ export function createGcodeScanner(options = {}) {
             const name = s.slice(i + 11).trim().slice(0, 64);
             cur = featId(name);
         }
+        else if (s.startsWith('; start printing object, unique label id: ', i) || s.startsWith('; stop printing object, unique label id: ', i)) {
+            const match = /^; (start|stop) printing object, unique label id: (\d+)\s*$/.exec(s.slice(i));
+            if (!match || match[2].length > 12) {
+                objectLabelsValid = false;
+                currentObject = undefined;
+                return;
+            }
+            const label = match[2];
+            if (match[1] === 'start') {
+                if (currentObject !== undefined)
+                    objectLabelsValid = false;
+                if (!objectObservations.has(label) && objectObservations.size < 500)
+                    objectObservations.set(label, { heightMarkersComplete: true, starts: 0, stops: 0, extrusion_segments: 0 });
+                const observation = objectObservations.get(label);
+                if (observation) {
+                    observation.starts++;
+                    currentObject = label;
+                }
+                else {
+                    objectLabelsValid = false;
+                    currentObject = undefined;
+                }
+            }
+            else {
+                if (currentObject !== label)
+                    objectLabelsValid = false;
+                const observation = objectObservations.get(label);
+                if (observation)
+                    observation.stops++;
+                currentObject = undefined;
+            }
+        }
         else if (s.startsWith("; LAYER_HEIGHT: ", i)) {
             const v = Number.parseFloat(s.slice(i + 16));
             if (Number.isFinite(v)) {
                 layerH = v;
                 if (layer === 0 && Number.isNaN(flHeight))
                     flHeight = v;
+                if (layer > 0 && v > 0)
+                    lastHeightLayer = layer;
             }
         }
         else if (s.startsWith("; Z_HEIGHT: ", i)) {
@@ -1013,6 +1086,8 @@ export function createGcodeScanner(options = {}) {
         const time = /(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?/.exec(header.total_estimated_time ?? "");
         const estimatedTimeS = header.total_estimated_time && time ? (Number(time[1] ?? 0) * 86400 + Number(time[2] ?? 0) * 3600 + Number(time[3] ?? 0) * 60 + Number(time[4] ?? 0)) : undefined;
         const details = {
+            objectObservations: Object.fromEntries([...objectObservations].map(([id, o]) => { const { starts, stops, heightMarkersComplete, ...observed } = o; return [id, { ...observed, layer_heights_complete: complete && badWords === 0 && objectLabelsValid && starts === stops && heightMarkersComplete && observed.min_layer_height_mm !== undefined, complete: complete && badWords === 0 && objectLabelsValid && currentObject === undefined && starts === stops && observed.extrusion_segments > 0 }]; })),
+            layerHeights: { all: { min_mm: Number.isFinite(minLayerHeight) ? minLayerHeight : null, max_mm: Number.isFinite(maxLayerHeight) ? maxLayerHeight : null, complete: complete && badWords === 0 && unknownFeatures.length === 0 && modelHeightMarkersValid && layerHeightLayers > 0, layers_observed: layerHeightLayers, excludes_first_layer: true } },
             header: { studioVersion: header.studio_version, estimatedTimeS, weightG: num("total filament weight [g]"), layers: num("total layer number"), maxZ: num("max_z_height") },
             layers, tools,
             features: Object.fromEntries(feats.filter(ft => ft.segs > 0).map(ft => [ft.name, { segments: ft.segs, weight_g: r3(ft.grams) }])),

@@ -1,3 +1,4 @@
+import { type ScopedSettings, type UniformLayers } from '../workflows/scoped-settings.js';
 import type { SettingsReport } from "../slicer/project-settings.js";
 import { type ObjectEdit } from "./project-text.js";
 import type { Elements, SettingValue } from "./types.js";
@@ -24,7 +25,10 @@ export interface RetargetOutcome {
     /** Real CLI slices the retarget needed (an STL, or a project whose export had no nozzle stats); the export alone is not a slice. */
     slices?: number;
 }
-export type Retargeter = (source: string) => Promise<RetargetOutcome>;
+export type Retargeter = (source: string, context?: {
+    beforeSlice?: () => void;
+    signal?: AbortSignal;
+}) => Promise<RetargetOutcome>;
 export interface WriteOptions {
     source: string;
     /** Wanted path; a numeric suffix is added when it exists (the source always exists, so it is never chosen). */
@@ -34,6 +38,8 @@ export interface WriteOptions {
     };
     changes?: SettingChange[];
     objectOverrides?: ObjectOverrides;
+    objectSettings?: ScopedSettings[];
+    uniformLayerHeight?: UniformLayers;
     /** Required for an STL, a 3MF without project settings, or a project made for another printer. See studioRetargeter. */
     retarget?: Retargeter;
     /**

@@ -3,6 +3,7 @@
 // (same name, same order, same compression); project_settings.config and model_settings.config are spliced as text (see project-text.ts).
 // The written file is re-opened and checked before it is handed back: a difference nobody asked for is an error, not a warning.
 // Design and measurements: docs/TUNING-WRITER.md.
+import { applyScopedSettings } from '../workflows/scoped-settings.js';
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -226,6 +227,15 @@ export async function writeTunedProject(o) {
         const result = setObjectSettings(modelNext, targets, o.objectOverrides.settings);
         modelNext = result.xml;
         objectEdits.push(...result.edits);
+    }
+    if ((o.objectSettings?.length || o.uniformLayerHeight)) {
+        if (modelNext === undefined)
+            throw Error('Project has no per-object settings metadata');
+        const scoped = await applyScopedSettings(baseZip, modelNext, o.objectSettings ?? [], o.uniformLayerHeight);
+        modelNext = scoped.modelText;
+        objectEdits.push(...scoped.edits);
+        for (const [name, data] of scoped.rewritten)
+            rewritten.set(name, data);
     }
     if (modelNext !== modelSettings)
         rewritten.set(MODEL_SETTINGS, modelNext);

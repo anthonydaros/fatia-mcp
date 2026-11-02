@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {parseProcessSettings,PROCESS_SETTING_PROPERTIES} from '../dist/workflows/settings-registry.js';
+test('safe registry accepts speed support infill families preserving process scope',()=>{const rows=parseProcessSettings({outer_wall_speed:150,outer_wall_acceleration:3000,support_object_xy_distance:.5,support_style:'tree_slim',wall_sequence:'inner-outer-inner wall',skeleton_infill_density:'8%'});assert.equal(rows.length,6);assert.ok(rows.every(r=>r.scope==='process'));assert.equal(rows.at(-1).value,'8%');assert.ok(PROCESS_SETTING_PROPERTIES.inner_wall_speed);});
+test('registry rejects execution keys and malformed numeric or enum values',()=>{for(const value of [{post_process:'a'},{machine_start_gcode:'a'},{outer_wall_speed:NaN},{outer_wall_speed:-1},{wall_sequence:'oops'},{support_interface_top_layers:1.5}])assert.throws(()=>parseProcessSettings(value));});

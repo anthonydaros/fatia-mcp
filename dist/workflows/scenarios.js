@@ -2,42 +2,83 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { readBoundedPrintFile } from '../safety/archive.js';
+import { buildItems } from './scoped-settings.js';
+import { asArray, meta, plateInstances } from '../knowledge/facts/settings.js';
 import { openProject } from '../knowledge/facts/settings.js';
 import { writeTunedProject } from '../tuning/project-writer.js';
 import { checkBlockValue } from '../tuning/config-block.js';
 import { sliceFacts } from '../tuning/slice-facts.js';
-const numeric = { layer_height: [.05, .6], wall_loops: [1, 100, true], top_shell_layers: [0, 100, true], bottom_shell_layers: [0, 100, true], sparse_infill_density: [0, 100], brim_width: [0, 50], support_threshold_angle: [0, 90] };
-const choices = { sparse_infill_pattern: ['grid', 'gyroid', 'rectilinear', 'honeycomb', 'line', 'cubic', 'adaptivecubic', 'supportcubic', 'lightning', '3dhoneycomb', 'triangles', 'tri-hexagon', 'concentric', 'crosshatch'], support_type: ['normal(auto)', 'tree(auto)', 'normal(manual)', 'tree(manual)'], brim_type: ['auto_brim', 'outer_only', 'inner_only', 'outer_and_inner', 'no_brim'], seam_position: ['nearest', 'aligned', 'back', 'random'], ironing_type: ['no ironing', 'top', 'topmost', 'all solid layer'] };
-const settingProperties = Object.fromEntries([...Object.keys(numeric).map(k => [k, { type: ['number', 'string'] }]), ...Object.entries(choices).map(([k, values]) => [k, { type: 'string', enum: values }]), ['enable_support', { type: ['boolean', 'string', 'number'] }]]);
+import { PROCESS_SETTING_PROPERTIES, parseProcessSettings } from './settings-registry.js';
+export const OBJECT_SETTINGS_PROPERTY = { type: 'array', maxItems: 500, description: 'Per-object process settings selected by global build-item indices. Shared objects require all their instances.', items: { type: 'object', additionalProperties: false, required: ['item_indices', 'settings'], properties: { item_indices: { type: 'array', minItems: 1, maxItems: 500, uniqueItems: true, items: { type: 'integer', minimum: 0 } }, settings: { type: 'object', additionalProperties: false, properties: PROCESS_SETTING_PROPERTIES } } } };
+export function parseObjectSettings(raw) {
+    if (raw === undefined)
+        return [];
+    if (!Array.isArray(raw) || raw.length > 500)
+        throw Error('object_settings must contain at most500 groups');
+    const used = new Set();
+    return raw.map(group => { if (!group || typeof group !== 'object' || !Array.isArray(group.item_indices) || !group.item_indices.length || group.item_indices.length > 500 || new Set(group.item_indices).size !== group.item_indices.length || group.item_indices.some((i) => !Number.isInteger(i) || i < 0 || used.has(i)))
+        throw Error('Invalid or overlapping item_indices'); for (const i of group.item_indices)
+        used.add(i); return { itemIndices: group.item_indices, settings: Object.fromEntries(parseProcessSettings(group.settings).map(c => [c.key, String(c.value)])) }; });
+}
 export const SCENARIO_TOOLS = [{ name: 'compare_slice_scenarios', description: 'Compare up to six process-setting variants of an existing 3MF project for the selected printer. Preserves the original, counts all slice attempts, saves unsliced candidates for GUI review. Time/material are estimates; no quality or strength guarantee. Use prepare_print_project first for STL or another printer.', inputSchema: { type: 'object', additionalProperties: false, required: ['path', 'scenarios'], properties: {
                 path: { description: 'Existing printer-compatible 3MF project; STL must be prepared first.', type: 'string', minLength: 1 }, bambu_model: { description: 'Printer model such as p1s or x2d; falls back to BAMBU_MODEL or asks.', type: 'string' }, plate_index: { description: 'Zero-based plate to slice in each scenario.', type: 'integer', minimum: 0, maximum: 999 }, max_slices: { description: 'Maximum CLI attempts in total, including failed attempts.', type: 'integer', minimum: 1, maximum: 6, default: 6 }, max_minutes: { description: 'Total wall-clock budget in minutes, including writing and slicing.', type: 'number', minimum: .1, maximum: 60, default: 10 },
-                scenarios: { description: 'One to six named process variants; use empty settings for the baseline.', type: 'array', minItems: 1, maxItems: 6, items: { type: 'object', additionalProperties: false, required: ['name', 'settings'], properties: { name: { type: 'string', minLength: 1, maxLength: 80 }, settings: { type: 'object', additionalProperties: false, properties: settingProperties } } } },
+                scenarios: { description: 'One to six named process variants; use empty settings for the baseline.', type: 'array', minItems: 1, maxItems: 6, items: { type: 'object', additionalProperties: false, required: ['name', 'settings'], properties: { object_settings: OBJECT_SETTINGS_PROPERTY, layer_height_policy: { type: 'string', enum: ['preserve', 'uniform'], description: 'Preserve authored per-object/height profiles by default. Uniform removes only selected conflicts and requires G-code verification.' }, name: { type: 'string', minLength: 1, maxLength: 80 }, settings: { type: 'object', additionalProperties: false, properties: PROCESS_SETTING_PROPERTIES } } } },
             } } }];
-function settings(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value))
-        throw Error('settings must be an object');
-    return Object.entries(value).map(([key, raw]) => {
-        let value;
-        if (key in numeric) {
-            const [min, max, int] = numeric[key];
-            if (!['string', 'number'].includes(typeof raw) || String(raw).trim() === '')
-                throw Error(`${key} setting must be finite`);
-            const n = Number(String(raw).replace(/%$/, ''));
-            if (!Number.isFinite(n) || n < min || n > max || (int && !Number.isInteger(n)))
-                throw Error(`Invalid ${key} setting: expected ${min}..${max}`);
-            value = String(n) + (key === 'sparse_infill_density' ? '%' : '');
-        }
-        else if (key === 'enable_support') {
-            if (![true, false, 0, 1, '0', '1'].includes(raw))
-                throw Error('enable_support setting must be boolean or 0/1');
-            value = raw === true || raw === 1 || raw === '1' ? '1' : '0';
-        }
-        else if (key in choices && typeof raw === 'string' && choices[key].includes(raw))
-            value = raw;
-        else
-            throw Error(`Unsupported setting ${key}`);
-        return { key, value, scope: 'process' };
+function verifyObjectSettings(groups, project, items, plate, outcome, uniform) {
+    const counts = new Map();
+    const instances = items.map(item => { const instance = counts.get(item.objectId) ?? 0; counts.set(item.objectId, instance + 1); return { ...item, instance }; });
+    const node = asArray(project.modelSettings?.plate).find(p => Number(meta(p, 'plater_id')) === plate + 1), members = asArray(node?.model_instance);
+    const targetIndices = instances.flatMap((item, index) => members.some(m => String(meta(m, 'object_id')) === item.objectId && Number(meta(m, 'instance_id') ?? 0) === item.instance) ? [index] : []);
+    const requestedIndices = new Set(groups.flatMap(g => g.itemIndices));
+    const coversPlate = targetIndices.length > 0 && targetIndices.every(i => requestedIndices.has(i));
+    const labelCounts = new Map();
+    for (const member of members) {
+        const label = String(meta(member, 'identify_id') ?? '');
+        labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+    }
+    return groups.map(group => {
+        const observations = group.itemIndices.map(index => { const target = instances[index]; const member = members.find(m => String(meta(m, 'object_id')) === target?.objectId && Number(meta(m, 'instance_id') ?? 0) === target?.instance); const label = String(meta(member, 'identify_id') ?? ''); return labelCounts.get(label) === 1 ? outcome.gcode.details?.objectObservations?.[label] : undefined; });
+        const verified = outcome.gcode.complete && group.itemIndices.length > 0 && Object.entries(group.settings).every(([key, value]) => {
+            const number = Number(value), global = outcome.gcode.details?.layerHeights?.all;
+            if (key === 'layer_height') {
+                const proves = (o) => o?.complete && o.layer_heights_complete && Math.abs((o.min_layer_height_mm ?? NaN) - number) < 1e-5 && Math.abs((o.max_layer_height_mm ?? NaN) - number) < 1e-5;
+                if (observations.some(o => o !== undefined && !proves(o)))
+                    return false;
+                if (observations.every(proves))
+                    return true;
+                return uniform && coversPlate && global?.complete === true && Math.abs((global.min_mm ?? NaN) - number) < 1e-5 && Math.abs((global.max_mm ?? NaN) - number) < 1e-5;
+            }
+            const names = { outer_wall_speed: 'outer_wall_speed_max_mm_s', inner_wall_speed: 'inner_wall_speed_max_mm_s', outer_wall_acceleration: 'outer_wall_acceleration_max_mm_s2', inner_wall_acceleration: 'inner_wall_acceleration_max_mm_s2' };
+            const field = names[key];
+            return !!field && number > 0 && observations.every(o => o?.complete && typeof o[field] === 'number' && o[field] <= number + 1e-3);
+        });
+        return { item_indices: group.itemIndices, requested: group.settings, verified_in_project: true, verified_in_gcode: verified, verification_method: 'Observed object-labelled extrusion speed/acceleration caps and layer heights; unsupported setting families remain unverified.', observations };
     });
+}
+function uniformRequest(scenario) {
+    const own = scenario.objects.filter(g => g.settings.layer_height !== undefined);
+    const global = scenario.changes.find(c => c.key === 'layer_height');
+    if (own.length) {
+        const heights = new Set(own.map(g => g.settings.layer_height));
+        if (heights.size !== 1 || global)
+            throw Error('Uniform scope requires one layer height, either global or per-object');
+        return { height: own[0].settings.layer_height, itemIndices: own.flatMap(g => g.itemIndices) };
+    }
+    if (!global)
+        throw Error('Uniform layer policy requires an explicit layer_height');
+    return { height: String(global.value) };
+}
+function uniformVerified(outcome, request, objectChecks) {
+    if (request.itemIndices?.length)
+        return objectChecks.length > 0 && objectChecks.every(c => c.verified_in_gcode);
+    const evidence = outcome.gcode.details?.layerHeights;
+    if (!evidence || !outcome.gcode.complete)
+        return false;
+    const global = evidence.all;
+    if (global?.complete === true && Math.abs(global.min_mm - Number(request.height)) < 1e-5 && Math.abs(global.max_mm - Number(request.height)) < 1e-5)
+        return true;
+    const rows = request.itemIndices?.map(i => evidence.objects?.[i]) ?? [global];
+    return rows.length > 0 && rows.every(row => row && row.complete === true && Math.abs(row.min_mm - Number(request.height)) < 1e-5 && Math.abs(row.max_mm - Number(request.height)) < 1e-5);
 }
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 export async function compareSliceScenarios(args, deps) {
@@ -48,7 +89,9 @@ export async function compareSliceScenarios(args, deps) {
     const scenarios = args.scenarios.map((s) => {
         if (!s || typeof s.name !== 'string' || !s.name.trim() || s.name.length > 80)
             throw Error('scenario name must contain 1..80 characters');
-        return { name: s.name, changes: settings(s.settings) };
+        if (s.layer_height_policy !== undefined && !['preserve', 'uniform'].includes(s.layer_height_policy))
+            throw Error('Invalid layer_height_policy');
+        return { name: s.name, changes: parseProcessSettings(s.settings), objects: parseObjectSettings(s.object_settings), policy: s.layer_height_policy ?? 'preserve' };
     });
     if (new Set(scenarios.map(s => s.name)).size !== scenarios.length)
         throw Error('scenario names must be unique');
@@ -63,6 +106,23 @@ export async function compareSliceScenarios(args, deps) {
     let slices = 0, stop = 'done';
     const before = sha(await readBoundedPrintFile(args.path));
     const source = await openProject(args.path);
+    let selectedBuildItems = [];
+    for (const scenario of scenarios) {
+        if (scenario.policy === 'uniform')
+            uniformRequest(scenario);
+        if (scenario.objects.length) {
+            const { loadSafe3mfArchive } = await import('../safety/archive.js');
+            const items = selectedBuildItems.length ? selectedBuildItems : await buildItems(await loadSafe3mfArchive(await readBoundedPrintFile(args.path)));
+            selectedBuildItems = items;
+            const members = plateInstances(source.modelSettings, plate), counts = new Map();
+            for (const [index, item] of items.entries()) {
+                const instance = counts.get(item.objectId) ?? 0;
+                counts.set(item.objectId, instance + 1);
+                if (scenario.objects.some(g => g.itemIndices.includes(index)) && !members?.includes(`${item.objectId}:${instance}`))
+                    throw Error('Per-object scenario targets must belong to the selected plate');
+            }
+        }
+    }
     if (source.config?.printer_settings_id !== deps.printerPreset)
         throw Error('Project must already match the selected printer; run prepare_print_project first');
     await fs.mkdir(deps.tempDir, { recursive: true });
@@ -88,7 +148,7 @@ export async function compareSliceScenarios(args, deps) {
                 continue;
             }
             try {
-                const written = await writeTunedProject({ source: args.path, output: path.join(work, `candidate-${i}.3mf`), target: { printerPreset: deps.printerPreset }, changes: scenario.changes });
+                const written = await writeTunedProject({ source: args.path, output: path.join(work, `candidate-${i}.3mf`), target: { printerPreset: deps.printerPreset }, changes: scenario.changes, objectSettings: scenario.objects, ...(scenario.policy === 'uniform' ? { uniformLayerHeight: uniformRequest(scenario) } : {}) });
                 const beforeSlice = stopped();
                 if (beforeSlice) {
                     stop = beforeSlice;
@@ -110,9 +170,18 @@ export async function compareSliceScenarios(args, deps) {
                 record.evidence = facts.evidence;
                 record.blind = facts.blind;
                 record.setting_checks = reach;
+                record.layer_height_policy = scenario.policy;
+                record.object_settings = scenario.objects;
+                record.layer_profiles_present = !!(await candidate.read?.('Metadata/layer_heights_profile.txt'))?.toString().trim();
+                const objectChecks = verifyObjectSettings(scenario.objects, candidate, selectedBuildItems, plate, outcome, scenario.policy === 'uniform');
+                record.object_setting_checks = objectChecks;
+                const uniformProof = scenario.policy !== 'uniform' || uniformVerified(outcome, uniformRequest(scenario), objectChecks);
+                record.uniform_height_verified = scenario.policy === 'uniform' ? uniformProof : null;
                 record.gcode_complete = outcome.gcode.complete;
                 record.metrics = outcome.gcode.facts;
-                record.comparable = outcome.gcode.complete && reach.every(r => r.ok === true);
+                record.comparable = outcome.gcode.complete && reach.every(r => r.ok === true) && uniformProof && objectChecks.every(c => c.verified_in_gcode);
+                if (objectChecks.some(c => !c.verified_in_gcode))
+                    record.blind.push('Per-object effective settings are not exposed by this G-code scan; comparison is excluded from ranking');
                 record.warnings = [...written.warnings, ...(record.comparable ? [] : ['Settings or G-code analysis are unverified; excluded from ranking.'])];
                 const target = path.join(delivered, `scenario-${i}.3mf`);
                 await fs.copyFile(written.path, target, fs.constants.COPYFILE_EXCL);
