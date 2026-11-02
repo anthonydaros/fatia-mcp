@@ -622,8 +622,10 @@ class BambuPrinterMCPServer {
   }
 
   private preflightDeps(signal?: AbortSignal): Parameters<typeof preflightCheck>[1] {
+    let profilesRoot: string | undefined;
+    try { profilesRoot = detectProfilesRoot(resolveSlicerConfig({ slicer_type: "bambustudio" }).slicerPath); } catch { /* Read-only checks remain available without Studio. */ }
     return {
-      signal, defaultModel: DEFAULT_BAMBU_MODEL, validModels: VALID_BAMBU_MODELS, studioVersion, studioInfo,
+      profilesRoot, signal, defaultModel: DEFAULT_BAMBU_MODEL, validModels: VALID_BAMBU_MODELS, studioVersion, studioInfo,
       meshInfo: filePath => this.stlManipulator.getSTLInfo(filePath),
       askModel: () => this.resolveBambuModel(undefined),
     };
@@ -1423,9 +1425,12 @@ class BambuPrinterMCPServer {
             result = await listSlicerProfiles(args ?? {}, { slicerPath });
             break;
           }
-          case "compare_projects":
-            result = await compareProjects(args ?? {});
+          case "compare_projects": {
+            let profilesRoot: string | undefined;
+            try { profilesRoot = detectProfilesRoot(resolveSlicerConfig({ slicer_type: "bambustudio" }).slicerPath); } catch { /* Inspection works without an installed slicer. */ }
+            result = await compareProjects(args ?? {}, { profilesRoot, targetModel: DEFAULT_BAMBU_MODEL || undefined, signal: extra.signal });
             break;
+          }
           case "extract_3mf_objects":
             result = await extractObjects(args ?? {}, OUTPUT_DIR, extra.signal);
             break;
@@ -1851,7 +1856,15 @@ class BambuPrinterMCPServer {
   }
 }
 
-const server = new BambuPrinterMCPServer();
-process.once("SIGINT", () => { void server.shutdown(130); });
-process.once("SIGTERM", () => { void server.shutdown(143); });
-server.run().catch(console.error);
+if (process.argv.includes("--check")) {
+  import("./diagnostic.js").then(async ({ checkInstallation }) => {
+    try { console.log(JSON.stringify(await checkInstallation(process.argv[1]), null, 2)); }
+    catch { console.log(JSON.stringify({ ok: false, error: "Falha no diagnóstico. Confira Node.js24, instalação e SLICER_PATH." })); process.exitCode = 1; }
+    finally { if (AUTOMATIC_TEMP_DIR) fs.rmSync(AUTOMATIC_TEMP_DIR, { recursive: true, force: true }); }
+  }).catch(() => { console.error("Não foi possível iniciar o diagnóstico."); process.exitCode = 1; });
+} else {
+  const server = new BambuPrinterMCPServer();
+  process.once("SIGINT", () => { void server.shutdown(130); });
+  process.once("SIGTERM", () => { void server.shutdown(143); });
+  server.run().catch(console.error);
+}

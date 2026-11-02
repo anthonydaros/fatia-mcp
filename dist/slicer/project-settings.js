@@ -79,13 +79,29 @@ export async function buildProjectSettingsPlan(t) {
     // Made for this very printer: the project's process values are trusted whole, not only the keys it lists
     // as changed (Bambu Studio rewrites that list on save, and hand edits never update it).
     const samePrinter = config.printer_settings_id === printerPreset;
+    let defaultProcess = process === defaults.process ? flat : undefined;
+    let defaultFilament;
+    if (!defaultProcess) {
+        try {
+            defaultProcess = await t.flatProcess(defaults.process);
+        }
+        catch { /* Unavailable default values stay unknown in the report. */ }
+    }
+    if (!t.skipFilaments) {
+        try {
+            defaultFilament = await t.flatProcess(defaults.filament);
+        }
+        catch { /* Keep does not require an unused default profile. */ }
+    }
+    const details = [];
+    const preserve = (key, scope, value, base, original = value) => { details.push({ key, scope, project_value: original ?? null, printer_default_value: (scope === "process" ? defaultProcess?.[key] : scope === "printer" ? t.machine[key] : defaultFilament?.[key]) ?? null, selected_value: value ?? null, action: "kept" }); return `${scope === "process" ? "" : scope + " "}${key}: projeto=${show(value)} (padrão da impressora=${show(scope === "process" ? defaultProcess?.[key] : scope === "printer" ? t.machine[key] : defaultFilament?.[key])}) — mantido`; };
     const kept = [];
     const notKept = [];
     if (projectProcess && !mappedProcess && !samePrinter) {
         notKept.push(`process preset ${projectProcess}: no ${modelCode} equivalent; using ${process}`);
     }
     else if (process !== defaults.process) {
-        kept.push(`process preset: ${process} -> ${defaults.process}`);
+        kept.push(`process preset: selecionado=${process} (padrão da impressora=${defaults.process})`);
     }
     // [process, filament 1..N, printer]; a project saved without the list cannot say what changed.
     const changed = strings(config.different_settings_to_system);
@@ -121,7 +137,7 @@ export async function buildProjectSettingsPlan(t) {
         if (same(next, base))
             continue;
         overlay[key] = next;
-        kept.push(`${key}: ${show(next)} -> ${show(base)}`);
+        kept.push(preserve(key, "process", next, base, value));
     }
     // [process, filament 1..N, printer]. For the project's own printer, what it lists as edited for a filament or for the
     // printer is carried too (G-code and hardware keys excepted): Studio's own "modified preset" semantics, and the way
@@ -144,7 +160,7 @@ export async function buildProjectSettingsPlan(t) {
             if (same(value, base))
                 continue;
             machineOverlay[key] = value;
-            kept.push(`printer ${key}: ${show(value)} -> ${show(base)}`);
+            kept.push(preserve(key, "printer", value, base));
         }
     }
     const filaments = [];
@@ -193,7 +209,7 @@ export async function buildProjectSettingsPlan(t) {
                 if (same(piece, base))
                     continue;
                 edits[key] = piece;
-                kept.push(`filament ${i + 1} ${key}: ${show(piece)} -> ${show(base)}`);
+                kept.push(preserve(key, `filament ${i + 1}`, piece, base));
             }
             if (Object.keys(edits).length > 0)
                 entry.overlay = edits;
@@ -204,7 +220,7 @@ export async function buildProjectSettingsPlan(t) {
     }
     return {
         from: { printer: String(config.printer_settings_id ?? config.printer_model ?? 'unknown printer'), process: projectProcess },
-        process, overlay, machineOverlay, filaments, defaults, kept, notKept,
+        process, overlay, machineOverlay, filaments, defaults, kept, notKept, details,
     };
 }
 /** What a slice in the chosen mode kept and dropped, for the tool result. */
@@ -212,9 +228,10 @@ export function settingsReport(plan, mode) {
     const keep = mode === 'keep';
     return {
         mode,
+        details: (plan.details ?? []).map(d => ({ ...d, selected_value: keep ? d.selected_value : d.printer_default_value, action: keep ? "kept" : "printer_default" })),
         kept: keep ? plan.kept : [],
         // Under printer defaults, everything the project would have kept is what was dropped.
-        not_kept: keep ? plan.notKept : [...plan.kept, ...plan.notKept],
+        not_kept: keep ? plan.notKept : [...plan.kept.map(message => message.replace(/ — mantido$/, " — substituído pelo padrão da impressora")), ...plan.notKept],
         filament_map: plan.filaments.map(({ slot, from, to }) => ({ slot, from, to: keep ? to : plan.defaults.filament })),
     };
 }

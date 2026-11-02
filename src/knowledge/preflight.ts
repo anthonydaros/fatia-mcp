@@ -2,6 +2,7 @@
 // Tiers 1 and 2: the settings and structure of a 3MF, the box and triangle count of its objects (or of an STL/OBJ) against the
 // printer, and a sliced file's time and weight. Opt-in bounded G-code and mesh analysis add measured facts; Blender checks remain unchecked.
 import fs from "node:fs/promises";
+import { loadPrinterIdentities, printerEvidence, resolvePrinterIdentity, type PrinterIdentity } from "../slicer/printer-identity.js";
 import { GCODE_SCAN_FACTS, scanGcodeFile, scanPlateGcode, type ScanEvidence } from "../tuning/gcode-scan.js";
 import { MESH_FACTS, REPO_MESH_FACTS, meshFactsFromProject, meshFactsFromStl } from "../tuning/mesh-facts.js";
 import { scanHints } from "../tuning/slice-facts.js";
@@ -19,6 +20,7 @@ import type { Condition, Confidence, FactContext, FactProvider, FactValue, Facts
 import { appliesTo, matchVersion, parseVersionPredicate, type VersionStatus } from "./version.js";
 
 export interface PreflightDeps {
+  profilesRoot?: string;
   signal?: AbortSignal;
   /** BAMBU_MODEL, used when the call names no model. */
   defaultModel?: string;
@@ -64,6 +66,7 @@ const VERSION_REVIEW_STEPS = [
 ];
 
 interface Options {
+  detail: "brief" | "full";
   filePath: string;
   model?: string;
   plateIndex: number;
@@ -106,7 +109,9 @@ function parseArgs(args: Record<string, unknown>): Options {
   if (mesh !== "off" && mesh !== "fast") throw new Error('checks.mesh must be "off" or "fast".');
   for (const key of ["gcode", "blender"]) if (checks[key] !== undefined && typeof checks[key] !== "boolean") throw new Error(`checks.${key} must be true or false.`);
 
+  if (args.detail !== undefined && args.detail !== "brief" && args.detail !== "full") throw new Error("detail must be brief or full");
   return {
+    detail: args.detail === "brief" ? "brief" : "full",
     filePath,
     model: typeof args.bambu_model === "string" ? args.bambu_model.trim().toLowerCase() : undefined,
     plateIndex: integer("plate_index", args.plate_index, 0, 9999, 0),
@@ -178,7 +183,7 @@ function whyUnknown(name: string, c: Why): string {
   if (tier === 4 && c.checks.mesh === "fast") return "a análise rápida de malha não conseguiu medir este fato";
   if (tier === 3) return c.kind === "gcode" || c.sliced || c.checks.gcode ? GCODE_PENDING : "precisa de G-code: fatie e rode de novo";
   if (tier === 4) return c.checks.mesh === "fast" ? "checks.mesh=fast pedido, mas a analise de malha ainda nao esta implementada" : "ative checks.mesh=fast para analisar a malha";
-  if (tier === 5) return c.checks.blender ? "checks.blender pedido, mas a sonda do Blender ainda nao esta implementada" : "precisa do Blender MCP (checks.blender)";
+  if (tier === 5) return "sonda do Blender não implementada no preflight; instalar a ponte não habilita estes checks";
   if (UNCONFIRMED_FACTS.has(name)) return `chave do 3MF ainda nao confirmada numa X2D real: ${name}`;
   if (!supplied(name)) return `fato ainda nao implementado: ${name}`;
   if (name.startsWith("plate.")) return "precisa de 3MF fatiado (plate.*): fatie e rode de novo";
@@ -225,8 +230,11 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
   const kb = getKb();
   const { full, kind } = await inspectFile(options.filePath);
   const project = kind === "3mf" ? await openProject(full) : undefined;
+  let identities: PrinterIdentity[]=[];
+  if(deps.profilesRoot) {try{identities=await loadPrinterIdentities(deps.profilesRoot);}catch{ /* unavailable identity evidence remains unknown */ }}
   const savedFor = typeof project?.config?.printer_model === "string" ? project.config.printer_model : undefined;
-  const model = await resolveModel(options.model, normalizeModel(savedFor), deps);
+  const canonicalSaved = resolvePrinterIdentity(savedFor ?? project?.config?.printer_settings_id, identities).canonical_model;
+  const model = await resolveModel(options.model, normalizeModel(canonicalSaved ?? savedFor), deps);
   const scope = printerId(model) as string;
   const installed = await deps.studioVersion();
   const sliced = project?.sliceInfo?.plate !== undefined;
@@ -367,13 +375,20 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
   else next.push("open_in_slicer para o usuario conferir o Preview; a impressao e feita pelo Bambu Studio.");
   if (hidden.below_min_severity) next.push(`${hidden.below_min_severity} item(ns) abaixo de min_severity ocultos: so mostre com min_severity "tip" se o usuario pedir.`);
 
+  const byAction: Record<string,number> = {user_information:0,needs_slice:0,available_analysis:0,inconclusive:0,not_implemented:0};
+  for(const [reason,count] of sortedReasons) {
+    const category=/Blender|implementad/.test(reason)?'not_implemented':/pergunte ao usuario/.test(reason)?'user_information':/fatie|precisa de G-code|precisa de 3MF fatiado/.test(reason)?'needs_slice':/ative checks/.test(reason)?'available_analysis':'inconclusive';
+    byAction[category]+=count;
+  }
   return {
+    summary:{findings:findings.length,blockers:findings.filter(f=>f.severity==='blocker').length,unchecked:uncheckedTotal,limitations:['A análise rápida de malha não verifica saúde topológica completa nem auto-interseções.','A sonda de Blender não está implementada no preflight.'],message:analysisErrors.length?'Há análises inconclusivas; confira os erros.':'Confira achados e verificações pendentes antes de imprimir.'},
+    detail:options.detail,
     kb: { version: kb.version, integrity: kb.integrity },
     untrusted_reference: true,
     file: {
       name: path.basename(full),
       kind: kind === "3mf" ? (sliced ? "gcode.3mf" : "3mf") : kind,
-      printer: { target: model, saved_for: savedFor === undefined ? null : clip(savedFor) },
+      printer: { identity:printerEvidence(project?.config??{},project?.sliceInfo,identities,model), target: model, saved_for: savedFor === undefined ? null : clip(savedFor) },
       studio: { saved_with: (project && savedVersion(project)) ?? null, installed },
       sliced,
       plate: options.plateIndex,
@@ -381,8 +396,9 @@ export async function preflightCheck(args: Record<string, unknown>, deps: Prefli
     stage_reached: [...(project?.config ? ["pre-slice", "project-settings"] : kind === "gcode" ? [] : ["pre-slice"]), ...(gcodeComplete ? ["post-slice-gcode"] : [])],
     analysis: { ...analysis, errors: analysisErrors },
     findings,
-    checklist,
-    unchecked: { total: uncheckedTotal, by_reason: Object.fromEntries(sortedReasons) },
+    checklist:options.detail === "brief" ? checklist.slice(0,5) : checklist,
+    checklist_omitted:options.detail === "brief" ? Math.max(0,checklist.length-5) : 0,
+    unchecked: { total: uncheckedTotal, by_action:byAction, by_reason: Object.fromEntries(sortedReasons) },
     hidden,
     // candidates = findings + checklist + not_fired + unchecked + hidden: no rule of the base is left out.
     accounting: {

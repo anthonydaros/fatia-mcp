@@ -1,5 +1,14 @@
 type Config = Record<string, unknown>;
+export interface SettingSelection {
+    key: string;
+    scope: string;
+    project_value: unknown;
+    printer_default_value: unknown;
+    selected_value: unknown;
+    action: string;
+}
 export interface ProjectSettingsPlan {
+    details?: SettingSelection[];
     from: {
         printer: string;
         process: string;
@@ -27,6 +36,7 @@ export interface ProjectSettingsPlan {
 }
 export type ProjectSettingsMode = 'keep' | 'printer_default';
 export interface SettingsReport {
+    details?: SettingSelection[];
     mode: ProjectSettingsMode;
     kept: string[];
     not_kept: string[];

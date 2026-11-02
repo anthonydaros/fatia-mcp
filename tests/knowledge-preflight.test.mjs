@@ -467,12 +467,12 @@ test("requested heavier checks report unavailable geometry and retain Blender as
   const file = await project(t, { config: {} });
   const plain = await run(file);
   assert.ok(plain.unchecked.by_reason["ative checks.mesh=fast para analisar a malha"] >= 1);
-  assert.ok(plain.unchecked.by_reason["precisa do Blender MCP (checks.blender)"] > 20);
+  assert.ok(plain.unchecked.by_reason["sonda do Blender não implementada no preflight; instalar a ponte não habilita estes checks"] > 20);
   const asked = await run(file, { checks: { mesh: "fast", gcode: true, blender: true } });
   assert.ok(asked.analysis.mesh.blind.length > 0);
-  assert.match(JSON.stringify(asked.unchecked.by_reason), /checks\.blender pedido/);
+  assert.match(JSON.stringify(asked.unchecked.by_reason), /sonda do Blender não implementada/);
   assert.ok(asked.unchecked.by_reason["o G-code não forneceu uma medição completa deste fato"] >= 1);
-  assert.equal(asked.unchecked.by_reason["precisa do Blender MCP (checks.blender)"], undefined);
+  assert.ok(asked.unchecked.by_reason["sonda do Blender não implementada no preflight; instalar a ponte não habilita estes checks"] > 20);
   await assert.rejects(run(file, { checks: { mesh: "slow" } }), /checks\.mesh/);
   await assert.rejects(run(file, { checks: { gcode: "yes" } }), /checks\.gcode/);
   await assert.rejects(run(file, { context: { mold_kind: "wood" } }), /mold_kind/);

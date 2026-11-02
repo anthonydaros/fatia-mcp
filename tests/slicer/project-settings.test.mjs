@@ -100,9 +100,9 @@ test('a project from another printer is mapped onto the X2D presets, and what do
     { slot: 2, from: 'Mystery PETG @BBL H2D', to: 'Bambu PLA Basic @BBL X2D 0.4 nozzle' },
   ]);
   assert.deepEqual(p.kept, [
-    'process preset: 0.12mm Fine @BBL X2D -> 0.20mm Standard @BBL X2D',
-    'outer_wall_speed: ["100","300","50"] -> ["200","500","50"]',
-    'sparse_infill_pattern: gyroid -> grid',
+    'process preset: selecionado=0.12mm Fine @BBL X2D (padrão da impressora=0.20mm Standard @BBL X2D)',
+    'outer_wall_speed: projeto=["100","300","50"] (padrão da impressora=["200","500","50"]) — mantido',
+    'sparse_infill_pattern: projeto=gyroid (padrão da impressora=grid) — mantido',
     'filament 1: Generic PLA @BBL H2D -> Generic PLA @BBL X2D 0.4 nozzle (printer default: Bambu PLA Basic @BBL X2D 0.4 nozzle)',
   ]);
   assert.deepEqual(p.notKept, [
@@ -118,7 +118,7 @@ test('a project from the same printer keeps its changes; one that matches the de
   withProfilesRoot(t, f);
   const same = x2dDefaults;
   const changed = await plan(f, await f.project({ ...same, different_settings_to_system: ['sparse_infill_pattern', '', ''] }));
-  assert.deepEqual([changed.kept, changed.notKept], [['sparse_infill_pattern: gyroid -> grid'], []]);
+  assert.deepEqual([changed.kept, changed.notKept], [['sparse_infill_pattern: projeto=gyroid (padrão da impressora=grid) — mantido'], []]);
   // Changed in the project but already the printer default: keeping and defaults slice the same.
   const moot = await plan(f, await f.project({ ...same, sparse_infill_pattern: 'grid', different_settings_to_system: ['sparse_infill_pattern;outer_wall_speed', '', ''] }));
   assert.deepEqual([moot.kept, moot.notKept, moot.overlay], [[], [], {}]);
@@ -140,7 +140,7 @@ test('a project for the target printer keeps every changed process value, whatev
   const p = await plan(f, await f.project(sameX2D));
   // layer_height "0.20" is the default "0.2" rewritten; the preset-identity keys are never edits.
   assert.deepEqual(p.overlay, { outer_wall_speed: ['100', '500', '50'], sparse_infill_pattern: 'gyroid' });
-  assert.deepEqual(p.kept, ['sparse_infill_pattern: gyroid -> grid', 'outer_wall_speed: ["100","500","50"] -> ["200","500","50"]']);
+  assert.deepEqual(p.kept, ['sparse_infill_pattern: projeto=gyroid (padrão da impressora=grid) — mantido', 'outer_wall_speed: projeto=["100","500","50"] (padrão da impressora=["200","500","50"]) — mantido']);
   assert.deepEqual(p.notKept, [], 'a process name the tree does not know is not a loss when the values are kept');
 });
 
@@ -162,7 +162,7 @@ test('a project for the target printer also keeps a changed key its process pres
   const config = { ...x2dDefaults, sparse_infill_pattern: 'grid', wall_sequence: 'inner-outer-inner wall', brim_type: 'outer_only', post_process: ['calc.exe'], different_settings_to_system: ['wall_sequence;post_process', '', ''] };
   const p = await plan(f, await f.project(config));
   assert.deepEqual(p.overlay, { wall_sequence: 'inner-outer-inner wall' }, 'brim_type is not listed and not in the preset: nothing says it was edited');
-  assert.deepEqual([p.kept, p.notKept], [['wall_sequence: inner-outer-inner wall -> unset'], []]);
+  assert.deepEqual([p.kept, p.notKept], [['wall_sequence: projeto=inner-outer-inner wall (padrão da impressora=unset) — mantido'], []]);
   // A project from another printer carries it the same way.
   const other = await plan(f, await f.project({ ...config, printer_settings_id: 'Bambu Lab H2D 0.4 nozzle', print_settings_id: '0.12mm Fine @BBL H2D' }));
   assert.deepEqual(other.overlay, { wall_sequence: 'inner-outer-inner wall' });
@@ -190,7 +190,7 @@ test('a project for the target printer carries its edited retraction and filamen
   const p = await plan(f, await f.project(tuned));
   assert.deepEqual(p.machineOverlay, { z_hop: ['0.8', '0.8', '0.8'] });
   assert.deepEqual(p.filaments, [{ slot: 1, from: 'Bambu PLA Basic @BBL X2D 0.4 nozzle', to: 'Bambu PLA Basic @BBL X2D 0.4 nozzle', overlay: { nozzle_temperature: ['215'] } }]);
-  assert.deepEqual(p.kept.slice(1), ['printer z_hop: ["0.8","0.8","0.8"] -> ["0.4","0.4","0.4"]', 'filament 1 nozzle_temperature: ["215"] -> ["220"]']);
+  assert.deepEqual(p.kept.slice(1), ['printer z_hop: projeto=["0.8","0.8","0.8"] (padrão da impressora=["0.4","0.4","0.4"]) — mantido', 'filament 1 nozzle_temperature: projeto=["215"] (padrão da impressora=["220"]) — mantido']);
   assert.deepEqual(p.notKept, [
     `printer machine_start_gcode: machine settings outside the retraction family come from ${X2D}`,
     'filament 1 filament_start_gcode: G-code and preset identity come from Bambu PLA Basic @BBL X2D 0.4 nozzle',
@@ -264,7 +264,7 @@ test('a process preset that only other model codes carry is kept for the printer
   const p = await new STLManipulator(path.join(f.dir, 'plan')).planProjectSettings(input, f.executable, P1S, 'P1S');
   assert.equal(p.process, '0.12mm Fine @BBL X1C');
   assert.deepEqual(p.filaments, [{ slot: 1, from: 'Generic PLA @BBL X1C', to: 'Generic PLA @BBL X1C' }]);
-  assert.deepEqual(p.kept, ['process preset: 0.12mm Fine @BBL X1C -> 0.20mm Standard @BBL X1C', 'sparse_infill_pattern: gyroid -> grid']);
+  assert.deepEqual(p.kept, ['process preset: selecionado=0.12mm Fine @BBL X1C (padrão da impressora=0.20mm Standard @BBL X1C)', 'sparse_infill_pattern: projeto=gyroid (padrão da impressora=grid) — mantido']);
   assert.deepEqual(p.notKept, []);
 });
 
@@ -342,7 +342,7 @@ test('without elicitation the call fails before slicing and tells the agent to a
   const s = await server(t, f);
   const { error } = await s.slice(await f.project());
   assert.match(error, /Ask the user.*project_settings "keep" or "printer_default"/s);
-  assert.match(error, /sparse_infill_pattern: gyroid -> grid/);
+  assert.match(error, /sparse_infill_pattern: projeto=gyroid \(padrão da impressora=grid\) — mantido/);
   assert.equal(await s.cliLaunched(), false);
 });
 
@@ -360,7 +360,7 @@ test('project_settings answers without a prompt and the result carries a setting
   const defaults = await s.slice(input, { project_settings: 'printer_default' });
   assert.equal(await s.pattern(), 'grid');
   assert.deepEqual([defaults.result.settings_report.mode, defaults.result.settings_report.kept], ['printer_default', []]);
-  assert.ok(defaults.result.settings_report.not_kept.includes('sparse_infill_pattern: gyroid -> grid'));
+  assert.ok(defaults.result.settings_report.not_kept.includes('sparse_infill_pattern: projeto=gyroid (padrão da impressora=grid) — substituído pelo padrão da impressora'));
   assert.deepEqual(defaults.result.settings_report.filament_map.map(x => x.to), Array(2).fill('Bambu PLA Basic @BBL X2D 0.4 nozzle'));
 
   assert.match((await s.slice(input, { project_settings: 'maybe' })).error, /project_settings must be/);
@@ -374,7 +374,7 @@ test('the user is asked per file, with the differences, and the answer decides t
   const { result } = await asked.slice(input);
   assert.equal(asked.prompts.length, 1);
   assert.match(asked.prompts[0], /project\.3mf was made for Bambu Lab H2D 0\.4 nozzle \(0\.12mm Fine @BBL H2D\).*sliced for Bambu Lab X2D 0\.4 nozzle/s);
-  assert.match(asked.prompts[0], /- sparse_infill_pattern: gyroid -> grid/);
+  assert.match(asked.prompts[0], /- sparse_infill_pattern: projeto=gyroid \(padrão da impressora=grid\) — mantido/);
   assert.match(asked.prompts[0], /- filament 1: Generic PLA @BBL H2D -> Generic PLA @BBL X2D 0\.4 nozzle/);
   assert.match(asked.prompts[0], /Cannot be kept:\n- outer_wall_speed: no X2D equivalent/);
   assert.equal(result.settings_report.mode, 'keep');

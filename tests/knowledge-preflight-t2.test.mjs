@@ -268,7 +268,7 @@ test("blocker bambu.x2d.aux-volume-exceeded stays unknown: the 3MF key for the a
 test("blocker blender.cut.part-exceeds-bed is a Blender rule: it stays unchecked, whatever the part measures", async (t) => {
   const result = await run(await geometry(t, { items: [{ size: [600, 600, 600] }], plates: [[0]] }));
   assert.ok(!ids(result).includes("blender.cut.part-exceeds-bed"));
-  assert.ok(result.unchecked.by_reason["precisa do Blender MCP (checks.blender)"] >= 107);
+  assert.ok(result.unchecked.by_reason["sonda do Blender não implementada no preflight; instalar a ponte não habilita estes checks"] >= 107);
   assert.ok(factTier("mesh.bbox_max_dim_mm") === 2 && factTier("printer.bed_size_mm") === 2, "its facts are cheap: only the domain keeps it back");
 });
 
@@ -427,7 +427,7 @@ test("accounting on the sample project (an H2D MakerWorld file) for the X2D, pla
     assert.ok(!seen.has("fato ainda nao implementado: mesh.size_x_mm"));
   }
   // The three tier phrases the plan asks for are all there, plus the user-declared and unconfirmed-key reasons.
-  for (const phrase of ["precisa de G-code", "precisa do Blender MCP", "ative checks.mesh=fast", "pergunte ao usuario: context.object_kind", "chave do 3MF ainda nao confirmada numa X2D real"]) {
+  for (const phrase of ["precisa de G-code", "sonda do Blender não implementada", "ative checks.mesh=fast", "pergunte ao usuario: context.object_kind", "chave do 3MF ainda nao confirmada numa X2D real"]) {
     assert.ok([...seen].some((r) => r.includes(phrase)), phrase);
   }
   const one = await facts(SAMPLE, ["mesh.size_x_mm", "mesh.size_y_mm", "mesh.height_mm", "mesh.triangle_count"], { plateIndex: 0 });

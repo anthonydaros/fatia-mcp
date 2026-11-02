@@ -30,6 +30,7 @@ export const KNOWLEDGE_TOOLS = [
             type: "object",
             additionalProperties: false,
             properties: {
+                detail: { type: "string", enum: ["brief", "full"], description: "brief summarizes actionable findings and counts; full preserves complete lists. Default full." },
                 file_path: { type: "string", description: "Local .3mf (also .gcode.3mf), .stl, .obj, .step, .stp or .gcode file." },
                 bambu_model: { type: "string", description: "Printer the user will slice for (x2d, a1, a1mini, h2d, ...). Default BAMBU_MODEL, then the 3MF's printer_model, else the user is asked. Rules for other printers are hidden." },
                 plate_index: { type: "integer", minimum: 0, description: "0-based plate of a multi-plate 3MF that the object, box, filament and plate facts describe. Default 0." },
